@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Wiyule Motors offers premium automotive parts and services in Blantyre, Malawi. Shop high-quality parts and book expert vehicle maintenance today.">
+    <meta name="keywords" content="automotive parts, vehicle maintenance, auto detailing, car repair, Wiyule Motors, Blantyre, Malawi, brake services, engine repair, oil change">
+    <meta property="og:title" content="Wiyule Motors - Premium Automotive Parts & Services">
+    <meta property="og:description" content="Your one-stop shop for automotive parts and services in Blantyre, Malawi.">
+    <meta property="og:image" content="https://wiyulemotors.com/images/og-image.jpg">
+    <meta property="og:url" content="https://wiyulemotors.com">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Wiyule Motors - Premium Automotive Parts & Services">
+    <meta name="twitter:description" content="Your one-stop shop for automotive parts and services in Blantyre, Malawi.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <meta name="msapplication-TileColor" content="#dc2626">
+    <title>Wiyule Motors - Premium Automotive Parts & Services | Blantyre, Malawi</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="canonical" href="https://wiyulemotors.com">
+    
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-HMM03HL39K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-HMM03HL39K');
+</script>
+    
+    <!-- Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "AutoRepair",
+        "name": "Wiyule Motors",
+        "image": "https://wiyulemotors.com/images/logo.jpg",
+        "description": "Premium automotive parts and services in Blantyre, Malawi since 2016.",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Nyambadwe",
+            "addressLocality": "Blantyre",
+            "addressRegion": "Southern Region",
+            "addressCountry": "MW"
+        },
+        "telephone": "+265993575111",
+        "priceRange": "$$",
+        "openingHoursSpecification": [
+            {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+                "opens": "08:00",
+                "closes": "17:00"
+            },
+            {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": "Saturday",
+                "opens": "08:00",
+                "closes": "14:00"
+            }
+        ],
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "5",
+            "reviewCount": "120"
+        }
+    }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    
+    <style>
+        .hero-bg { background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 100%); }
+        .hero-bg-image {
+            background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 100%),
+                        url('https://i.pinimg.com/1200x/7b/04/79/7b047946a1670be5b3b5488402c87378.jpg') center/cover no-repeat fixed;
+            background-size: cover;
+        }
+
+        .hero-overlay-pattern {
+            background-image: radial-gradient(circle at 25% 25%, rgba(220,38,38,0.3) 0%, transparent 50%),
+                              radial-gradient(circle at 75% 75%, rgba(220,38,38,0.2) 0%, transparent 50%);
+            opacity: 1;
+        }
+
+        .anim-delay-0 { animation-delay: 0s; }
+        .anim-delay-1 { animation-delay: 1s; }
+        .anim-delay-2s { animation-delay: 2s; }
+
+        .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+
+        .service-card { transition: all 0.3s ease; }
+        .service-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .part-card:hover img { transform: scale(1.05); }
+        .part-card img { transition: transform 0.3s ease; }
+        .testimonial-card { transition: all 0.3s ease; }
+        .testimonial-card:hover { background-color: #f8fafc; }
+        button, a { transition: all 0.25s ease-in-out; }
+        input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3); border-color: #dc2626; }
+        input, textarea, select { border: 2px solid #d1d5db; }
+        
+        #mobile-menu { 
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        #mobile-menu.active { 
+            max-height: 500px;
+        }
+
+        .btn-book-service {
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 3s infinite;
+        }
+
+        .service-option {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .service-option:hover {
+            transform: scale(1.02);
+        }
+        
+        .service-option.selected {
+            border-color: #dc2626;
+            background-color: #fef2f2;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 0;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="font-[Inter] antialiased text-gray-800">
+    <!-- WhatsApp Button -->
+    <a href="https://wa.me/265993575111" class="fixed bottom-6 right-6 bg-green-500 text-white p-4 rounded-full shadow-lg hover:scale-110 transition z-50" target="_blank" rel="noopener noreferrer" title="Chat on WhatsApp">
+        <i data-feather="message-circle"></i>
+    </a>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <img class="h-16 w-auto" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiVbOHrYXKB55eoDs80oh_qeIFhGlcupYTQg&s" alt="Wiyule Motors Logo">
+                        <span class="ml-2 text-xl font-bold text-gray-900">Wiyule Motors</span>
+                    </div>
+                    <!-- Desktop Nav -->
+                    <div class="hidden sm:flex items-center space-x-8 ml-10">
+                        <a href="#hero" class="text-red-600 font-semibold border-b-2 border-red-600 pb-1">Home</a>
+                        <a href="#services" class="text-gray-600 hover:text-red-600 font-medium transition">Services</a>
+                        <a href="#booking" class="text-gray-600 hover:text-red-600 font-medium transition">Book Now</a>
+                        <a href="#about" class="text-gray-600 hover:text-red-600 font-medium transition">About</a>
+                        <a href="#contact" class="text-gray-600 hover:text-red-600 font-medium transition">Contact</a>
+                        <a href="#booking" class="inline-flex items-center px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+                            <i data-feather="calendar" class="w-5 h-5 mr-2"></i>
+                            Book Service
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Mobile menu button -->
+                <div class="flex items-center sm:hidden">
+                    <button id="mobileMenuBtn" type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-500">
+                        <span class="sr-only">Open main menu</span>
+                        <i data-feather="menu"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile menu -->
+        <div class="sm:hidden" id="mobile-menu">
+            <div class="pt-2 pb-3 space-y-1 bg-white border-t border-gray-200">
+                <a href="#hero" class="bg-red-50 border-red-500 text-red-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Home</a>
+                <a href="#services" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Services</a>
+                <a href="#booking" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Book Now</a>
+                <a href="#about" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">About</a>
+                <a href="#contact" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Contact</a>
+                <div class="mt-4 pl-3 pr-4">
+                    <a href="#booking" class="w-full block text-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out">
+                        Book Service
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div id="hero" class="hero-bg hero-bg-image relative overflow-hidden min-h-screen flex items-center">
+        <!-- Animated Overlay Pattern -->
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute inset-0 hero-overlay-pattern"></div>
+        </div>
+
+        <div class="max-w-7xl mx-auto relative z-10 px-4 sm:px-6 lg:px-8 w-full">
+            <!-- Floating Elements -->
+            <div class="absolute top-20 left-10 w-24 h-24 bg-red-500/20 rounded-full blur-xl animate-pulse anim-delay-0"></div>
+            <div class="absolute top-1/2 right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl animate-bounce-slow anim-delay-2s"></div>
+            <div class="absolute bottom-20 left-1/4 w-20 h-20 bg-red-400/30 rounded-full blur-xl animate-ping anim-delay-1"></div>
+
+            <div class="text-center" data-aos="fade-up">
+                <h1 class="text-5xl md:text-7xl font-extrabold text-white mb-6 text-shadow">
+                    Premium Automotive Solutions
+                </h1>
+                <p class="text-xl md:text-2xl text-gray-100 mb-10 max-w-3xl mx-auto leading-relaxed text-shadow">
+                    Your trusted partner for quality auto parts and professional vehicle services in Blantyre, Malawi
+                </p>
+                <div class="flex flex-col sm:flex-row gap-6 justify-center items-center">
+                    <a href="#booking" class="inline-flex items-center px-8 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white text-lg font-bold rounded-2xl shadow-2xl hover:shadow-3xl hover:-translate-y-2 transform transition-all duration-300">
+                        <i data-feather="calendar" class="w-6 h-6 mr-3"></i>
+                        Book a Service
+                    </a>
+                    <a href="#services" class="inline-flex items-center px-8 py-4 bg-white/10 backdrop-blur-md text-white text-lg font-bold rounded-2xl border-2 border-white/30 hover:bg-white/20 hover:-translate-y-2 transform transition-all duration-300">
+                        <i data-feather="tool" class="w-6 h-6 mr-3"></i>
+                        Our Services
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Services Section -->
+    <section id="services" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Our Services</h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">Professional automotive services tailored to your needs</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Service Card 1 -->
+                <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="100">
+                    <div class="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mb-6">
+                        <i data-feather="tool" class="w-8 h-8 text-red-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">General Maintenance</h3>
+                    <p class="text-gray-600 mb-6">Regular maintenance services including oil changes, filter replacements, and comprehensive vehicle inspections.</p>
+                    <a href="#booking" class="text-red-600 font-semibold hover:text-red-700 inline-flex items-center">
+                        Book Now <i data-feather="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </a>
+                </div>
+
+                <!-- Service Card 2 -->
+                <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="200">
+                    <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6">
+                        <i data-feather="settings" class="w-8 h-8 text-blue-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Engine Repair</h3>
+                    <p class="text-gray-600 mb-6">Expert engine diagnostics, repair, and performance optimization by certified technicians.</p>
+                    <a href="#booking" class="text-red-600 font-semibold hover:text-red-700 inline-flex items-center">
+                        Book Now <i data-feather="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </a>
+                </div>
+
+                <!-- Service Card 3 -->
+                <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="300">
+                    <div class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-6">
+                        <i data-feather="droplet" class="w-8 h-8 text-green-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Auto Detailing</h3>
+                    <p class="text-gray-600 mb-6">Professional interior and exterior detailing to keep your vehicle looking brand new.</p>
+                    <a href="#booking" class="text-red-600 font-semibold hover:text-red-700 inline-flex items-center">
+                        Book Now <i data-feather="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </a>
+                </div>
+
+                <!-- Service Card 4 -->
+                <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="400">
+                    <div class="w-16 h-16 bg-yellow-100 rounded-2xl flex items-center justify-center mb-6">
+                        <i data-feather="disc" class="w-8 h-8 text-yellow-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Brake Services</h3>
+                    <p class="text-gray-600 mb-6">Complete brake inspection, pad replacement, and system maintenance for optimal safety.</p>
+                    <a href="#booking" class="text-red-600 font-semibold hover:text-red-700 inline-flex items-center">
+                        Book Now <i data-feather="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </a>
+                </div>
+
+                <!-- Service Card 5 -->
+                <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="500">
+                    <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+                        <i data-feather="wind" class="w-8 h-8 text-purple-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">AC Repair</h3>
+                    <p class="text-gray-600 mb-6">Air conditioning system diagnostics, repair, and recharging services.</p>
+                    <a href="#booking" class="text-red-600 font-semibold hover:text-red-700 inline-flex items-center">
+                        Book Now <i data-feather="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </a>
+                </div>
+
+                <!-- Service Card 6 -->
+                <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="600">
+                    <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mb-6">
+                        <i data-feather="package" class="w-8 h-8 text-indigo-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Parts Supply</h3>
+                    <p class="text-gray-600 mb-6">Wide selection of genuine and aftermarket auto parts with expert guidance.</p>
+                    <a href="#booking" class="text-red-600 font-semibold hover:text-red-700 inline-flex items-center">
+                        Order Now <i data-feather="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Booking Section -->
+    <section id="booking" class="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Book Your Service</h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">Select your service and schedule an appointment with our expert team</p>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-2xl p-8 md:p-12" data-aos="fade-up" data-aos-delay="200">
+                <form id="bookingForm" class="space-y-6">
+                    <!-- Personal Information -->
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-4">Personal Information</h3>
+                        
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="bookingName" class="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
+                                <input type="text" id="bookingName" name="name" placeholder="John Doe" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
+                            </div>
+                            <div>
+                                <label for="bookingPhone" class="block text-sm font-semibold text-gray-700 mb-2">Phone Number *</label>
+                                <input type="tel" id="bookingPhone" name="phone" placeholder="+265 993 575 111" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="bookingEmail" class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                            <input type="email" id="bookingEmail" name="email" placeholder="john@example.com" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300">
+                        </div>
+                    </div>
+
+                    <!-- Vehicle Information -->
+                    <div class="space-y-4 pt-6 border-t border-gray-200">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-4">Vehicle Information</h3>
+                        
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="vehicleMake" class="block text-sm font-semibold text-gray-700 mb-2">Make *</label>
+                                <input type="text" id="vehicleMake" name="make" placeholder="Toyota" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
+                            </div>
+                            <div>
+                                <label for="vehicleModel" class="block text-sm font-semibold text-gray-700 mb-2">Model *</label>
+                                <input type="text" id="vehicleModel" name="model" placeholder="Corolla" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
+                            </div>
+                            <div>
+                                <label for="vehicleYear" class="block text-sm font-semibold text-gray-700 mb-2">Year *</label>
+                                <input type="number" id="vehicleYear" name="year" placeholder="2020" min="1980" max="2026" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="vehicleRegistration" class="block text-sm font-semibold text-gray-700 mb-2">Registration Number</label>
+                            <input type="text" id="vehicleRegistration" name="registration" placeholder="BT 1234" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300">
+                        </div>
+                    </div>
+
+                    <!-- Service Selection -->
+                    <div class="space-y-4 pt-6 border-t border-gray-200">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-4">Select Service(s) *</h3>
+                        
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this, 'General Maintenance')">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="services" value="General Maintenance" aria-label="General Maintenance" class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                                    <div class="ml-3">
+                                        <p class="font-semibold text-gray-900">General Maintenance</p>
+                                        <p class="text-sm text-gray-600">Oil change, filters, inspection</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this, 'Engine Repair')">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="services" value="Engine Repair" aria-label="Engine Repair" class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                                    <div class="ml-3">
+                                        <p class="font-semibold text-gray-900">Engine Repair</p>
+                                        <p class="text-sm text-gray-600">Diagnostics & repair</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this, 'Auto Detailing')">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="services" value="Auto Detailing" aria-label="Auto Detailing" class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                                    <div class="ml-3">
+                                        <p class="font-semibold text-gray-900">Auto Detailing</p>
+                                        <p class="text-sm text-gray-600">Interior & exterior cleaning</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this, 'Brake Services')">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="services" value="Brake Services" aria-label="Brake Services" class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                                    <div class="ml-3">
+                                        <p class="font-semibold text-gray-900">Brake Services</p>
+                                        <p class="text-sm text-gray-600">Pads, rotors, inspection</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this, 'AC Repair')">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="services" value="AC Repair" aria-label="AC Repair" class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                                    <div class="ml-3">
+                                        <p class="font-semibold text-gray-900">AC Repair</p>
+                                        <p class="text-sm text-gray-600">Cooling system service</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this, 'Parts Supply')">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="services" value="Parts Supply" aria-label="Parts Supply" class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                                    <div class="ml-3">
+                                        <p class="font-semibold text-gray-900">Parts Supply</p>
+                                        <p class="text-sm text-gray-600">Genuine & aftermarket parts</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this, 'Tire Services')">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="services" value="Tire Services" aria-label="Tire Services" class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                                    <div class="ml-3">
+                                        <p class="font-semibold text-gray-900">Tire Services</p>
+                                        <p class="text-sm text-gray-600">Rotation, balancing, replacement</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this, 'Battery Services')">
+                                <div class="flex items-center">
+                                    <input type="checkbox" name="services" value="Battery Services" aria-label="Battery Services" class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                                    <div class="ml-3">
+                                        <p class="font-semibold text-gray-900">Battery Services</p>
+                                        <p class="text-sm text-gray-600">Testing & replacement</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="serviceError" class="hidden text-red-600 text-sm mt-2 font-semibold">Please select at least one service</div>
+                    </div>
+
+                    <!-- Date and Time -->
+                    <div class="space-y-4 pt-6 border-t border-gray-200">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-4">Preferred Date & Time</h3>
+                        
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="bookingDate" class="block text-sm font-semibold text-gray-700 mb-2">Preferred Date *</label>
+                                <input type="date" id="bookingDate" name="date" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
+                            </div>
+                            <div>
+                                <label for="bookingTime" class="block text-sm font-semibold text-gray-700 mb-2">Preferred Time *</label>
+                                <select id="bookingTime" name="time" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
+                                    <option value="">Select time</option>
+                                    <option value="08:00">08:00 AM</option>
+                                    <option value="09:00">09:00 AM</option>
+                                    <option value="10:00">10:00 AM</option>
+                                    <option value="11:00">11:00 AM</option>
+                                    <option value="12:00">12:00 PM</option>
+                                    <option value="13:00">01:00 PM</option>
+                                    <option value="14:00">02:00 PM</option>
+                                    <option value="15:00">03:00 PM</option>
+                                    <option value="16:00">04:00 PM</option>
+                                    <option value="17:00">05:00 PM</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Notes -->
+                    <div class="pt-6 border-t border-gray-200">
+                        <label for="bookingNotes" class="block text-sm font-semibold text-gray-700 mb-2">Additional Notes</label>
+                        <textarea id="bookingNotes" name="notes" rows="4" placeholder="Tell us about any specific issues or concerns with your vehicle..." class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300 resize-vertical"></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="pt-6">
+                        <button type="submit" class="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-5 px-8 rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transform transition-all duration-300">
+                            <i data-feather="check-circle" class="w-6 h-6 inline-block mr-2"></i>
+                            Confirm Booking
+                        </button>
+                    </div>
+                </form>
+
+                <div id="bookingMessage" class="mt-6 text-center hidden"></div>
+            </div>
+
+            <!-- Quick Contact Options -->
+            <div class="mt-8 text-center" data-aos="fade-up" data-aos-delay="400">
+                <p class="text-gray-600 mb-4">Prefer to book by phone?</p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="https://wa.me/265993575111" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center bg-green-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-700 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
+                        <i data-feather="message-circle" class="w-5 h-5 mr-2"></i>
+                        WhatsApp Us
+                    </a>
+                    <a href="tel:+265993575111" class="inline-flex items-center justify-center bg-red-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-red-700 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
+                        <i data-feather="phone" class="w-5 h-5 mr-2"></i>
+                        Call +265 993 575 111
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Choose Us Section -->
+    <section class="py-20 bg-gradient-to-br from-red-600 to-red-700 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">Why Choose Wiyule Motors?</h2>
+                <p class="text-xl text-red-100 max-w-2xl mx-auto">We're committed to excellence in every aspect of our service</p>
+            </div>
+
+            <div class="grid md:grid-cols-4 gap-8">
+                <div class="text-center" data-aos="fade-up" data-aos-delay="100">
+                    <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i data-feather="award" class="w-10 h-10"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Certified Experts</h3>
+                    <p class="text-red-100">Professionally trained and certified technicians</p>
+                </div>
+
+                <div class="text-center" data-aos="fade-up" data-aos-delay="200">
+                    <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i data-feather="shield" class="w-10 h-10"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Quality Guarantee</h3>
+                    <p class="text-red-100">All work backed by our satisfaction guarantee</p>
+                </div>
+
+                <div class="text-center" data-aos="fade-up" data-aos-delay="300">
+                    <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i data-feather="dollar-sign" class="w-10 h-10"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Fair Pricing</h3>
+                    <p class="text-red-100">Transparent pricing with no hidden fees</p>
+                </div>
+
+                <div class="text-center" data-aos="fade-up" data-aos-delay="400">
+                    <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i data-feather="clock" class="w-10 h-10"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Fast Service</h3>
+                    <p class="text-red-100">Quick turnaround without compromising quality</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div data-aos="fade-right">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-6">About Wiyule Motors</h2>
+                    <p class="text-lg text-gray-600 mb-6 leading-relaxed">
+                        Since 2016, Wiyule Motors has been Blantyre's trusted destination for premium automotive parts and professional vehicle services. We combine expertise, quality, and customer care to keep your vehicle running smoothly.
+                    </p>
+                    <p class="text-lg text-gray-600 mb-6 leading-relaxed">
+                        Our team of certified technicians uses state-of-the-art equipment and genuine parts to deliver exceptional service for all makes and models.
+                    </p>
+                    <div class="grid grid-cols-3 gap-6 mt-8">
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-red-600 mb-2">8+</div>
+                            <div class="text-sm text-gray-600">Years Experience</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-red-600 mb-2">500+</div>
+                            <div class="text-sm text-gray-600">Happy Clients</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-red-600 mb-2">100%</div>
+                            <div class="text-sm text-gray-600">Satisfaction</div>
+                        </div>
+                    </div>
+                </div>
+                <div data-aos="fade-left">
+                    <img src="https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800" alt="Auto Service" class="rounded-3xl shadow-2xl">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">What Our Clients Say</h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">Don't just take our word for it - hear from our satisfied customers</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Testimonial 1 -->
+                <div class="testimonial-card bg-white rounded-3xl p-8 shadow-xl" data-aos="fade-up" data-aos-delay="100">
+                    <div class="flex items-center mb-4">
+                        <div class="flex text-yellow-400">
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 mb-6 italic">"Excellent service! The team at Wiyule Motors fixed my engine issue quickly and professionally. Their prices are fair and they explained everything clearly. Highly recommended!"</p>
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                            JM
+                        </div>
+                        <div class="ml-4">
+                            <p class="font-bold text-gray-900">James Mwale</p>
+                            <p class="text-sm text-gray-600">Business Owner</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testimonial 2 -->
+                <div class="testimonial-card bg-white rounded-3xl p-8 shadow-xl" data-aos="fade-up" data-aos-delay="200">
+                    <div class="flex items-center mb-4">
+                        <div class="flex text-yellow-400">
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 mb-6 italic">"Best auto service in Blantyre! I've been bringing my Toyota here for 3 years now. Always reliable, honest, and great customer service. My go-to place for all car needs."</p>
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                            TK
+                        </div>
+                        <div class="ml-4">
+                            <p class="font-bold text-gray-900">Thandie Kumwenda</p>
+                            <p class="text-sm text-gray-600">Teacher</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testimonial 3 -->
+                <div class="testimonial-card bg-white rounded-3xl p-8 shadow-xl" data-aos="fade-up" data-aos-delay="300">
+                    <div class="flex items-center mb-4">
+                        <div class="flex text-yellow-400">
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                            <i data-feather="star" class="w-5 h-5 fill-current"></i>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 mb-6 italic">"Professional and trustworthy. They have genuine parts and their mechanics really know what they're doing. Fair prices and excellent work. I wouldn't go anywhere else!"</p>
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                            PC
+                        </div>
+                        <div class="ml-4">
+                            <p class="font-bold text-gray-900">Peter Chirwa</p>
+                            <p class="text-sm text-gray-600">Accountant</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery Section -->
+    <section class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Our Facility</h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">State-of-the-art equipment and a professional workspace</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="100">
+                    <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=600" alt="Workshop" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
+                </div>
+                <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="200">
+                    <img src="https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=600" alt="Car Lift" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
+                </div>
+                <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="300">
+                    <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=600" alt="Parts Inventory" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
+                <p class="text-xl text-gray-600">Everything you need to know about our services</p>
+            </div>
+
+            <div class="space-y-4" data-aos="fade-up" data-aos-delay="200">
+                <!-- FAQ 1 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <button class="faq-question w-full text-left p-6 focus:outline-none hover:bg-gray-50 transition-colors" onclick="toggleFAQ(this)">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-900">What are your operating hours?</h3>
+                            <i data-feather="chevron-down" class="w-6 h-6 text-gray-600 transition-transform"></i>
+                        </div>
+                    </button>
+                    <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300">
+                        <div class="p-6 pt-0 text-gray-600">
+                            We're open Monday to Friday from 8:00 AM to 5:00 PM, and Saturdays from 8:00 AM to 2:00 PM. We're closed on Sundays and public holidays.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 2 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <button class="faq-question w-full text-left p-6 focus:outline-none hover:bg-gray-50 transition-colors" onclick="toggleFAQ(this)">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-900">Do I need to book an appointment?</h3>
+                            <i data-feather="chevron-down" class="w-6 h-6 text-gray-600 transition-transform"></i>
+                        </div>
+                    </button>
+                    <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300">
+                        <div class="p-6 pt-0 text-gray-600">
+                            While walk-ins are welcome, we recommend booking an appointment to ensure minimal wait times and that we can give your vehicle the attention it deserves. You can book online or call us at +265 993 575 111.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 3 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <button class="faq-question w-full text-left p-6 focus:outline-none hover:bg-gray-50 transition-colors" onclick="toggleFAQ(this)">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-900">Do you use genuine parts?</h3>
+                            <i data-feather="chevron-down" class="w-6 h-6 text-gray-600 transition-transform"></i>
+                        </div>
+                    </button>
+                    <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300">
+                        <div class="p-6 pt-0 text-gray-600">
+                            Yes! We stock both genuine OEM parts and high-quality aftermarket alternatives. We'll always discuss your options and help you choose the best solution for your vehicle and budget.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 4 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <button class="faq-question w-full text-left p-6 focus:outline-none hover:bg-gray-50 transition-colors" onclick="toggleFAQ(this)">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-900">What payment methods do you accept?</h3>
+                            <i data-feather="chevron-down" class="w-6 h-6 text-gray-600 transition-transform"></i>
+                        </div>
+                    </button>
+                    <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300">
+                        <div class="p-6 pt-0 text-gray-600">
+                            We accept cash and mobile money payments (Airtel Money, TNM Mpamba). We also accept bank transfers for larger transactions.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 5 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <button class="faq-question w-full text-left p-6 focus:outline-none hover:bg-gray-50 transition-colors" onclick="toggleFAQ(this)">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-900">Do you offer warranties on your work?</h3>
+                            <i data-feather="chevron-down" class="w-6 h-6 text-gray-600 transition-transform"></i>
+                        </div>
+                    </button>
+                    <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300">
+                        <div class="p-6 pt-0 text-gray-600">
+                            Absolutely! All our services come with a warranty. The duration varies depending on the type of service or part, but we stand behind our work 100%. Ask us about specific warranty details for your service.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 6 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <button class="faq-question w-full text-left p-6 focus:outline-none hover:bg-gray-50 transition-colors" onclick="toggleFAQ(this)">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-900">How long does a typical service take?</h3>
+                            <i data-feather="chevron-down" class="w-6 h-6 text-gray-600 transition-transform"></i>
+                        </div>
+                    </button>
+                    <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300">
+                        <div class="p-6 pt-0 text-gray-600">
+                            Service times vary depending on the type of work needed. A basic oil change typically takes 30-45 minutes, while more extensive repairs may take several hours or days. We'll always give you an estimated timeframe when you book.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Get in Touch</h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">Have questions? We're here to help</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-12">
+                <!-- Contact Info -->
+                <div data-aos="fade-right" data-aos-delay="200">
+                    <div class="space-y-6">
+                        <div class="flex items-start space-x-4 p-6 bg-gray-50 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300">
+                            <div class="w-14 h-14 bg-red-600 text-white rounded-2xl flex items-center justify-center flex-shrink-0 mt-1">
+                                <i data-feather="phone" class="w-7 h-7"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg text-gray-900 mb-1">Phone</h4>
+                                <p class="text-lg font-semibold text-gray-900">+265 993 575 111</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start space-x-4 p-6 bg-gray-50 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300">
+                            <div class="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center flex-shrink-0 mt-1">
+                                <i data-feather="map-pin" class="w-7 h-7"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg text-gray-900 mb-1">Location</h4>
+                                <p class="text-lg font-semibold text-gray-900">Nyambadwe, Blantyre<br>Southern Region, Malawi</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-4 p-6 bg-gray-50 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300">
+                            <div class="w-14 h-14 bg-green-600 text-white rounded-2xl flex items-center justify-center flex-shrink-0 mt-1">
+                                <i data-feather="clock" class="w-7 h-7"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg text-gray-900 mb-1">Business Hours</h4>
+                                <p class="text-gray-700">Mon - Fri: 8:00 AM - 5:00 PM</p>
+                                <p class="text-gray-700">Sat: 8:00 AM - 2:00 PM</p>
+                                <p class="text-gray-700">Sun: Closed</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-4 mt-6">
+                        <a href="https://wa.me/265993575111" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center bg-green-600 text-white py-4 px-6 rounded-2xl font-bold hover:bg-green-700 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300">
+                            <i data-feather="message-circle" class="w-5 h-5 mr-2"></i>
+                            WhatsApp Now
+                        </a>
+                        <a href="tel:+265993575111" class="flex items-center justify-center bg-red-600 text-white py-4 px-6 rounded-2xl font-bold hover:bg-red-700 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300">
+                            <i data-feather="phone" class="w-5 h-5 mr-2"></i>
+                            Call Now
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Contact Form -->
+                <div data-aos="fade-left" data-aos-delay="400">
+                    <div class="bg-gray-50 rounded-3xl p-8 md:p-12 shadow-2xl">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-8 text-center">Send us a Message</h3>
+                        <form id="contactForm" class="space-y-6">
+                            <div>
+                                <input type="text" id="name" name="name" placeholder="Your Name" class="w-full p-5 border-2 border-gray-200 rounded-2xl focus:border-red-500 transition-all duration-300 text-lg" required>
+                            </div>
+                            <div>
+                                <input type="email" id="email" name="email" placeholder="Your Email" class="w-full p-5 border-2 border-gray-200 rounded-2xl focus:border-red-500 transition-all duration-300 text-lg" required>
+                            </div>
+                            <div>
+                                <input type="tel" id="phone" name="phone" placeholder="Phone Number" class="w-full p-5 border-2 border-gray-200 rounded-2xl focus:border-red-500 transition-all duration-300 text-lg">
+                            </div>
+                            <div>
+                                <textarea id="message" name="message" rows="5" placeholder="Tell us about your vehicle or service needed..." class="w-full p-5 border-2 border-gray-200 rounded-2xl focus:border-red-500 transition-all duration-300 text-lg resize-vertical" required></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-5 px-8 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-3xl hover:-translate-y-1 transform transition-all duration-300">
+                                Send Message
+                            </button>
+                        </form>
+                        <div id="formMessage" class="mt-4 text-center hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Booking Confirmation Modal -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-br from-red-600 to-red-700 p-8 rounded-t-2xl text-white text-center">
+                <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-feather="check-circle" class="w-12 h-12 text-green-600"></i>
+                </div>
+                <h3 class="text-3xl font-bold mb-2">Booking Confirmed!</h3>
+                <p class="text-red-100">Your appointment has been successfully scheduled</p>
+            </div>
+            <div class="p-8" id="modalContent">
+                <!-- Content will be dynamically inserted -->
+            </div>
+            <div class="p-6 bg-gray-50 rounded-b-2xl">
+                <button onclick="closeModal()" class="w-full bg-red-600 text-white py-4 px-6 rounded-xl font-bold text-lg hover:bg-red-700 transition-all duration-300">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-3 gap-8 mb-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Wiyule Motors</h3>
+                    <p class="text-gray-400">Premium automotive parts and services in Blantyre, Malawi since 2016.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Quick Links</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#hero" class="text-gray-400 hover:text-white transition">Home</a></li>
+                        <li><a href="#services" class="text-gray-400 hover:text-white transition">Services</a></li>
+                        <li><a href="#booking" class="text-gray-400 hover:text-white transition">Book Now</a></li>
+                        <li><a href="#about" class="text-gray-400 hover:text-white transition">About</a></li>
+                        <li><a href="#contact" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Contact</h3>
+                    <ul class="space-y-2 text-gray-400">
+                        <li>Nyambadwe, Blantyre</li>
+                        <li>+265 993 575 111</li>
+                        <li>Southern Region, Malawi</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 Wiyule Motors. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+    // Initialize Feather Icons & AOS
+    document.addEventListener('DOMContentLoaded', function() {
+        feather.replace();
+        AOS.init({
+            duration: 1000,
+            once: true,
+            offset: 100
+        });
+
+        // Mobile menu toggle
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener('click', function() {
+                mobileMenu.classList.toggle('active');
+            });
+
+            // Close mobile menu when clicking on a link
+            const mobileLinks = mobileMenu.querySelectorAll('a');
+            mobileLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenu.classList.remove('active');
+                });
+            });
+        }
+
+        // Set minimum date for booking (today)
+        const bookingDate = document.getElementById('bookingDate');
+        if (bookingDate) {
+            const today = new Date().toISOString().split('T')[0];
+            bookingDate.setAttribute('min', today);
+        }
+
+        // Contact form submission
+        const contactForm = document.getElementById('contactForm');
+        const formMessage = document.getElementById('formMessage');
+
+        if (contactForm) {
+            contactForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Get form data
+                const formData = {
+                    name: document.getElementById('name').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    message: document.getElementById('message').value
+                };
+
+                // Show loading state
+                const submitBtn = contactForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-feather="loader" class="w-5 h-5 inline-block animate-spin mr-2"></i>Sending...';
+                submitBtn.disabled = true;
+
+                // Here you would typically send to your backend
+                // Example: fetch('/api/contact', { method: 'POST', body: JSON.stringify(formData) })
+                
+                // Simulate API call
+                setTimeout(() => {
+                    formMessage.textContent = 'Thank you! We will get back to you soon.';
+                    formMessage.className = 'mt-4 text-center text-green-600 font-semibold p-4 bg-green-50 rounded-xl';
+                    formMessage.classList.remove('hidden');
+                    
+                    contactForm.reset();
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                    feather.replace();
+                    
+                    setTimeout(() => {
+                        formMessage.classList.add('hidden');
+                    }, 5000);
+                }, 1000);
+            });
+        }
+
+        // Booking form submission
+        const bookingForm = document.getElementById('bookingForm');
+        const bookingMessage = document.getElementById('bookingMessage');
+
+        if (bookingForm) {
+            bookingForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Validate at least one service is selected
+                const selectedServices = bookingForm.querySelectorAll('input[name="services"]:checked');
+                const serviceError = document.getElementById('serviceError');
+                
+                if (selectedServices.length === 0) {
+                    serviceError.classList.remove('hidden');
+                    serviceError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+                
+                serviceError.classList.add('hidden');
+                
+                // Collect form data
+                const formData = {
+                    name: document.getElementById('bookingName').value,
+                    phone: document.getElementById('bookingPhone').value,
+                    email: document.getElementById('bookingEmail').value,
+                    vehicle: {
+                        make: document.getElementById('vehicleMake').value,
+                        model: document.getElementById('vehicleModel').value,
+                        year: document.getElementById('vehicleYear').value,
+                        registration: document.getElementById('vehicleRegistration').value
+                    },
+                    services: Array.from(selectedServices).map(s => s.value),
+                    date: document.getElementById('bookingDate').value,
+                    time: document.getElementById('bookingTime').value,
+                    notes: document.getElementById('bookingNotes').value
+                };
+
+                // Show loading state
+                const submitBtn = bookingForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-feather="loader" class="w-6 h-6 inline-block animate-spin mr-2"></i>Processing...';
+                submitBtn.disabled = true;
+
+                // Here you would send to your backend
+                // Example: fetch('/api/bookings', { method: 'POST', body: JSON.stringify(formData) })
+                
+                // Simulate API call
+                setTimeout(() => {
+                    // Show confirmation modal
+                    showBookingModal(formData);
+                    
+                    // Reset form
+                    bookingForm.reset();
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                    feather.replace();
+                    
+                    // Clear selected services styling
+                    document.querySelectorAll('.service-option.selected').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+
+                    // Send WhatsApp message (optional)
+                    const whatsappMessage = `New Booking Request:\n\nName: ${formData.name}\nPhone: ${formData.phone}\nVehicle: ${formData.vehicle.year} ${formData.vehicle.make} ${formData.vehicle.model}\nServices: ${formData.services.join(', ')}\nDate: ${formData.date}\nTime: ${formData.time}`;
+                    // Uncomment to enable auto-redirect to WhatsApp
+                    // window.open(`https://wa.me/265993575111?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
+                }, 1000);
+            });
+        }
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                const href = this.getAttribute('href');
+                if (href !== '#' && document.querySelector(href)) {
+                    e.preventDefault();
+                    document.querySelector(href).scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    });
+
+    // Toggle service selection styling
+    function toggleService(element, serviceName) {
+        const checkbox = element.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+        element.classList.toggle('selected');
+        
+        // Hide error if service is selected
+        if (checkbox.checked) {
+            document.getElementById('serviceError').classList.add('hidden');
+        }
+    }
+
+    // Toggle FAQ
+    function toggleFAQ(button) {
+        const answer = button.nextElementSibling;
+        const icon = button.querySelector('[data-feather="chevron-down"]');
+        const isOpen = answer.style.maxHeight && answer.style.maxHeight !== '0px';
+        
+        // Close all other FAQs
+        document.querySelectorAll('.faq-answer').forEach(item => {
+            item.style.maxHeight = '0';
+        });
+        document.querySelectorAll('.faq-question [data-feather="chevron-down"]').forEach(item => {
+            item.style.transform = 'rotate(0deg)';
+        });
+        
+        // Toggle current FAQ
+        if (!isOpen) {
+            answer.style.maxHeight = answer.scrollHeight + 'px';
+            icon.style.transform = 'rotate(180deg)';
+        }
+        
+        feather.replace();
+    }
+
+    // Show booking confirmation modal
+    function showBookingModal(data) {
+        const modal = document.getElementById('bookingModal');
+        const modalContent = document.getElementById('modalContent');
+        
+        // Format date
+        const dateObj = new Date(data.date);
+        const formattedDate = dateObj.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+        
+        // Create modal content
+        modalContent.innerHTML = `
+            <div class="space-y-6">
+                <div class="border-b border-gray-200 pb-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">Customer Details</h4>
+                    <p class="text-gray-900 font-semibold">${data.name}</p>
+                    <p class="text-gray-600">${data.phone}</p>
+                    ${data.email ? `<p class="text-gray-600">${data.email}</p>` : ''}
+                </div>
+                
+                <div class="border-b border-gray-200 pb-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">Vehicle Information</h4>
+                    <p class="text-gray-900 font-semibold">${data.vehicle.year} ${data.vehicle.make} ${data.vehicle.model}</p>
+                    ${data.vehicle.registration ? `<p class="text-gray-600">Registration: ${data.vehicle.registration}</p>` : ''}
+                </div>
+                
+                <div class="border-b border-gray-200 pb-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">Selected Services</h4>
+                    <ul class="space-y-1">
+                        ${data.services.map(service => `<li class="text-gray-900">• ${service}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div class="border-b border-gray-200 pb-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">Appointment Time</h4>
+                    <p class="text-gray-900 font-semibold">${formattedDate}</p>
+                    <p class="text-gray-900">at ${formatTime(data.time)}</p>
+                </div>
+                
+                ${data.notes ? `
+                <div class="pb-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">Additional Notes</h4>
+                    <p class="text-gray-600">${data.notes}</p>
+                </div>
+                ` : ''}
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p class="text-sm text-blue-900">
+                        <i data-feather="info" class="w-4 h-4 inline-block mr-1"></i>
+                        We'll contact you shortly to confirm your appointment. You can also reach us directly at +265 993 575 111.
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        modal.classList.add('active');
+        feather.replace(); // Refresh feather icons in modal
+    }
+
+    // Close modal
+    function closeModal() {
+        const modal = document.getElementById('bookingModal');
+        modal.classList.remove('active');
+    }
+
+    // Format time for display
+    function formatTime(time) {
+        const [hour, minute] = time.split(':');
+        const hourNum = parseInt(hour);
+        const ampm = hourNum >= 12 ? 'PM' : 'AM';
+        const displayHour = hourNum > 12 ? hourNum - 12 : (hourNum === 0 ? 12 : hourNum);
+        return `${displayHour}:${minute} ${ampm}`;
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('bookingModal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    }
+
+    // Track scroll for analytics (optional)
+    let scrollTracked = false;
+    window.addEventListener('scroll', function() {
+        if (!scrollTracked && window.scrollY > 500) {
+            scrollTracked = true;
+            // Track scroll event in analytics
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'scroll', {
+                    'event_category': 'engagement',
+                    'event_label': 'scrolled_page'
+                });
+            }
+        }
+    });
+
+    // Track booking button clicks
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('a[href="#booking"]')) {
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'click', {
+                    'event_category': 'conversion',
+                    'event_label': 'booking_button_clicked'
+                });
+            }
+        }
+    });
+    </script>
+</body>
+</html>

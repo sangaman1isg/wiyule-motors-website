@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://wiyulemotors.com/sitemap.xml
+
+# Disallow admin or private areas (add as needed)
+# Disallow: /admin/
+# Disallow: /private/
