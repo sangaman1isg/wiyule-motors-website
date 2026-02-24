@@ -13,7 +13,7 @@
 $to_email = "bookings@wiyulemotors.com";
 
 // CORS headers (if needed)
-header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Origin: https://wiyulemotors.com');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json');

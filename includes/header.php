@@ -24,7 +24,7 @@
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-        gtag('config', '523407771');
+        gtag('config', 'G-HMM03HL39K');
     </script> 
     
     <!-- Structured Data for SEO -->
@@ -73,116 +73,7 @@
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     
-    <style>
-        .hero-bg { background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 100%); }
-        .hero-bg-image {
-            background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.5) 100%),
-                        url('https://i.pinimg.com/1200x/7b/04/79/7b047946a1670be5b3b5488402c87378.jpg') center/cover no-repeat fixed;
-            background-size: cover;
-        }
 
-        .hero-overlay-pattern {
-            background-image: radial-gradient(circle at 25% 25%, rgba(220,38,38,0.3) 0%, transparent 50%),
-                              radial-gradient(circle at 75% 75%, rgba(220,38,38,0.2) 0%, transparent 50%);
-            opacity: 1;
-        }
-
-        .anim-delay-0 { animation-delay: 0s; }
-        .anim-delay-1 { animation-delay: 1s; }
-        .anim-delay-2s { animation-delay: 2s; }
-
-        .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-
-        .service-card { transition: all 0.3s ease; }
-        .service-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-        .part-card:hover img { transform: scale(1.05); }
-        .part-card img { transition: transform 0.3s ease; }
-        .testimonial-card { transition: all 0.3s ease; }
-        .testimonial-card:hover { background-color: #f8fafc; }
-        button, a { transition: all 0.25s ease-in-out; }
-        input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3); border-color: #dc2626; }
-        input, textarea, select { border: 2px solid #d1d5db; }
-        
-        #mobile-menu { 
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-        #mobile-menu.active { 
-            max-height: 500px;
-        }
-
-        .btn-book-service {
-            padding: 10px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            display: inline-block;
-        }
-
-        @keyframes bounce-slow {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-        .animate-bounce-slow {
-            animation: bounce-slow 3s infinite;
-        }
-
-        .service-option {
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .service-option:hover {
-            transform: scale(1.02);
-        }
-        
-        .service-option.selected {
-            border-color: #dc2626;
-            background-color: #fef2f2;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 100;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.6);
-            animation: fadeIn 0.3s;
-        }
-
-        .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: auto;
-            padding: 0;
-            border-radius: 16px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-            animation: slideIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-    </style>
 </head>
 <body class="font-[Inter] antialiased text-gray-800">
     <!-- WhatsApp Button -->

@@ -13,7 +13,7 @@
 $to_email = "info@wiyulemotors.com";
 
 // CORS headers (if needed)
-header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Origin: https://wiyulemotors.com');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json');
@@ -69,7 +69,7 @@ Time: " . date('Y-m-d H:i:s') . "
 ";
 
 // Email headers
-$headers = "From: $email\r\n";
+$headers = "From: noreply@wiyulemotors.com\r\n";
 $headers .= "Reply-To: $email\r\n";
 $headers .= "X-Mailer: PHP/" . phpversion();
 
