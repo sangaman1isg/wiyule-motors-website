@@ -1,0 +1,555 @@
+/* ==========================================================================
+   Wiyule Motors — Custom Stylesheet
+   Blantyre, Malawi | Premium Automotive Parts & Services
+   Complements Tailwind CSS (loaded via CDN)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. CSS Custom Properties (Design Tokens)
+   -------------------------------------------------------------------------- */
+:root {
+  /* Brand Colors */
+  --color-red-primary:   #dc2626;
+  --color-red-dark:      #b91c1c;
+  --color-red-light:     #fef2f2;
+  --color-red-accent:    #ef4444;
+
+  /* Neutrals */
+  --color-dark:          #111827;
+  --color-mid:           #374151;
+  --color-muted:         #6b7280;
+  --color-border:        #e5e7eb;
+  --color-surface:       #f9fafb;
+  --color-white:         #ffffff;
+
+  /* Typography */
+  --font-base: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Shadows */
+  --shadow-card:   0 4px 24px rgba(0, 0, 0, 0.08);
+  --shadow-hover:  0 16px 48px rgba(0, 0, 0, 0.16);
+  --shadow-modal:  0 24px 80px rgba(0, 0, 0, 0.3);
+
+  /* Transitions */
+  --transition-fast:    150ms ease;
+  --transition-smooth:  300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring:  500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Border Radius */
+  --radius-card:  1.5rem;   /* 24px */
+  --radius-xl:    1rem;     /* 16px */
+  --radius-full:  9999px;
+}
+
+/* --------------------------------------------------------------------------
+   2. Base Reset & Global Styles
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-base);
+  color: var(--color-mid);
+  background-color: var(--color-white);
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+
+::selection {
+  background-color: var(--color-red-primary);
+  color: var(--color-white);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* --------------------------------------------------------------------------
+   3. Scrollbar Styling (Webkit)
+   -------------------------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-red-primary);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-red-dark);
+}
+
+/* --------------------------------------------------------------------------
+   4. Hero Section
+   -------------------------------------------------------------------------- */
+.hero-bg {
+  position: relative;
+  background-color: var(--color-dark);
+  isolation: isolate;
+}
+
+.hero-bg-image {
+  background-image:
+    linear-gradient(
+      135deg,
+      rgba(17, 24, 39, 0.82) 0%,
+      rgba(185, 28, 28, 0.65) 50%,
+      rgba(17, 24, 39, 0.90) 100%
+    ),
+    url('https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1920&q=80&auto=format');
+  background-size: cover;
+  background-position: center 40%;
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Animated geometric overlay pattern */
+.hero-overlay-pattern {
+  width: 100%;
+  height: 100%;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.03) 0,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 0,
+      transparent 50%
+    );
+  background-size: 40px 40px;
+  animation: patternDrift 20s linear infinite;
+}
+
+@keyframes patternDrift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 80px 80px; }
+}
+
+/* Hero main title */
+.main-title {
+  font-size: clamp(2.5rem, 7vw, 5.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-white);
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #ffffff 0%, #fca5a5 60%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Text shadow utility for hero paragraphs */
+.text-shadow {
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+   5. Custom Animations
+   -------------------------------------------------------------------------- */
+
+/* Slow bounce — used on decorative floating blobs */
+@keyframes bounceSlow {
+  0%, 100% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(-20px);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounceSlow 3.5s infinite;
+}
+
+/* Animation delay utilities */
+.anim-delay-0  { animation-delay: 0s; }
+.anim-delay-1  { animation-delay: 1s; }
+.anim-delay-2s { animation-delay: 2s; }
+
+/* Fade in up — used for entrance animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Shimmer for loading states */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* Spin used by feather loader icon */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* --------------------------------------------------------------------------
+   6. Service Cards
+   -------------------------------------------------------------------------- */
+.service-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--transition-smooth),
+    box-shadow var(--transition-smooth);
+  cursor: default;
+}
+
+.service-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.04), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-smooth);
+  border-radius: inherit;
+}
+
+.service-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-hover);
+}
+
+.service-card:hover::before {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   7. Service Option (Booking Form Checkboxes)
+   -------------------------------------------------------------------------- */
+.service-option {
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+  user-select: none;
+}
+
+.service-option:hover {
+  border-color: #fca5a5 !important;
+  background-color: #fff5f5;
+}
+
+.service-option.selected {
+  border-color: var(--color-red-primary) !important;
+  background-color: var(--color-red-light);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.service-option.selected p:first-child {
+  color: var(--color-red-dark);
+}
+
+/* --------------------------------------------------------------------------
+   8. Testimonial Cards
+   -------------------------------------------------------------------------- */
+.testimonial-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--transition-smooth),
+    box-shadow var(--transition-smooth);
+}
+
+.testimonial-card::after {
+  content: '\201C';
+  position: absolute;
+  top: -1rem;
+  right: 1.5rem;
+  font-size: 8rem;
+  line-height: 1;
+  color: var(--color-red-primary);
+  opacity: 0.08;
+  font-family: Georgia, serif;
+  pointer-events: none;
+}
+
+.testimonial-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* --------------------------------------------------------------------------
+   9. FAQ Section
+   -------------------------------------------------------------------------- */
+.faq-question {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transition-fast);
+}
+
+.faq-question:hover {
+  background-color: var(--color-surface);
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Chevron icon rotation — JS handles the inline style, but we set the base */
+.faq-question svg[data-feather="chevron-down"] {
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --------------------------------------------------------------------------
+   10. Booking Confirmation Modal
+   -------------------------------------------------------------------------- */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  opacity: 0;
+  transition: opacity var(--transition-smooth);
+}
+
+.modal.active {
+  display: flex;
+  opacity: 1;
+  animation: modalFadeIn var(--transition-smooth) forwards;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: var(--color-white);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  transform: scale(0.92) translateY(24px);
+  animation: modalSlideIn var(--transition-spring) forwards;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: scale(0.92) translateY(24px);
+  }
+  to {
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal scrollbar */
+.modal-content::-webkit-scrollbar {
+  width: 5px;
+}
+.modal-content::-webkit-scrollbar-thumb {
+  background: var(--color-red-primary);
+  border-radius: var(--radius-full);
+}
+
+/* --------------------------------------------------------------------------
+   11. Navigation Enhancements
+   -------------------------------------------------------------------------- */
+nav {
+  transition: box-shadow var(--transition-smooth);
+}
+
+/* Active mobile menu */
+#mobile-menu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#mobile-menu.active {
+  max-height: 480px;
+}
+
+/* --------------------------------------------------------------------------
+   12. Form Input Focus Styles
+   -------------------------------------------------------------------------- */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+/* Date / time input — remove native appearance on some browsers */
+input[type="date"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* --------------------------------------------------------------------------
+   13. Footer Enhancements
+   -------------------------------------------------------------------------- */
+footer a {
+  position: relative;
+  transition: color var(--transition-fast);
+}
+
+footer a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: var(--color-white);
+  transition: width var(--transition-smooth);
+}
+
+footer a:hover::after {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   14. WhatsApp Floating Button
+   -------------------------------------------------------------------------- */
+a[href*="wa.me"].fixed {
+  box-shadow: 0 8px 32px rgba(22, 163, 74, 0.4);
+  transition:
+    transform var(--transition-smooth),
+    box-shadow var(--transition-smooth);
+}
+
+a[href*="wa.me"].fixed:hover {
+  transform: scale(1.15);
+  box-shadow: 0 12px 40px rgba(22, 163, 74, 0.55);
+}
+
+/* --------------------------------------------------------------------------
+   15. Gallery Image Hover
+   -------------------------------------------------------------------------- */
+.gallery-item {
+  overflow: hidden;
+  border-radius: var(--radius-card);
+}
+
+.gallery-item img {
+  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gallery-item:hover img {
+  transform: scale(1.08);
+}
+
+/* --------------------------------------------------------------------------
+   16. Utility Classes
+   -------------------------------------------------------------------------- */
+
+/* Gradient text (used for stat numbers in About section) */
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-red-primary), var(--color-red-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Frosted glass surface */
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Hover lift shorthand */
+.hover-lift {
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+}
+.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* --------------------------------------------------------------------------
+   17. Responsive Adjustments
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .hero-bg-image {
+    background-attachment: scroll; /* parallax off on mobile for perf */
+    min-height: 100svh;
+  }
+
+  .main-title {
+    font-size: clamp(2rem, 10vw, 3.5rem);
+  }
+
+  .modal-content {
+    border-radius: 1rem;
+    max-height: 95vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .service-card {
+    padding: 1.5rem;
+  }
+
+  .testimonial-card {
+    padding: 1.5rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   18. Print Styles
+   -------------------------------------------------------------------------- */
+@media print {
+  nav,
+  footer,
+  a[href*="wa.me"],
+  #bookingModal,
+  .animate-pulse,
+  .animate-bounce-slow,
+  .animate-ping {
+    display: none !important;
+  }
+
+  body {
+    color: #000;
+    background: #fff;
+  }
+}
