@@ -553,3 +553,63 @@ a[href*="wa.me"].fixed:hover {
     background: #fff;
   }
 }
+/* Scroll Indicator */
+
+.scroll-indicator {
+    margin-top: 40px;
+    text-align: center;
+    cursor: pointer;
+    color: #dc2626; /* Red */
+    font-weight: 600;
+    animation: fadeIn 2s ease;
+}
+
+.scroll-indicator span {
+    display: block;
+    margin: 6px 0;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+.car-icon {
+    font-size: 32px;
+    animation: carBounce 1.5s infinite;
+}
+
+.arrow {
+    font-size: 28px;
+    animation: arrowBounce 1.5s infinite;
+}
+
+/* Animations */
+
+@keyframes carBounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes arrowBounce {
+    0%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    50% {
+        transform: translateY(10px);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

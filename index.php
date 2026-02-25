@@ -73,6 +73,98 @@
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <link rel="stylesheet" href="/assets/css/style.css">
+
+    <!-- Scroll Indicator Override -->
+    <style>
+        /* ── Scroll Indicator ───────────────────────────── */
+        .scroll-indicator {
+            /* anchor to the bottom-centre of the hero */
+            position: absolute;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.85);
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            user-select: none;
+
+            /* fade in after the hero text has appeared */
+            opacity: 0;
+            animation: si-fadeIn 0.8s ease forwards 1.8s;
+            transition: color 0.2s ease, opacity 0.2s ease;
+        }
+
+        .scroll-indicator:hover {
+            color: #ffffff;
+        }
+
+        /* ── Label ── */
+        .scroll-label {
+            display: block;
+            margin-bottom: 2px;
+            /* subtle text-shadow matching hero headings */
+            text-shadow: 0 1px 6px rgba(0,0,0,0.45);
+        }
+
+        /* ── Chevron stack ── */
+        .scroll-chevrons {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;       /* overlap slightly so they look like one cascading set */
+            margin-top: 2px;
+        }
+
+        .chevron {
+            width: 26px;
+            height: 26px;
+            /* each chevron fades and shifts independently */
+            opacity: 0;
+        }
+
+        .chevron-1 {
+            animation: si-chevron 1.8s ease-in-out infinite;
+        }
+
+        .chevron-2 {
+            margin-top: -10px;        /* tight overlap */
+            animation: si-chevron 1.8s ease-in-out infinite 0.22s;
+        }
+
+        /* ── Keyframes ── */
+
+        /* Initial fade-in from below — mirrors the hero AOS fade-up */
+        @keyframes si-fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+        }
+
+        /* Cascading chevron: slide down, fade in → fade out, repeat */
+        @keyframes si-chevron {
+            0%   { opacity: 0;    transform: translateY(-6px); }
+            30%  { opacity: 0.55; transform: translateY(0);    }
+            60%  { opacity: 1;    transform: translateY(6px);  }
+            100% { opacity: 0;    transform: translateY(12px); }
+        }
+
+        /* Hide once user starts scrolling (handled by JS below) */
+        .scroll-indicator.hidden-by-scroll {
+            opacity: 0 !important;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+    </style>
     
 </head>
 <body class="font-[Inter] antialiased text-gray-800">
@@ -221,8 +313,17 @@
                 </div>
             </div>
         </div>
-    </div>
 
+        <!-- Scroll Down Indicator — sits at the bottom of the hero -->
+        <div id="scroll-indicator" class="scroll-indicator" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})">
+            <span class="scroll-label">Scroll Down</span>
+            <div class="scroll-chevrons" aria-hidden="true">
+                <svg class="chevron chevron-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <svg class="chevron chevron-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+        </div>
+    </div>
+    
     <!-- Services Section -->
     <section id="services" class="py-20 bg-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -573,15 +674,15 @@
                     </p>
                     <div class="grid grid-cols-3 gap-6 mt-8">
                         <div class="text-center">
-                            <div class="text-4xl font-bold text-red-600 mb-2">8+</div>
+                            <div class="text-4xl font-bold text-red-600 mb-2">10+</div>
                             <div class="text-sm text-gray-600">Years Experience</div>
                         </div>
                         <div class="text-center">
-                            <div class="text-4xl font-bold text-red-600 mb-2">500+</div>
+                            <div class="text-4xl font-bold text-red-600 mb-2">1M+</div>
                             <div class="text-sm text-gray-600">Happy Clients</div>
                         </div>
                         <div class="text-center">
-                            <div class="text-4xl font-bold text-red-600 mb-2">100%</div>
+                            <div class="text-4xl font-bold text-red-600 mb-2">99.9%</div>
                             <div class="text-sm text-gray-600">Satisfaction</div>
                         </div>
                     </div>
@@ -1248,6 +1349,18 @@
             closeModal();
         }
     }
+
+    // Hide scroll indicator once user starts scrolling
+    (function () {
+        const indicator = document.getElementById('scroll-indicator');
+        if (!indicator) return;
+        window.addEventListener('scroll', function hideIndicator() {
+            if (window.scrollY > 60) {
+                indicator.classList.add('hidden-by-scroll');
+                window.removeEventListener('scroll', hideIndicator);
+            }
+        }, { passive: true });
+    })();
 
     // Track scroll for analytics (optional)
     let scrollTracked = false;

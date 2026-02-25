@@ -368,6 +368,17 @@
             }
         }
     });
+    
+    // Scroll indicator click   
+    document.getElementById("scroll-indicator").addEventListener("click", function () {
+    const nextSection = document.querySelector("#services");
+
+    if (nextSection) {
+        nextSection.scrollIntoView({
+            behavior: "smooth"
+        });
+    }
+});
     </script>
 </body>
 </html>
