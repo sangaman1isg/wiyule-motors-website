@@ -82,55 +82,115 @@
     </a>
 
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-20 items-center">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0 flex items-center">
-                        <img class="h-16 w-auto" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiVbOHrYXKB55eoDs80oh_qeIFhGlcupYTQg&s" alt="Wiyule Motors Logo">
-                        <span class="ml-2 text-xl font-bold text-gray-900">Wiyule Motors</span>
-                    </div>
-                    <!-- Desktop Nav -->
-                    <div class="hidden sm:flex items-center space-x-8 ml-10">
-                        <a href="#hero" class="text-red-600 font-semibold border-b-2 border-red-600 pb-1">Home</a>
-                        <a href="#services" class="text-gray-600 hover:text-red-600 font-medium transition">Services</a>
-                        <a href="#booking" class="text-gray-600 hover:text-red-600 font-medium transition">Book Now</a>
-                        <a href="#about" class="text-gray-600 hover:text-red-600 font-medium transition">About</a>
-                        <a href="#contact" class="text-gray-600 hover:text-red-600 font-medium transition">Contact</a>
-                        <a href="#booking" class="inline-flex items-center px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
-                            <i data-feather="calendar" class="w-5 h-5 mr-2"></i>
-                            Book Service
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Mobile menu button -->
-                <div class="flex items-center sm:hidden">
-                    <button id="mobileMenuBtn" type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-500">
-                        <span class="sr-only">Open main menu</span>
-                        <i data-feather="menu"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
+<nav class="bg-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6">
+        <div class="flex justify-between items-center h-20">
 
-        <!-- Mobile menu -->
-        <div class="sm:hidden" id="mobile-menu">
-            <div class="pt-2 pb-3 space-y-1 bg-white border-t border-gray-200">
-                <a href="#hero" class="bg-red-50 border-red-500 text-red-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Home</a>
-                <a href="#services" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Services</a>
-                <a href="#booking" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Book Now</a>
-                <a href="#about" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">About</a>
-                <a href="#contact" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Contact</a>
-                <div class="mt-4 pl-3 pr-4">
-                    <a href="#booking" class="w-full block text-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out">
-                        Book Service
-                    </a>
-                </div>
+            <!-- Logo -->
+            <div class="flex items-center space-x-3">
+                <img 
+                    class="h-12 w-auto" 
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiVbOHrYXKB55eoDs80oh_qeIFhGlcupYTQg&s" 
+                    alt="Wiyule Motors Logo"
+                >
+                <span class="text-xl font-bold text-gray-900">
+                    Wiyule Motors
+                </span>
             </div>
-        </div>
-    </nav>
 
+            <!-- Desktop Menu -->
+            <div class="hidden md:flex items-center space-x-8">
+
+                <a href="/" 
+                   class="text-gray-700 hover:text-red-600 font-medium transition">
+                    Home
+                </a>
+
+                <a href="#services" 
+                   class="text-gray-700 hover:text-red-600 font-medium transition">
+                    Services
+                </a>
+
+                <a href="#booking" 
+                   class="text-gray-700 hover:text-red-600 font-medium transition">
+                    Book
+                </a>
+
+                <a href="#about" 
+                   class="text-gray-700 hover:text-red-600 font-medium transition">
+                    About
+                </a>
+
+                <a href="#contact" 
+                   class="text-gray-700 hover:text-red-600 font-medium transition">
+                    Contact
+                </a>
+
+                <!-- Auth Buttons -->
+                <a href="/pages/login.php"
+                   class="px-4 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50 transition">
+                    Login
+                </a>
+
+                <a href="/pages/signup.php"
+                   class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                    Sign Up
+                </a>
+
+            </div>
+
+            <!-- Mobile Button -->
+            <div class="md:hidden">
+                <button id="mobileMenuBtn"
+                    class="p-2 rounded-md text-gray-600 hover:bg-gray-100 focus:outline-none">
+                    ☰
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+
+        <div class="px-4 py-4 space-y-3">
+
+            <a href="/" class="block text-gray-700 hover:text-red-600">
+                Home
+            </a>
+
+            <a href="#services" class="block text-gray-700 hover:text-red-600">
+                Services
+            </a>
+
+            <a href="#booking" class="block text-gray-700 hover:text-red-600">
+                Book
+            </a>
+
+            <a href="#about" class="block text-gray-700 hover:text-red-600">
+                About
+            </a>
+
+            <a href="#contact" class="block text-gray-700 hover:text-red-600">
+                Contact
+            </a>
+
+            <hr>
+
+            <a href="/pages/login.php"
+               class="block text-center border border-red-600 text-red-600 py-2 rounded-lg">
+                Login
+            </a>
+
+            <a href="/pages/signup.php"
+               class="block text-center bg-red-600 text-white py-2 rounded-lg">
+                Sign Up
+            </a>
+
+        </div>
+    </div>
+
+</nav>
     <!-- Hero Section -->
     <div id="hero" class="hero-bg hero-bg-image relative overflow-hidden min-h-screen flex items-center">
         <!-- Animated Overlay Pattern -->
@@ -1215,7 +1275,13 @@
             }
         }
     });
-    </script>
 
+    const btn = document.getElementById("mobileMenuBtn");
+const menu = document.getElementById("mobile-menu");
+
+btn.addEventListener("click", () => {
+    menu.classList.toggle("hidden");
+});
+</script>  
 </body>
 </html>
