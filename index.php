@@ -145,7 +145,7 @@
             <div class="absolute bottom-20 left-1/4 w-20 h-20 bg-red-400/30 rounded-full blur-xl animate-ping anim-delay-1"></div>
 
             <div class="text-center" data-aos="fade-up">
-               <h1 class="main-title">Welcome</h1>
+               <h1 class="main-title">Welcome To Wiyule Motors</h1>
                 <p class="text-xl md:text-2xl text-gray-100 mb-10 max-w-3xl mx-auto leading-relaxed text-shadow">
                     Your trusted partner for quality auto parts and professional vehicle services in Blantyre, Malawi
                 </p>
@@ -527,7 +527,7 @@
                     </div>
                 </div>
                 <div data-aos="fade-left">
-                    <img src="https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800" alt="Auto Service" class="rounded-3xl shadow-2xl">
+                    <img src="/assets/images/navara.jpg" alt="Wiyule Motors Logo" class="rounded-3xl shadow-2xl">
                 </div>
             </div>
         </div>
@@ -624,13 +624,13 @@
 
             <div class="grid md:grid-cols-3 gap-6">
                 <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="100">
-                    <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=600" alt="Workshop" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
+                    <img src="/assets/images/servicing.jpeg" alt="Workshop" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
                 </div>
                 <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="200">
-                    <img src="https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=600" alt="Car Lift" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
+                    <img src="/assets/images/car alarm (1).jpeg" alt="Car Lift" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
                 </div>
                 <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="300">
-                    <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=600" alt="Parts Inventory" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
+                    <img src="/assets/images/polishing.jpeg" alt="Parts Inventory" class="w-full h-64 object-cover hover:scale-110 transition-transform duration-500">
                 </div>
             </div>
         </div>
