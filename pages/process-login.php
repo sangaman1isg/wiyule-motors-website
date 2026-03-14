@@ -1,25 +1,44 @@
 <?php
 session_start();
-include '../includes/config.php';
+require_once '../includes/db_connection.php';
 
-$email = $_POST['email'];
+if (!isset($_POST['email'], $_POST['password'])) {
+    die("Invalid request.");
+}
+
+$email    = trim($_POST['email']);
 $password = $_POST['password'];
 
-$sql = "SELECT * FROM users WHERE email='$email'";
-$result = mysqli_query($conn, $sql);
+// Prepare statement
+$stmt = $conn->prepare("SELECT id, full_name, email, password FROM users WHERE email = ?");
+$stmt->bind_param("s", $email);
+$stmt->execute();
 
-if (mysqli_num_rows($result) == 1) {
-    $user = mysqli_fetch_assoc($result);
-    
+$result = $stmt->get_result();
+
+if ($result->num_rows === 1) {
+
+    $user = $result->fetch_assoc();
+
     if (password_verify($password, $user['password'])) {
-        $_SESSION['user_id'] = $user['id'];
+
+        // Set session
+        $_SESSION['user_id']   = $user['id'];
         $_SESSION['user_name'] = $user['full_name'];
-        
+
+        // Split name
+        $name_parts = explode(' ', $user['full_name'], 2);
+        $_SESSION['first_name'] = $name_parts[0];
+        $_SESSION['last_name']  = $name_parts[1] ?? '';
+
         header("Location: dashboard.php");
+        exit;
+
     } else {
-        echo "Wrong password.";
+        echo "❌ Incorrect password.";
     }
+
 } else {
-    echo "User not found.";
+    echo "❌ Account not found.";
 }
 ?>

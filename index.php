@@ -1,4 +1,19 @@
-
+<?php
+// ── Session & auth — MUST be at the top before any HTML output ──
+session_start();
+$is_logged_in = isset($_SESSION['user_id']);
+// Dev preview: add ?preview=1 to URL to see the logged-in nav
+if (isset($_GET['preview'])) $is_logged_in = true;
+$nav_user = $is_logged_in ? [
+    'first_name'      => $_SESSION['first_name']    ?? 'Daniel',
+    'last_name'       => $_SESSION['last_name']     ?? 'Kumwenda',
+    'avatar_initials' => strtoupper(
+                            substr($_SESSION['first_name'] ?? 'D', 0, 1) .
+                            substr($_SESSION['last_name']  ?? 'K', 0, 1)
+                         ),
+    'unread_notifs'   => (int)($_SESSION['unread_notifs'] ?? 2),
+] : null;
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,98 +89,133 @@
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <link rel="stylesheet" href="/assets/css/style.css">
 
-    <!-- Scroll Indicator Override -->
+    <!-- ── Navbar & dropdown styles ──────────────────────── -->
     <style>
-        /* ── Scroll Indicator ───────────────────────────── */
-        .scroll-indicator {
-            /* anchor to the bottom-centre of the hero */
-            position: absolute;
-            bottom: 36px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 20;
-
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-
-            cursor: pointer;
-            color: rgba(255, 255, 255, 0.85);
-            font-family: 'Inter', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            user-select: none;
-
-            /* fade in after the hero text has appeared */
-            opacity: 0;
-            animation: si-fadeIn 0.8s ease forwards 1.8s;
-            transition: color 0.2s ease, opacity 0.2s ease;
+        .nav-link {
+            position: relative; font-weight: 500; color: #374151;
+            transition: color 0.2s; text-decoration: none;
+            font-size: 14px; padding: 4px 0;
         }
-
-        .scroll-indicator:hover {
-            color: #ffffff;
+        .nav-link::after {
+            content: ''; position: absolute; bottom: -2px; left: 0;
+            width: 0; height: 2px; background: #dc2626;
+            border-radius: 99px; transition: width 0.25s ease;
         }
+        .nav-link:hover, .nav-link.active           { color: #dc2626; }
+        .nav-link:hover::after, .nav-link.active::after { width: 100%; }
 
-        /* ── Label ── */
-        .scroll-label {
-            display: block;
-            margin-bottom: 2px;
-            /* subtle text-shadow matching hero headings */
-            text-shadow: 0 1px 6px rgba(0,0,0,0.45);
+        .nav-bell {
+            position: relative; width: 40px; height: 40px; border-radius: 12px;
+            border: 1.5px solid #e5e7eb; background: #fff;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: #6b7280; transition: all 0.2s; text-decoration: none;
         }
-
-        /* ── Chevron stack ── */
-        .scroll-chevrons {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0;       /* overlap slightly so they look like one cascading set */
-            margin-top: 2px;
+        .nav-bell:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+        .nav-bell-badge {
+            position: absolute; top: 6px; right: 6px; width: 9px; height: 9px;
+            background: #dc2626; border-radius: 50%; border: 2px solid #fff;
+            animation: bellPulse 2.5s ease-in-out infinite;
         }
-
-        .chevron {
-            width: 26px;
-            height: 26px;
-            /* each chevron fades and shifts independently */
-            opacity: 0;
+        @keyframes bellPulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+            50%      { box-shadow: 0 0 0 4px rgba(220,38,38,0); }
         }
-
-        .chevron-1 {
-            animation: si-chevron 1.8s ease-in-out infinite;
+        .nav-dashboard-btn {
+            display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #fff; border-radius: 12px; font-size: 13px; font-weight: 700;
+            text-decoration: none; transition: all 0.25s ease;
+            box-shadow: 0 2px 8px rgba(15,23,42,0.25); white-space: nowrap;
         }
-
-        .chevron-2 {
-            margin-top: -10px;        /* tight overlap */
-            animation: si-chevron 1.8s ease-in-out infinite 0.22s;
+        .nav-dashboard-btn:hover {
+            background: #dc2626; box-shadow: 0 4px 16px rgba(220,38,38,0.35);
+            transform: translateY(-1px);
         }
+        .nav-dashboard-btn svg { width: 14px; height: 14px; }
 
-        /* ── Keyframes ── */
-
-        /* Initial fade-in from below — mirrors the hero AOS fade-up */
-        @keyframes si-fadeIn {
-            from { opacity: 0; transform: translateX(-50%) translateY(12px); }
-            to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+        .nav-avatar-wrap { position: relative; }
+        .nav-avatar {
+            display: flex; align-items: center; gap: 9px; padding: 5px 10px 5px 5px;
+            border-radius: 40px; border: 1.5px solid #e5e7eb; background: #fff;
+            cursor: pointer; transition: all 0.2s; user-select: none;
         }
-
-        /* Cascading chevron: slide down, fade in → fade out, repeat */
-        @keyframes si-chevron {
-            0%   { opacity: 0;    transform: translateY(-6px); }
-            30%  { opacity: 0.55; transform: translateY(0);    }
-            60%  { opacity: 1;    transform: translateY(6px);  }
-            100% { opacity: 0;    transform: translateY(12px); }
+        .nav-avatar:hover { border-color: #dc2626; background: #fef2f2; }
+        .nav-avatar-circle {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: #fff; font-size: 12px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
+        .nav-avatar-name  { font-size: 13px; font-weight: 700; color: #1f2937; }
+        .nav-avatar-caret { color: #9ca3af; transition: transform 0.2s; }
+        .nav-avatar-wrap.open .nav-avatar-caret { transform: rotate(180deg); }
+        .nav-avatar-wrap.open .nav-avatar { border-color: #dc2626; }
 
-        /* Hide once user starts scrolling (handled by JS below) */
-        .scroll-indicator.hidden-by-scroll {
-            opacity: 0 !important;
-            pointer-events: none;
-            transition: opacity 0.4s ease;
+        .nav-dropdown {
+            position: absolute; top: calc(100% + 10px); right: 0; width: 240px;
+            background: #fff; border: 1.5px solid #e5e7eb; border-radius: 18px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.14); overflow: hidden;
+            opacity: 0; transform: translateY(-8px) scale(0.97); pointer-events: none;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1); z-index: 200;
+        }
+        .nav-avatar-wrap.open .nav-dropdown {
+            opacity: 1; transform: translateY(0) scale(1); pointer-events: all;
+        }
+        .dd-header {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            padding: 16px; display: flex; align-items: center; gap: 12px;
+        }
+        .dd-header-avatar {
+            width: 42px; height: 42px; border-radius: 12px;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: #fff; font-size: 15px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .dd-header-name  { font-size: 14px; font-weight: 800; color: #fff; }
+        .dd-header-role  { font-size: 11px; color: #64748b; margin-top: 1px; }
+        .dd-items { padding: 8px; }
+        .dd-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-radius: 10px; color: #374151; font-size: 13px; font-weight: 600;
+            text-decoration: none; cursor: pointer; transition: all 0.15s;
+        }
+        .dd-item:hover         { background: #f8fafc; color: #0f172a; }
+        .dd-item.danger        { color: #dc2626; }
+        .dd-item.danger:hover  { background: #fef2f2; }
+        .dd-item-icon {
+            width: 32px; height: 32px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .dd-item-icon svg { width: 15px; height: 15px; }
+        .dd-badge {
+            margin-left: auto; background: #fef2f2; color: #dc2626;
+            font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 99px;
+        }
+        .dd-divider { height: 1px; background: #f1f5f9; margin: 6px 8px; }
+
+        .mob-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-radius: 12px; color: #374151; font-size: 14px; font-weight: 500;
+            text-decoration: none; transition: all 0.15s;
+        }
+        .mob-item:hover { background: #f8fafc; color: #0f172a; }
+        .mob-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .mob-item.danger       { color: #dc2626; }
+        .mob-item.danger:hover { background: #fef2f2; }
+
+        .mobile-user-card {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            border-radius: 14px; padding: 14px;
+            display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+        }
+        .mobile-user-avatar {
+            width: 44px; height: 44px; border-radius: 12px;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: #fff; font-size: 15px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
         }
     </style>
-    
+
 </head>
 <body class="font-[Inter] antialiased text-gray-800">
     <!-- WhatsApp Button -->
@@ -175,67 +225,156 @@
 
     <!-- Navigation -->
 <nav class="bg-white shadow-md sticky top-0 z-50">
+    <!-- Thin red accent line at very top -->
+    <div style="height:3px;background:linear-gradient(90deg,#dc2626,#b91c1c,#7f1d1d);"></div>
+
     <div class="max-w-7xl mx-auto px-6">
         <div class="flex justify-between items-center h-20">
 
             <!-- Logo -->
-            <div class="flex items-center space-x-3">
-                <img 
-                    class="h-12 w-auto" 
-                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiVbOHrYXKB55eoDs80oh_qeIFhGlcupYTQg&s" 
+            <a href="/" class="flex items-center space-x-3" style="text-decoration:none">
+                <img
+                    class="h-12 w-auto"
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiVbOHrYXKB55eoDs80oh_qeIFhGlcupYTQg&s"
                     alt="Wiyule Motors Logo"
                 >
-                <span class="text-xl font-bold text-gray-900">
-                    Wiyule Motors
-                </span>
+                <div>
+                    <span class="text-xl font-bold text-gray-900 block leading-tight">Wiyule Motors</span>
+                    <span class="text-xs text-gray-400 font-medium" style="letter-spacing:0.04em">Blantyre, Malawi</span>
+                </div>
+            </a>
+
+            <!-- Desktop Nav Links -->
+            <div class="hidden md:flex items-center" style="gap:28px">
+                <a href="/"        class="nav-link active">Home</a>
+                <a href="#services" class="nav-link">Services</a>
+                <a href="#booking"  class="nav-link">Book</a>
+                <a href="#about"    class="nav-link">About</a>
+                <a href="#contact"  class="nav-link">Contact</a>
             </div>
 
-            <!-- Desktop Menu -->
-            <div class="hidden md:flex items-center space-x-8">
+            <!-- Desktop Auth / User area -->
+            <div class="hidden md:flex items-center" style="gap:10px">
 
-                <a href="/" 
-                   class="text-gray-700 hover:text-red-600 font-medium transition">
-                    Home
-                </a>
+                <?php if ($is_logged_in && $nav_user): ?>
 
-                <a href="#services" 
-                   class="text-gray-700 hover:text-red-600 font-medium transition">
-                    Services
-                </a>
+                    <!-- Notification bell -->
+                    <a href="/pages/dashboard.php?panel=notifications" class="nav-bell" title="Notifications">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        <?php if ($nav_user['unread_notifs'] > 0): ?>
+                        <span class="nav-bell-badge"></span>
+                        <?php endif; ?>
+                    </a>
 
-                <a href="#booking" 
-                   class="text-gray-700 hover:text-red-600 font-medium transition">
-                    Book
-                </a>
+                    <!-- Dashboard shortcut -->
+                    <a href="/pages/dashboard.php" class="nav-dashboard-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        Dashboard
+                    </a>
 
-                <a href="#about" 
-                   class="text-gray-700 hover:text-red-600 font-medium transition">
-                    About
-                </a>
+                    <!-- Avatar dropdown -->
+                    <div class="nav-avatar-wrap" id="avatarWrap">
+                        <div class="nav-avatar" onclick="toggleDropdown()" id="avatarBtn" aria-haspopup="true" aria-expanded="false">
+                            <div class="nav-avatar-circle"><?= htmlspecialchars($nav_user['avatar_initials']) ?></div>
+                            <span class="nav-avatar-name"><?= htmlspecialchars($nav_user['first_name']) ?></span>
+                            <svg class="nav-avatar-caret" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
 
-                <a href="#contact" 
-                   class="text-gray-700 hover:text-red-600 font-medium transition">
-                    Contact
-                </a>
+                        <!-- Dropdown -->
+                        <div class="nav-dropdown" id="navDropdown" role="menu">
+                            <!-- Header -->
+                            <div class="dd-header">
+                                <div class="dd-header-avatar"><?= htmlspecialchars($nav_user['avatar_initials']) ?></div>
+                                <div>
+                                    <div class="dd-header-name"><?= htmlspecialchars($nav_user['first_name'].' '.$nav_user['last_name']) ?></div>
+                                    <div class="dd-header-role">Individual Member</div>
+                                </div>
+                            </div>
 
-                <!-- Auth Buttons -->
-                <a href="/pages/login.php"
-                   class="px-4 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50 transition">
-                    Login
-                </a>
+                            <!-- Items -->
+                            <div class="dd-items">
+                                <a href="/pages/dashboard.php" class="dd-item">
+                                    <div class="dd-item-icon" style="background:#f1f5f9;color:#374151">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                                    </div>
+                                    Overview
+                                </a>
+                                <a href="/pages/dashboard.php?panel=bookings" class="dd-item">
+                                    <div class="dd-item-icon" style="background:#eff6ff;color:#2563eb">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    </div>
+                                    My Bookings
+                                    <span class="dd-badge">2 upcoming</span>
+                                </a>
+                                <a href="/pages/dashboard.php?panel=vehicle" class="dd-item">
+                                    <div class="dd-item-icon" style="background:#f0fdf4;color:#15803d">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                                    </div>
+                                    My Vehicle
+                                </a>
+                                <a href="/pages/dashboard.php?panel=notifications" class="dd-item">
+                                    <div class="dd-item-icon" style="background:#fef2f2;color:#dc2626">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                                    </div>
+                                    Notifications
+                                    <?php if($nav_user['unread_notifs'] > 0): ?>
+                                    <span class="dd-badge"><?= $nav_user['unread_notifs'] ?> new</span>
+                                    <?php endif; ?>
+                                </a>
+                                <a href="/pages/dashboard.php?panel=settings" class="dd-item">
+                                    <div class="dd-item-icon" style="background:#f8fafc;color:#64748b">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                    </div>
+                                    Settings
+                                </a>
 
-                <a href="/pages/signup.php"
-                   class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
-                    Sign Up
-                </a>
+                                <div class="dd-divider"></div>
 
+                                <a href="/pages/logout.php" class="dd-item danger">
+                                    <div class="dd-item-icon" style="background:#fef2f2;color:#dc2626">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                    </div>
+                                    Sign Out
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                <?php else: ?>
+
+                    <!-- Guest state: Login + Sign Up -->
+                    <a href="/pages/login.php"
+                       style="padding:8px 18px;border:1.5px solid #e5e7eb;color:#374151;border-radius:12px;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px"
+                       onmouseover="this.style.borderColor='#dc2626';this.style.color='#dc2626';this.style.background='#fef2f2'"
+                       onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#374151';this.style.background='transparent'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                        Sign In
+                    </a>
+
+                    <a href="/pages/signup.php"
+                       style="padding:8px 18px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border-radius:12px;font-size:13px;font-weight:700;text-decoration:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 10px rgba(220,38,38,0.3)"
+                       onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 18px rgba(220,38,38,0.4)'"
+                       onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 10px rgba(220,38,38,0.3)'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                        Create Account
+                    </a>
+
+                <?php endif; ?>
             </div>
 
-            <!-- Mobile Button -->
-            <div class="md:hidden">
+            <!-- Mobile Toggle -->
+            <div class="md:hidden flex items-center gap-3">
+                <?php if ($is_logged_in && $nav_user): ?>
+                <!-- Mobile notification bell -->
+                <a href="/pages/dashboard.php?panel=notifications" class="nav-bell" style="width:36px;height:36px">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <?php if ($nav_user['unread_notifs'] > 0): ?><span class="nav-bell-badge"></span><?php endif; ?>
+                </a>
+                <?php endif; ?>
                 <button id="mobileMenuBtn"
-                    class="p-2 rounded-md text-gray-600 hover:bg-gray-100 focus:outline-none">
-                    ☰
+                    class="p-2 rounded-xl text-gray-600 hover:bg-gray-100 focus:outline-none border border-gray-200"
+                    aria-label="Open menu">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
             </div>
 
@@ -244,45 +383,104 @@
 
     <!-- Mobile Menu -->
     <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+        <div class="px-4 py-4 space-y-1">
 
-        <div class="px-4 py-4 space-y-3">
+            <?php if ($is_logged_in && $nav_user): ?>
+            <!-- Logged-in user card -->
+            <div class="mobile-user-card">
+                <div class="mobile-user-avatar"><?= htmlspecialchars($nav_user['avatar_initials']) ?></div>
+                <div>
+                    <div style="font-size:14px;font-weight:800;color:#fff"><?= htmlspecialchars($nav_user['first_name'].' '.$nav_user['last_name']) ?></div>
+                    <div style="font-size:11px;color:#64748b;margin-top:1px">Individual Member</div>
+                </div>
+            </div>
+            <?php endif; ?>
 
-            <a href="/" class="block text-gray-700 hover:text-red-600">
+            <a href="/"         class="mob-item">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 Home
             </a>
-
-            <a href="#services" class="block text-gray-700 hover:text-red-600">
+            <a href="#services" class="mob-item">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                 Services
             </a>
-
-            <a href="#booking" class="block text-gray-700 hover:text-red-600">
-                Book
+            <a href="#booking"  class="mob-item">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Book a Service
             </a>
-
-            <a href="#about" class="block text-gray-700 hover:text-red-600">
+            <a href="#about"    class="mob-item">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 About
             </a>
-
-            <a href="#contact" class="block text-gray-700 hover:text-red-600">
+            <a href="#contact"  class="mob-item">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 Contact
             </a>
 
-            <hr>
+            <div style="height:1px;background:#f1f5f9;margin:8px 0"></div>
 
-            <a href="/pages/login.php"
-               class="block text-center border border-red-600 text-red-600 py-2 rounded-lg">
-                Login
-            </a>
+            <?php if ($is_logged_in && $nav_user): ?>
+                <a href="/pages/dashboard.php" class="mob-item" style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;font-weight:700">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    My Dashboard
+                </a>
+                <a href="/pages/dashboard.php?panel=bookings" class="mob-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    My Bookings
+                </a>
+                <a href="/pages/dashboard.php?panel=vehicle" class="mob-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                    My Vehicle
+                </a>
+                <a href="/pages/dashboard.php?panel=notifications" class="mob-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    Notifications
+                    <?php if($nav_user['unread_notifs'] > 0): ?>
+                    <span style="margin-left:auto;background:#fef2f2;color:#dc2626;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px"><?= $nav_user['unread_notifs'] ?> new</span>
+                    <?php endif; ?>
+                </a>
+                <a href="/pages/logout.php" class="mob-item danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Sign Out
+                </a>
 
-            <a href="/pages/signup.php"
-               class="block text-center bg-red-600 text-white py-2 rounded-lg">
-                Sign Up
-            </a>
+            <?php else: ?>
+                <a href="/pages/login.php" class="mob-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                    Sign In
+                </a>
+                <a href="/pages/signup.php" class="mob-item" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-weight:700;box-shadow:0 2px 10px rgba(220,38,38,0.3)">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                    Create Free Account
+                </a>
+            <?php endif; ?>
 
         </div>
     </div>
 
 </nav>
+
+<script>
+// ── Avatar dropdown toggle ────────────────────────────────────
+function toggleDropdown() {
+    const wrap = document.getElementById('avatarWrap');
+    if (!wrap) return;
+    const isOpen = wrap.classList.toggle('open');
+    document.getElementById('avatarBtn').setAttribute('aria-expanded', isOpen);
+}
+// Close on outside click
+document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('avatarWrap');
+    if (wrap && !wrap.contains(e.target)) wrap.classList.remove('open');
+});
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const wrap = document.getElementById('avatarWrap');
+        if (wrap) wrap.classList.remove('open');
+    }
+});
+</script>
     <!-- Hero Section -->
     <div id="hero" class="hero-bg hero-bg-image relative overflow-hidden min-h-screen flex items-center">
         <!-- Animated Overlay Pattern -->
@@ -313,16 +511,13 @@
                 </div>
             </div>
         </div>
-
-        <!-- Scroll Down Indicator — sits at the bottom of the hero -->
-        <div id="scroll-indicator" class="scroll-indicator" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})">
-            <span class="scroll-label">Scroll Down</span>
-            <div class="scroll-chevrons" aria-hidden="true">
-                <svg class="chevron chevron-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                <svg class="chevron chevron-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-        </div>
     </div>
+    <!-- Scroll Down Indicator -->
+<div id="scroll-indicator" class="scroll-indicator">
+    <div class="car-icon">🚗</div>
+    <span>Scroll Down</span>
+    <div class="arrow">↓</div>
+</div>
     
     <!-- Services Section -->
     <section id="services" class="py-20 bg-white">
@@ -1054,7 +1249,7 @@
         
         if (mobileMenuBtn && mobileMenu) {
             mobileMenuBtn.addEventListener('click', function() {
-                mobileMenu.classList.toggle('active');
+                mobileMenu.classList.toggle('hidden');
             });
 
             // Close mobile menu when clicking on a link
@@ -1350,18 +1545,6 @@
         }
     }
 
-    // Hide scroll indicator once user starts scrolling
-    (function () {
-        const indicator = document.getElementById('scroll-indicator');
-        if (!indicator) return;
-        window.addEventListener('scroll', function hideIndicator() {
-            if (window.scrollY > 60) {
-                indicator.classList.add('hidden-by-scroll');
-                window.removeEventListener('scroll', hideIndicator);
-            }
-        }, { passive: true });
-    })();
-
     // Track scroll for analytics (optional)
     let scrollTracked = false;
     window.addEventListener('scroll', function() {
@@ -1389,12 +1572,7 @@
         }
     });
 
-    const btn = document.getElementById("mobileMenuBtn");
-const menu = document.getElementById("mobile-menu");
 
-btn.addEventListener("click", () => {
-    menu.classList.toggle("hidden");
-});
 </script>  
 </body>
 </html>

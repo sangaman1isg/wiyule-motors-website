@@ -1,3 +1,72 @@
+<?php if (!empty($error)): ?>
+<div style="background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;padding:14px 18px;border-radius:12px;font-size:14px;font-weight:600;margin-bottom:20px">
+    ⚠ <?= htmlspecialchars($error) ?>
+</div>
+<?php endif; ?>
+
+<?php
+session_start();
+require_once __DIR__ . '/../includes/db_connection.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $first_name = trim($_POST['first_name']   ?? '');
+    $last_name  = trim($_POST['last_name']    ?? '');
+    $email      = filter_var(trim($_POST['email'] ?? ''), FILTER_SANITIZE_EMAIL);
+    $phone      = trim($_POST['phone']        ?? '');
+    $city       = trim($_POST['city']         ?? '');
+    $type       = trim($_POST['account_type'] ?? 'individual');
+    $password   = $_POST['password']          ?? '';
+
+    // Server-side validation
+    if (!$first_name || !$last_name || !$email || !$password) {
+        $error = "Please fill in all required fields.";
+    } elseif (strlen($password) < 8) {
+        $error = "Password must be at least 8 characters.";
+    } else {
+
+        // Check if email already exists
+        $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows > 0) {
+            $error = "An account with that email already exists.";
+        } else {
+
+            // Hash and insert
+            $hash = password_hash($password, PASSWORD_BCRYPT);
+
+            $stmt = $conn->prepare("
+                INSERT INTO users (first_name, last_name, email, password, phone, city, account_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->bind_param("sssssss", $first_name, $last_name, $email, $hash, $phone, $city, $type);
+            $stmt->execute();
+
+            $new_id = $conn->insert_id;
+
+            // Write session
+            $_SESSION['user_id']    = $new_id;
+            $_SESSION['first_name'] = $first_name;
+            $_SESSION['last_name']  = $last_name;
+            $_SESSION['user_name']  = $first_name . ' ' . $last_name;
+            $_SESSION['email']      = $email;
+            $_SESSION['user_email'] = $email;
+            $_SESSION['phone']      = $phone;
+            $_SESSION['city']       = $city;
+            $_SESSION['user_type']  = $type;
+
+            header('Location: /pages/dashboard.php');
+            exit;
+
+        } // end: email doesn't exist
+
+    } // end: validation passed
+
+} // end: POST request
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -38,7 +107,6 @@
                 radial-gradient(circle at 80% 20%, rgba(255,255,255,0.06) 0%, transparent 50%);
             pointer-events: none;
         }
-        /* Subtle animated grid overlay */
         .hero-grid {
             position: absolute;
             inset: 0;
@@ -136,7 +204,6 @@
         .field-input:focus ~ .field-icon { color: #dc2626; }
         .field-input.valid   ~ .field-icon { color: #16a34a; }
 
-        /* Eye toggle for password */
         .eye-btn {
             position: absolute;
             right: 14px; bottom: 14px;
@@ -147,7 +214,6 @@
         }
         .eye-btn:hover { color: #374151; }
 
-        /* Validation message */
         .field-msg {
             font-size: 12px; font-weight: 500;
             margin-top: 5px;
@@ -327,7 +393,7 @@
         <i data-feather="message-circle"></i>
     </a>
 
-    <!-- Navigation (identical to index.php) -->
+    <!-- Navigation -->
     <nav class="bg-white shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-6">
             <div class="flex justify-between items-center h-20">
@@ -365,19 +431,16 @@
         </div>
     </nav>
 
-    <!-- ─────────────────────────────── Main layout ── -->
+    <!-- Main layout -->
     <main class="min-h-screen flex flex-col lg:flex-row">
 
         <!-- LEFT — Hero Panel -->
         <div class="signup-hero lg:w-5/12 xl:w-2/5 flex flex-col justify-center px-10 py-16 lg:py-24 lg:min-h-screen relative">
             <div class="hero-grid"></div>
-
-            <!-- Floating orbs -->
             <div class="orb w-48 h-48 bg-white/10 top-10 -left-10" style="animation-delay:0s"></div>
             <div class="orb w-32 h-32 bg-white/10 bottom-24 right-4" style="animation-delay:2.5s"></div>
 
             <div class="relative z-10 max-w-sm mx-auto lg:mx-0" data-aos="fade-right">
-                <!-- Badge -->
                 <span class="inline-flex items-center gap-2 bg-white/15 border border-white/25 text-white text-xs font-bold px-4 py-2 rounded-full mb-8 backdrop-blur-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     Trusted since 2016 · Blantyre, Malawi
@@ -392,7 +455,6 @@
                     Create your account and unlock a smarter way to manage all your automotive needs — from a single dashboard.
                 </p>
 
-                <!-- Benefits -->
                 <div class="space-y-3 mb-10">
                     <?php
                     $benefits = [
@@ -412,7 +474,6 @@
                     <?php endforeach; ?>
                 </div>
 
-                <!-- Social proof -->
                 <div class="flex items-center gap-4 mt-8">
                     <div class="flex -space-x-3">
                         <?php $colors = ['bg-blue-500','bg-green-500','bg-purple-500','bg-yellow-500'];
@@ -438,50 +499,44 @@
         <div class="lg:w-7/12 xl:w-3/5 flex flex-col justify-center px-6 sm:px-10 py-12 bg-gray-50">
             <div class="max-w-xl mx-auto w-full">
 
-                <!-- Already have account -->
                 <p class="text-right text-sm text-gray-500 mb-6">
                     Already have an account?
                     <a href="/pages/login.php" class="text-red-600 font-semibold hover:underline">Sign in</a>
                 </p>
 
-                <!-- Header -->
                 <div class="mb-8" data-aos="fade-up">
                     <h2 class="text-3xl font-extrabold text-gray-900 mb-1">Create your account</h2>
                     <p class="text-gray-500 text-sm">Fill in the details below — it only takes 2 minutes.</p>
                 </div>
 
-                <!-- ── Step Progress ── -->
+                <!-- Step Progress -->
                 <div class="flex items-center mb-10" data-aos="fade-up" data-aos-delay="80">
-                    <!-- Step 1 -->
                     <div class="flex flex-col items-center">
                         <div class="step-dot active" id="dot-1">1</div>
                         <span class="text-xs font-600 text-gray-500 mt-1.5 text-center w-16" id="label-1">Account</span>
                     </div>
                     <div class="step-line" id="line-1"></div>
-                    <!-- Step 2 -->
                     <div class="flex flex-col items-center">
                         <div class="step-dot" id="dot-2">2</div>
                         <span class="text-xs text-gray-400 mt-1.5 text-center w-16" id="label-2">Personal</span>
                     </div>
                     <div class="step-line" id="line-2"></div>
-                    <!-- Step 3 -->
                     <div class="flex flex-col items-center">
                         <div class="step-dot" id="dot-3">3</div>
                         <span class="text-xs text-gray-400 mt-1.5 text-center w-16" id="label-3">Vehicle</span>
                     </div>
                 </div>
 
-                <!-- ──────── FORM ──────── -->
-                <form id="signupForm" novalidate data-aos="fade-up" data-aos-delay="120">
+                <!-- ── CHANGE 2: Added method="POST" to the form tag ── -->
+                <form id="signupForm" method="POST" action="" novalidate data-aos="fade-up" data-aos-delay="120">
 
-                    <!-- ═══ STEP 1 — Account Details ═══ -->
+                    <!-- STEP 1 — Account Details -->
                     <div class="form-step active" id="step-1">
                         <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                             <span class="w-7 h-7 bg-red-100 text-red-600 rounded-lg flex items-center justify-center text-sm font-bold">1</span>
                             Account Details
                         </h3>
 
-                        <!-- Email -->
                         <div class="field-wrap">
                             <label for="email">Email Address <span class="req">*</span></label>
                             <input type="email" id="email" name="email" class="field-input" placeholder="john@example.com" autocomplete="email">
@@ -489,7 +544,6 @@
                             <p class="field-msg" id="email-msg"></p>
                         </div>
 
-                        <!-- Password -->
                         <div class="field-wrap">
                             <label for="password">Password <span class="req">*</span></label>
                             <input type="password" id="password" name="password" class="field-input" placeholder="Min. 8 characters" autocomplete="new-password">
@@ -498,7 +552,6 @@
                                 <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                 <svg id="eye-closed" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                             </button>
-                            <!-- Strength meter -->
                             <div class="strength-bar-wrap" id="strength-bars">
                                 <div class="strength-seg" id="s1"></div>
                                 <div class="strength-seg" id="s2"></div>
@@ -508,7 +561,6 @@
                             <p class="strength-label" id="strength-label">Enter a password</p>
                         </div>
 
-                        <!-- Confirm Password -->
                         <div class="field-wrap">
                             <label for="confirm_password">Confirm Password <span class="req">*</span></label>
                             <input type="password" id="confirm_password" name="confirm_password" class="field-input" placeholder="Re-enter password" autocomplete="new-password">
@@ -520,7 +572,6 @@
                             <p class="field-msg" id="cpwd-msg"></p>
                         </div>
 
-                        <!-- Account type -->
                         <div class="mb-6">
                             <label class="block text-sm font-semibold text-gray-700 mb-3">Account Type <span class="req" style="color:#dc2626">*</span></label>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -549,14 +600,13 @@
                         </button>
                     </div>
 
-                    <!-- ═══ STEP 2 — Personal Information ═══ -->
+                    <!-- STEP 2 — Personal Information -->
                     <div class="form-step" id="step-2">
                         <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                             <span class="w-7 h-7 bg-red-100 text-red-600 rounded-lg flex items-center justify-center text-sm font-bold">2</span>
                             Personal Information
                         </h3>
 
-                        <!-- Full Name -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
                             <div class="field-wrap">
                                 <label for="first_name">First Name <span class="req">*</span></label>
@@ -572,7 +622,6 @@
                             </div>
                         </div>
 
-                        <!-- Phone -->
                         <div class="field-wrap">
                             <label for="phone">Phone Number <span class="req">*</span></label>
                             <div class="phone-wrap">
@@ -591,14 +640,12 @@
                             <p class="field-msg" id="phone-msg"></p>
                         </div>
 
-                        <!-- Date of Birth -->
                         <div class="field-wrap">
                             <label for="dob">Date of Birth</label>
                             <input type="date" id="dob" name="dob" class="field-input" autocomplete="bday">
                             <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         </div>
 
-                        <!-- Gender -->
                         <div class="field-wrap">
                             <label for="gender">Gender</label>
                             <select id="gender" name="gender" class="field-input" style="padding-left:46px">
@@ -610,7 +657,6 @@
                             <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                         </div>
 
-                        <!-- City -->
                         <div class="field-wrap">
                             <label for="city">City / Town <span class="req">*</span></label>
                             <input type="text" id="city" name="city" class="field-input" placeholder="Blantyre" autocomplete="address-level2">
@@ -618,7 +664,6 @@
                             <p class="field-msg" id="city-msg"></p>
                         </div>
 
-                        <!-- Referral -->
                         <div class="field-wrap">
                             <label for="referral">How did you hear about us?</label>
                             <select id="referral" name="referral" class="field-input" style="padding-left:46px">
@@ -645,7 +690,7 @@
                         </div>
                     </div>
 
-                    <!-- ═══ STEP 3 — Vehicle & Preferences ═══ -->
+                    <!-- STEP 3 — Vehicle & Preferences -->
                     <div class="form-step" id="step-3">
                         <h3 class="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
                             <span class="w-7 h-7 bg-red-100 text-red-600 rounded-lg flex items-center justify-center text-sm font-bold">3</span>
@@ -653,7 +698,6 @@
                         </h3>
                         <p class="text-sm text-gray-500 mb-6">Optional — helps us serve you better and personalise your dashboard.</p>
 
-                        <!-- Vehicle Make & Model -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
                             <div class="field-wrap">
                                 <label for="v_make">Vehicle Make</label>
@@ -667,7 +711,6 @@
                             </div>
                         </div>
 
-                        <!-- Year & Registration -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
                             <div class="field-wrap">
                                 <label for="v_year">Year</label>
@@ -681,7 +724,6 @@
                             </div>
                         </div>
 
-                        <!-- Preferred service -->
                         <div class="field-wrap">
                             <label for="pref_service">Primary Service Interest</label>
                             <select id="pref_service" name="pref_service" class="field-input" style="padding-left:46px">
@@ -697,7 +739,6 @@
                             <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                         </div>
 
-                        <!-- Notifications preference -->
                         <div class="mb-6">
                             <label class="block text-sm font-semibold text-gray-700 mb-3">Notification Preferences</label>
                             <div class="space-y-2">
@@ -719,7 +760,6 @@
                             </div>
                         </div>
 
-                        <!-- Terms & Privacy -->
                         <div class="mb-6 p-4 bg-gray-100 rounded-2xl">
                             <label class="custom-cb">
                                 <input type="checkbox" id="terms" name="terms" required>
@@ -742,6 +782,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                                 Back
                             </button>
+                            <!-- CHANGE 3: type="submit" — now actually POSTs the form -->
                             <button type="submit" class="btn-primary" id="submitBtn">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                                 Create My Account
@@ -749,25 +790,6 @@
                         </div>
                     </div>
                 </form>
-
-                <!-- ══ Success Screen ══ -->
-                <div class="success-screen text-center py-8" id="successScreen">
-                    <div class="success-ring mx-auto mb-6">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    </div>
-                    <h3 class="text-2xl font-extrabold text-gray-900 mb-2">Welcome to Wiyule Motors!</h3>
-                    <p class="text-gray-500 mb-2">Your account has been created successfully.</p>
-                    <p class="text-sm text-gray-400 mb-8">Check your email for a verification link to activate your account.</p>
-                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                        <a href="/#booking" class="btn-primary" style="width:auto;padding:14px 28px;text-decoration:none">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            Book a Service
-                        </a>
-                        <a href="/pages/login.php" class="btn-ghost" style="width:auto;padding:14px 28px;text-decoration:none">
-                            Go to Login
-                        </a>
-                    </div>
-                </div>
 
                 <!-- Divider + Social signup -->
                 <div class="mt-8 text-center" id="socialSection">
@@ -796,10 +818,10 @@
                 </div>
 
             </div>
-        </div><!-- /right panel -->
+        </div>
     </main>
 
-    <!-- ─── Footer strip ─── -->
+    <!-- Footer -->
     <footer class="bg-gray-900 text-gray-400 py-6 text-center text-sm">
         <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-2">
             <span>© <?= date('Y') ?> Wiyule Motors. All rights reserved.</span>
@@ -811,25 +833,20 @@
         </div>
     </footer>
 
-    <!-- ───────────────── Scripts ───────────────── -->
     <script>
-    // Init
     AOS.init({ duration: 600, once: true, offset: 60 });
     feather.replace();
 
-    // ── Mobile nav ──
     document.getElementById('mobileMenuBtn').addEventListener('click', () => {
         document.getElementById('mobile-menu').classList.toggle('hidden');
     });
 
-    // ── Account type card selection ──
     function selectCard(el) {
         document.querySelectorAll('.account-card').forEach(c => c.classList.remove('selected'));
         el.classList.add('selected');
         el.querySelector('input[type="radio"]').checked = true;
     }
 
-    // ── Password eye toggles ──
     function makeEyeToggle(toggleId, inputId, openId, closedId) {
         document.getElementById(toggleId).addEventListener('click', function() {
             const input = document.getElementById(inputId);
@@ -842,7 +859,6 @@
     makeEyeToggle('pwd-toggle',  'password',         'eye-open',  'eye-closed');
     makeEyeToggle('cpwd-toggle', 'confirm_password', 'ceye-open', 'ceye-closed');
 
-    // ── Password strength ──
     const strengthColors = ['#dc2626','#f59e0b','#3b82f6','#16a34a'];
     const strengthLabels = ['Weak','Fair','Good','Strong'];
     document.getElementById('password').addEventListener('input', function() {
@@ -852,19 +868,13 @@
         if (/[A-Z]/.test(v)) score++;
         if (/[0-9]/.test(v)) score++;
         if (/[^A-Za-z0-9]/.test(v)) score++;
-
         for (let i = 1; i <= 4; i++) {
             const seg = document.getElementById('s' + i);
             seg.style.background = i <= score ? strengthColors[score - 1] : '#e5e7eb';
         }
         const lbl = document.getElementById('strength-label');
-        if (v.length === 0) {
-            lbl.textContent = 'Enter a password';
-            lbl.style.color = '#9ca3af';
-        } else {
-            lbl.textContent = strengthLabels[score - 1] || 'Too short';
-            lbl.style.color = strengthColors[score - 1] || '#dc2626';
-        }
+        if (v.length === 0) { lbl.textContent = 'Enter a password'; lbl.style.color = '#9ca3af'; }
+        else { lbl.textContent = strengthLabels[score - 1] || 'Too short'; lbl.style.color = strengthColors[score - 1] || '#dc2626'; }
         checkConfirm();
     });
 
@@ -873,60 +883,30 @@
         const c = document.getElementById('confirm_password').value;
         const msg = document.getElementById('cpwd-msg');
         if (!c) { msg.textContent = ''; return false; }
-        if (p === c) {
-            setField('confirm_password', 'valid');
-            msg.className = 'field-msg ok';
-            msg.innerHTML = '✓ Passwords match';
-            return true;
-        } else {
-            setField('confirm_password', 'invalid');
-            msg.className = 'field-msg err';
-            msg.innerHTML = '✗ Passwords do not match';
-            return false;
-        }
+        if (p === c) { setField('confirm_password','valid'); msg.className='field-msg ok'; msg.innerHTML='✓ Passwords match'; return true; }
+        else { setField('confirm_password','invalid'); msg.className='field-msg err'; msg.innerHTML='✗ Passwords do not match'; return false; }
     }
     document.getElementById('confirm_password').addEventListener('input', checkConfirm);
 
-    // ── Email validation ──
     document.getElementById('email').addEventListener('blur', function() {
         const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
         const msg = document.getElementById('email-msg');
         if (!this.value) { msg.textContent = ''; setField('email',''); return; }
-        if (ok) {
-            setField('email','valid');
-            msg.className='field-msg ok'; msg.innerHTML='✓ Looks good';
-        } else {
-            setField('email','invalid');
-            msg.className='field-msg err'; msg.innerHTML='✗ Enter a valid email address';
-        }
+        if (ok) { setField('email','valid'); msg.className='field-msg ok'; msg.innerHTML='✓ Looks good'; }
+        else { setField('email','invalid'); msg.className='field-msg err'; msg.innerHTML='✗ Enter a valid email address'; }
     });
 
-    // ── Helper ──
     function setField(id, state) {
         const el = document.getElementById(id);
         el.classList.remove('valid','invalid');
         if (state) el.classList.add(state);
     }
-
-    function showMsg(id, type, text) {
-        const el = document.getElementById(id);
-        el.className = 'field-msg ' + type;
-        el.innerHTML = text;
-    }
+    function showMsg(id, type, text) { const el = document.getElementById(id); el.className='field-msg '+type; el.innerHTML=text; }
     function clearMsg(id) { document.getElementById(id).textContent = ''; }
 
-    // ── Step navigation ──
     let currentStep = 1;
-
-    function nextStep(from) {
-        if (!validateStep(from)) return;
-        goToStep(from + 1);
-    }
-
-    function prevStep(from) {
-        goToStep(from - 1);
-    }
-
+    function nextStep(from) { if (!validateStep(from)) return; goToStep(from + 1); }
+    function prevStep(from) { goToStep(from - 1); }
     function goToStep(to) {
         document.getElementById('step-' + currentStep).classList.remove('active');
         currentStep = to;
@@ -934,88 +914,50 @@
         updateStepper();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-
     function updateStepper() {
         for (let i = 1; i <= 3; i++) {
-            const dot   = document.getElementById('dot-' + i);
+            const dot = document.getElementById('dot-' + i);
             dot.classList.remove('active','done');
-            if (i < currentStep)       dot.classList.add('done');
+            if (i < currentStep) dot.classList.add('done');
             else if (i === currentStep) dot.classList.add('active');
         }
-        if (document.getElementById('line-1'))
-            document.getElementById('line-1').classList.toggle('done', currentStep > 1);
-        if (document.getElementById('line-2'))
-            document.getElementById('line-2').classList.toggle('done', currentStep > 2);
+        document.getElementById('line-1').classList.toggle('done', currentStep > 1);
+        document.getElementById('line-2').classList.toggle('done', currentStep > 2);
     }
-
-    // ── Per-step validation ──
     function validateStep(step) {
         let ok = true;
-
         if (step === 1) {
-            // Email
             const email = document.getElementById('email').value.trim();
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                setField('email','invalid');
-                showMsg('email-msg','err','✗ Valid email required');
-                ok = false;
-            }
-            // Password
-            const pwd = document.getElementById('password').value;
-            if (pwd.length < 8) {
-                setField('password','invalid');
-                ok = false;
-            }
-            // Confirm
-            if (!checkConfirm()) ok = false;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setField('email','invalid'); showMsg('email-msg','err','✗ Valid email required'); ok=false; }
+            if (document.getElementById('password').value.length < 8) { setField('password','invalid'); ok=false; }
+            if (!checkConfirm()) ok=false;
         }
-
         if (step === 2) {
             const fn = document.getElementById('first_name').value.trim();
             const ln = document.getElementById('last_name').value.trim();
             const ph = document.getElementById('phone').value.trim();
             const ct = document.getElementById('city').value.trim();
-
-            if (!fn) { setField('first_name','invalid'); showMsg('fn-msg','err','✗ Required'); ok=false; }
-            else { setField('first_name','valid'); clearMsg('fn-msg'); }
-
-            if (!ln) { setField('last_name','invalid'); showMsg('ln-msg','err','✗ Required'); ok=false; }
-            else { setField('last_name','valid'); clearMsg('ln-msg'); }
-
-            if (!ph || ph.length < 7) { setField('phone','invalid'); showMsg('phone-msg','err','✗ Enter a valid phone number'); ok=false; }
-            else { setField('phone','valid'); clearMsg('phone-msg'); }
-
-            if (!ct) { setField('city','invalid'); showMsg('city-msg','err','✗ Required'); ok=false; }
-            else { setField('city','valid'); clearMsg('city-msg'); }
+            if (!fn) { setField('first_name','invalid'); showMsg('fn-msg','err','✗ Required'); ok=false; } else { setField('first_name','valid'); clearMsg('fn-msg'); }
+            if (!ln) { setField('last_name','invalid');  showMsg('ln-msg','err','✗ Required'); ok=false; } else { setField('last_name','valid');  clearMsg('ln-msg'); }
+            if (!ph||ph.length<7) { setField('phone','invalid'); showMsg('phone-msg','err','✗ Enter a valid phone number'); ok=false; } else { setField('phone','valid'); clearMsg('phone-msg'); }
+            if (!ct) { setField('city','invalid'); showMsg('city-msg','err','✗ Required'); ok=false; } else { setField('city','valid'); clearMsg('city-msg'); }
         }
-
         return ok;
     }
 
-    // ── Form submit ──
-    document.getElementById('signupForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-
-        // Terms check
+    // ── CHANGE 3: JS submit now just validates terms then lets the real POST go through ──
+    document.getElementById('signupForm').addEventListener('submit', function(e) {
         if (!document.getElementById('terms').checked) {
+            e.preventDefault(); // only block if terms not accepted
             showMsg('terms-msg','err','✗ You must accept the Terms & Privacy Policy');
             return;
         }
-
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
-        btn.innerHTML = `<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Creating account…`;
-
-        // Simulate API call
-        await new Promise(r => setTimeout(r, 1800));
-
-        // Show success
-        document.getElementById('signupForm').style.display = 'none';
-        document.getElementById('socialSection').style.display = 'none';
-        document.getElementById('successScreen').classList.add('active');
+        btn.innerHTML = '<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Creating account…';
+        // Form submits normally to PHP handler above
     });
 
-    // ── Social signup placeholder ──
     function socialSignup(provider) {
         alert('Social sign-up with ' + provider + ' coming soon!');
     }

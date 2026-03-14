@@ -1,3 +1,53 @@
+<?php
+session_start();
+require __DIR__ . '/../includes/db_connection.php';
+
+if (isset($_SESSION['user_id'])) {
+    header("Location: dashboard.php");
+    exit();
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+    $email = trim($_POST['email']);
+    $password = $_POST['password'];
+
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+
+    if ($result->num_rows === 1) {
+
+        $user = $result->fetch_assoc();
+
+        if (password_verify($password, $user['password'])) {
+
+            session_regenerate_id(true);
+
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['email'] = $user['email'];
+            $_SESSION['user_name'] = $user['full_name'];
+
+            $name_parts = explode(' ', $user['full_name'], 2);
+            $_SESSION['first_name'] = $name_parts[0];
+            $_SESSION['last_name']  = $name_parts[1] ?? '';
+
+            header("Location: dashboard.php");
+            exit();
+
+        } else {
+            $error = "Invalid password.";
+        }
+
+    } else {
+        $error = "User not found.";
+    }
+
+    $stmt->close();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -425,17 +475,13 @@
                 </div>
 
                 <!-- ── Login Form ── -->
-                <form id="loginForm" novalidate data-aos="fade-up" data-aos-delay="100">
-
+                <form id="loginForm" method="POST" action="login.php">
                     <!-- Email / Username -->
                     <div class="field-wrap">
                         <label for="email">
                             Email Address <span class="req">*</span>
                         </label>
-                        <input type="email" id="email" name="email"
-                               class="field-input"
-                               placeholder="john@example.com"
-                               autocomplete="email">
+                        <input type="email" id="email" name="email" required class="field-input" placeholder="john@example.com" autocomplete="email">
                         <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
                         <p class="field-msg" id="email-msg"></p>
                     </div>
@@ -446,10 +492,7 @@
                             Password <span class="req">*</span>
                             <a href="#" class="text-red-600 text-xs font-semibold hover:underline" id="forgotLink">Forgot password?</a>
                         </label>
-                        <input type="password" id="password" name="password"
-                               class="field-input"
-                               placeholder="Your password"
-                               autocomplete="current-password">
+                        <input type="password" id="password" name="password" required class="field-input" placeholder="Your password" autocomplete="current-password">
                         <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                         <button type="button" class="eye-btn" id="pwd-toggle" aria-label="Toggle password">
                             <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -465,7 +508,7 @@
                             <div class="cb-box">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                             </div>
-                            <span class="text-sm text-gray-600 font-medium">Remember me for 30 days</span>
+                            <span class="text-sm text-gray-600 font-medium">Remember me!</span>
                         </label>
                     </div>
 
@@ -653,14 +696,8 @@
         else { setField('password','valid'); showMsg('pwd-msg','ok','✓ Good'); }
     });
 
-    // ── Failed attempts tracking ──
-    let failCount = 0;
-
-    // ── Form submit ──
-    document.getElementById('loginForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        hideAlert();
-
+    // ── Form submit — client-side validation then native POST to PHP ──
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
         const email    = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
         let ok = true;
@@ -675,47 +712,16 @@
             showMsg('pwd-msg','err','✗ Password required');
             ok = false;
         }
-        if (!ok) return;
+        if (!ok) {
+            e.preventDefault();
+            return;
+        }
 
-        // Loading state
+        // Show loading state while form submits
         const btn = document.getElementById('submitBtn');
-        const originalHTML = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = `<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Signing in…`;
-
-        await new Promise(r => setTimeout(r, 1600));
-
-        // ── Simulate auth (replace with real fetch to your PHP backend) ──
-        // const res = await fetch('/api/login.php', { method:'POST', body: new FormData(this) });
-        // const data = await res.json();
-        // Simulated: wrong password demo
-        const simulateSuccess = email.toLowerCase().includes('@') && password.length >= 8;
-
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-
-        if (simulateSuccess) {
-            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Signed in! Redirecting…`;
-            btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-            showAlert('ok', '✓ Welcome back! Redirecting to your dashboard…');
-            setTimeout(() => { window.location.href = '/dashboard'; }, 1800);
-        } else {
-            failCount++;
-            // Shake the form card
-            const form = document.getElementById('loginForm');
-            form.classList.remove('shake');
-            void form.offsetWidth; // reflow
-            form.classList.add('shake');
-            setTimeout(() => form.classList.remove('shake'), 500);
-
-            setField('email','invalid');
-            setField('password','invalid');
-            showAlert('err', `Incorrect email or password. Please try again. (${failCount} failed attempt${failCount > 1 ? 's' : ''})`);
-
-            if (failCount >= 3) {
-                document.getElementById('attemptsHint').style.display = 'block';
-            }
-        }
+        // Let the form submit naturally to PHP
     });
 
     // ── Forgot password modal ──
