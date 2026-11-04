@@ -591,7 +591,7 @@ if ($vm) {
         <a class="sb-item <?= $active_tab==='bookings'?'active':'' ?>" onclick="showTab('bookings')">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Bookings
-            <?php if($stats['pending']): ?><span class="sb-badge"><?= $stats['pending'] ?></span><?php endif; ?>
+            <span class="sb-badge" id="pendingBadge" style="<?= $stats['pending'] ? '' : 'display:none' ?>"><?= $stats['pending'] ?></span>
         </a>
         <a class="sb-item <?= $active_tab==='customers'?'active':'' ?>" onclick="showTab('customers')">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1445,6 +1445,45 @@ function msgBtn(label, text, phone) {
 function closeDetail(){document.getElementById('detailModal').classList.remove('open');}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDetail()});
+
+// ── Live dashboard heartbeat: poll for new bookings / updated counts ──
+(function(){
+    const PULSE_URL = <?= json_encode($base . '/admin/api/pulse.php') ?>;
+    let lastNewestId = <?= (int)($conn->query("SELECT COALESCE(MAX(id),0) m FROM bookings")->fetch_assoc()['m']) ?>;
+    let firstPoll = true;
+
+    function showNewBooking(b){
+        const v = b && b.vehicle ? ' · ' + b.vehicle : '';
+        if (typeof showToast === 'function') showToast('🔔 New booking from ' + (b ? b.name : 'a customer') + v, 'success');
+        let bar = document.getElementById('newBookingBar');
+        if (!bar){
+            bar = document.createElement('div');
+            bar.id = 'newBookingBar';
+            bar.style.cssText = 'position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:300;background:#16a34a;color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,0.25);cursor:pointer';
+            bar.textContent = '🔔 New booking — tap to refresh';
+            bar.onclick = function(){ location.reload(); };
+            document.body.appendChild(bar);
+        }
+    }
+
+    async function pulse(){
+        try {
+            const r = await fetch(PULSE_URL, { credentials:'same-origin' });
+            if (!r.ok) return;
+            const d = await r.json();
+            if (!d.ok) return;
+            const pb = document.getElementById('pendingBadge');
+            if (pb){ pb.textContent = d.pending; pb.style.display = d.pending > 0 ? '' : 'none'; }
+            if (d.newest_id > lastNewestId){
+                if (!firstPoll) showNewBooking(d.newest);
+                lastNewestId = d.newest_id;
+            }
+            firstPoll = false;
+        } catch(e){ /* offline / transient — ignore, try again next tick */ }
+    }
+    setTimeout(pulse, 5000);
+    setInterval(pulse, 30000);
+})();
 </script>
 </body>
 </html>
