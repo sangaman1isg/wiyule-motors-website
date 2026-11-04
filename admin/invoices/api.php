@@ -41,6 +41,75 @@ if (($_POST['action'] ?? '') === 'add_insurance_company') {
     exit;
 }
 
+// ── Simple record actions (form-encoded POST with ?action=…) ──
+// archive (soft-delete), restore, convert_to_invoice, duplicate, mark_paid.
+$action = $_POST['action'] ?? '';
+if (in_array($action, ['archive', 'restore', 'convert_to_invoice', 'duplicate', 'mark_paid'], true)) {
+    $iid = (int)($_POST['id'] ?? 0);
+    if ($iid <= 0) { echo json_encode(['success' => false, 'message' => 'Missing invoice id']); exit; }
+    $cur = wm_invoice_fetch($conn, $iid);
+    if (!$cur) { echo json_encode(['success' => false, 'message' => 'Invoice not found']); exit; }
+    $inv = $cur['invoice'];
+
+    if ($action === 'archive') {
+        $s = $conn->prepare("UPDATE invoices SET archived_at = NOW() WHERE id = ?");
+        $s->bind_param('i', $iid); $s->execute(); $s->close();
+        echo json_encode(['success' => true, 'message' => 'Moved to archive']); exit;
+    }
+
+    if ($action === 'restore') {
+        $s = $conn->prepare("UPDATE invoices SET archived_at = NULL WHERE id = ?");
+        $s->bind_param('i', $iid); $s->execute(); $s->close();
+        echo json_encode(['success' => true, 'message' => 'Restored from archive']); exit;
+    }
+
+    if ($action === 'mark_paid') {
+        if ($inv['payment_status'] === 'void') { echo json_encode(['success' => false, 'message' => 'Cannot mark a void invoice as paid']); exit; }
+        if ($inv['type'] !== 'invoice')         { echo json_encode(['success' => false, 'message' => 'Only invoices can be marked paid']); exit; }
+        $s = $conn->prepare("UPDATE invoices SET payment_status='paid', amount_paid=total, payment_date=CURDATE(), payment_method=IF(payment_method='', 'cash', payment_method) WHERE id = ?");
+        $s->bind_param('i', $iid); $s->execute(); $s->close();
+        echo json_encode(['success' => true, 'message' => 'Marked as paid']); exit;
+    }
+
+    if ($action === 'convert_to_invoice') {
+        if ($inv['type'] !== 'quotation') { echo json_encode(['success' => false, 'message' => 'Only quotations can be converted']); exit; }
+        // Convert in place: keeps the same WM number & line items, becomes an unpaid invoice dated now.
+        $s = $conn->prepare("UPDATE invoices SET type='invoice', issued_at=NOW(), payment_status='unpaid', archived_at=NULL WHERE id = ?");
+        $s->bind_param('i', $iid); $s->execute(); $s->close();
+        echo json_encode(['success' => true, 'message' => 'Converted to invoice', 'invoice_id' => $iid, 'invoice_number' => $inv['invoice_number']]); exit;
+    }
+
+    if ($action === 'duplicate') {
+        $conn->begin_transaction();
+        try {
+            $newNum = wm_invoice_next_number($conn);
+            $cb = (int)$_SESSION['admin_id'];
+            // Copy the header as a fresh UNPAID draft (same type), dated now.
+            $s = $conn->prepare("
+                INSERT INTO invoices
+                  (invoice_number, type, booking_id, user_id, recipient_name, customer_name, customer_phone,
+                   customer_email, vehicle_info, claim_reference, insurance_company_id, subtotal, discount_type,
+                   discount_value, discount_amount, vat_enabled, vat_rate, vat_amount, less_excess, total,
+                   payment_status, amount_paid, payment_method, payment_date, payment_notes, notes, issued_at, due_date, created_by)
+                SELECT ?, type, booking_id, user_id, recipient_name, customer_name, customer_phone,
+                   customer_email, vehicle_info, claim_reference, insurance_company_id, subtotal, discount_type,
+                   discount_value, discount_amount, vat_enabled, vat_rate, vat_amount, less_excess, total,
+                   'unpaid', 0, '', NULL, '', notes, NOW(), due_date, ?
+                FROM invoices WHERE id = ?");
+            $s->bind_param('sii', $newNum, $cb, $iid); $s->execute(); $newId = (int)$s->insert_id; $s->close();
+            $s2 = $conn->prepare("
+                INSERT INTO invoice_items (invoice_id, item_type, description, quantity, unit_price, line_total, sort_order)
+                SELECT ?, item_type, description, quantity, unit_price, line_total, sort_order FROM invoice_items WHERE invoice_id = ?");
+            $s2->bind_param('ii', $newId, $iid); $s2->execute(); $s2->close();
+            $conn->commit();
+            echo json_encode(['success' => true, 'message' => 'Duplicated', 'invoice_id' => $newId, 'invoice_number' => $newNum]); exit;
+        } catch (Throwable $e) {
+            $conn->rollback();
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]); exit;
+        }
+    }
+}
+
 $raw  = file_get_contents('php://input');
 $data = json_decode($raw, true);
 if (!is_array($data)) {

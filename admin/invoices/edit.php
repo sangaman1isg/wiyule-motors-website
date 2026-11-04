@@ -210,8 +210,15 @@ $is_locked = ($invoice['payment_status'] === 'void');
     </a>
     <div class="topbar-actions">
         <a href="<?= $base ?>/admin/invoices/" class="top-btn ghost">← Back</a>
-        <?php if (!$is_new && !$is_locked): ?>
-            <a href="<?= $base ?>/admin/invoices/print.php?id=<?= (int)$invoice['id'] ?>" target="_blank" class="top-btn dark">🖨 Print / PDF</a>
+        <?php if (!$is_new): ?>
+            <?php if ($invoice['type'] === 'quotation' && !$is_locked): ?>
+                <button type="button" class="top-btn dark" onclick="invAction('convert_to_invoice','Convert this quotation into an invoice? It keeps the same number and line items.')">→ Convert to Invoice</button>
+            <?php endif; ?>
+            <button type="button" class="top-btn ghost" onclick="invAction('duplicate','Create a new draft copy of this document?')">⧉ Duplicate</button>
+            <?php if (!$is_locked): ?>
+                <a href="<?= $base ?>/admin/invoices/print.php?id=<?= (int)$invoice['id'] ?>" target="_blank" class="top-btn dark">🖨 Print / PDF</a>
+            <?php endif; ?>
+            <button type="button" class="top-btn ghost" style="color:#dc2626" onclick="invAction('archive','Archive this document? It will be hidden from the active list but kept on record (recoverable).')">🗄 Archive</button>
         <?php endif; ?>
         <button type="button" id="saveBtn" class="top-btn red" <?= $is_locked ? 'disabled style="opacity:0.5;cursor:not-allowed"' : '' ?>>💾 Save</button>
     </div>
@@ -476,7 +483,32 @@ $is_locked = ($invoice['payment_status'] === 'void');
 <script>
 const BASE = <?= json_encode($base) ?>;
 const IS_NEW = <?= $is_new ? 'true' : 'false' ?>;
+const INVOICE_ID = <?= (int)$invoice['id'] ?>;
 const VAT_RATE = 17.5;
+
+// ── Record actions: convert / duplicate / archive ──
+async function invAction(action, confirmMsg) {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    const fd = new FormData();
+    fd.append('action', action);
+    fd.append('id', INVOICE_ID);
+    try {
+        const resp = await fetch(BASE + '/admin/invoices/api.php', { method:'POST', body:fd, credentials:'same-origin' });
+        const j = await resp.json();
+        if (!j.success) { showToast(j.message || 'Action failed', 'error'); return; }
+        showToast(j.message || 'Done', 'success');
+        setTimeout(() => {
+            if (action === 'archive') {
+                window.location = BASE + '/admin/invoices/';
+            } else {
+                // convert (same id) or duplicate (new id) → open the resulting document
+                window.location = BASE + '/admin/invoices/edit.php?id=' + (j.invoice_id || INVOICE_ID);
+            }
+        }, 700);
+    } catch (e) {
+        showToast('Network error — try again', 'error');
+    }
+}
 
 // ── Insurance company: handle "+ Add new company…" inline ──
 function onInsCompanyChange(sel) {

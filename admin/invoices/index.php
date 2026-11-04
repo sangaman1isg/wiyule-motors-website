@@ -18,8 +18,11 @@ $admin_name = $_SESSION['admin_name'] ?? 'Admin';
 $f_status = $_GET['status'] ?? 'all';
 $f_type   = $_GET['type']   ?? 'all';
 $f_search = trim($_GET['q'] ?? '');
+$show_archived = ($_GET['archived'] ?? '') === '1';
 
 $where = []; $params = []; $types = '';
+// Archive view: show only archived; default view hides archived.
+$where[] = $show_archived ? 'archived_at IS NOT NULL' : 'archived_at IS NULL';
 if ($f_status !== 'all' && in_array($f_status, ['unpaid','partial','paid','void'])) {
     $where[] = 'payment_status = ?'; $params[] = $f_status; $types .= 's';
 }
@@ -39,18 +42,18 @@ $sql .= " ORDER BY issued_at DESC LIMIT 200";
 
 $invoices = [];
 $stmt = $conn->prepare($sql);
-if ($where) $stmt->bind_param($types, ...$params);
+if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $invoices = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
 // ── Summary stats ──
 $totals = ['outstanding' => 0, 'paid_this_month' => 0, 'total_count' => 0];
-$r = $conn->query("SELECT COALESCE(SUM(total - amount_paid), 0) c FROM invoices WHERE type='invoice' AND payment_status IN ('unpaid','partial')");
+$r = $conn->query("SELECT COALESCE(SUM(total - amount_paid), 0) c FROM invoices WHERE type='invoice' AND payment_status IN ('unpaid','partial') AND archived_at IS NULL");
 if ($r) $totals['outstanding'] = (float)$r->fetch_assoc()['c'];
-$r = $conn->query("SELECT COALESCE(SUM(amount_paid), 0) c FROM invoices WHERE type='invoice' AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')");
+$r = $conn->query("SELECT COALESCE(SUM(amount_paid), 0) c FROM invoices WHERE type='invoice' AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m') AND archived_at IS NULL");
 if ($r) $totals['paid_this_month'] = (float)$r->fetch_assoc()['c'];
-$r = $conn->query("SELECT COUNT(*) c FROM invoices WHERE type='invoice'");
+$r = $conn->query("SELECT COUNT(*) c FROM invoices WHERE type='invoice' AND archived_at IS NULL");
 if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
 ?>
 <!DOCTYPE html>
@@ -102,6 +105,19 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
     .num { font-family:'SF Mono',Menlo,monospace; font-weight:600; color:#0f172a; }
     .amount { font-weight:700; }
     .empty { padding:60px; text-align:center; color:#94a3b8; font-size:14px; }
+
+    td.actions { white-space:nowrap; text-align:right; }
+    .act-btn { display:inline-flex; align-items:center; gap:4px; padding:6px 10px; border-radius:8px; font-size:12px; font-weight:700; border:1px solid #e2e8f0; background:#fff; color:#334155; cursor:pointer; font-family:inherit; margin-left:4px; }
+    .act-btn:hover { background:#f1f5f9; }
+    .act-btn.green { color:#16a34a; border-color:#bbf7d0; } .act-btn.green:hover { background:#f0fdf4; }
+    .act-btn.blue  { color:#2563eb; border-color:#bfdbfe; } .act-btn.blue:hover  { background:#eff6ff; }
+    .act-btn.red   { color:#dc2626; border-color:#fecaca; } .act-btn.red:hover   { background:#fef2f2; }
+    .toggle-link { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#64748b; text-decoration:none; padding:8px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
+    .toggle-link:hover { color:#0f172a; background:#f8fafc; }
+    .archived-row { background:#fcfcfd; }
+    .archived-row .num, .archived-row td { opacity:0.72; }
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:13px 20px; border-radius:11px; font-weight:600; font-size:14px; color:#fff; box-shadow:0 8px 30px rgba(0,0,0,0.18); z-index:100; opacity:0; pointer-events:none; transition:opacity 0.2s; }
+    .toast.show { opacity:1; } .toast.success { background:#16a34a; } .toast.error { background:#dc2626; }
 </style>
 </head>
 <body>
@@ -118,13 +134,26 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
 
     <div class="page-head">
         <div>
-            <h1>Invoices &amp; Quotations</h1>
-            <p class="sub"><?= $totals['total_count'] ?> invoices on record · VAT 17.5%</p>
+            <h1><?= $show_archived ? 'Archived' : 'Invoices &amp; Quotations' ?></h1>
+            <p class="sub">
+                <?php if ($show_archived): ?>
+                    Archived documents — hidden from the active list but kept on record.
+                <?php else: ?>
+                    <?= $totals['total_count'] ?> invoices on record · VAT 17.5%
+                <?php endif; ?>
+            </p>
         </div>
-        <a href="<?= $base ?>/admin/invoices/edit.php?new=1" class="new-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            New Invoice
-        </a>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <?php if ($show_archived): ?>
+                <a href="<?= $base ?>/admin/invoices/" class="toggle-link">← Active list</a>
+            <?php else: ?>
+                <a href="<?= $base ?>/admin/invoices/?archived=1" class="toggle-link">🗄 Archived</a>
+                <a href="<?= $base ?>/admin/invoices/edit.php?new=1" class="new-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    New Invoice
+                </a>
+            <?php endif; ?>
+        </div>
     </div>
 
     <div class="stats">
@@ -172,14 +201,16 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
                     <th>Date</th>
                     <th>Total</th>
                     <th>Status</th>
+                    <th style="text-align:right">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($invoices as $inv):
                     [$slabel,$scol] = wm_invoice_status_label($inv['payment_status']);
                     [$tlabel,$tcol] = wm_invoice_type_label($inv['type']);
+                    $iid = (int)$inv['id'];
                 ?>
-                <tr onclick="window.location='<?= $base ?>/admin/invoices/edit.php?id=<?= (int)$inv['id'] ?>'">
+                <tr class="<?= $show_archived ? 'archived-row' : '' ?>" onclick="window.location='<?= $base ?>/admin/invoices/edit.php?id=<?= $iid ?>'">
                     <td class="num"><?= htmlspecialchars($inv['invoice_number']) ?></td>
                     <td><span class="pill" style="background:<?= $tcol ?>"><?= $tlabel ?></span></td>
                     <td>
@@ -189,16 +220,60 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
                     <td style="color:#64748b"><?= date('d M Y', strtotime($inv['issued_at'])) ?></td>
                     <td class="amount"><?= wm_invoice_format_mwk($inv['total']) ?></td>
                     <td><span class="pill" style="background:<?= $scol ?>"><?= $slabel ?></span></td>
+                    <td class="actions" onclick="event.stopPropagation()">
+                        <?php if ($show_archived): ?>
+                            <button class="act-btn green" onclick="invAction(<?= $iid ?>,'restore','Restore this document to the active list?')">↩ Restore</button>
+                        <?php else: ?>
+                            <?php if ($inv['type'] === 'quotation'): ?>
+                                <button class="act-btn blue" onclick="invAction(<?= $iid ?>,'convert_to_invoice','Convert quotation <?= htmlspecialchars($inv['invoice_number']) ?> into an invoice?')">→ Invoice</button>
+                            <?php elseif (in_array($inv['payment_status'], ['unpaid','partial'])): ?>
+                                <button class="act-btn green" onclick="invAction(<?= $iid ?>,'mark_paid','Mark <?= htmlspecialchars($inv['invoice_number']) ?> as fully paid?')">✓ Mark paid</button>
+                            <?php endif; ?>
+                            <button class="act-btn red" onclick="invAction(<?= $iid ?>,'archive','Archive <?= htmlspecialchars($inv['invoice_number']) ?>? It will be hidden from the active list but kept on record (recoverable).')">🗄 Archive</button>
+                        <?php endif; ?>
+                    </td>
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($invoices)): ?>
-                <tr><td colspan="6" class="empty">No invoices found. <a href="<?= $base ?>/admin/invoices/edit.php?new=1" style="color:#dc2626;font-weight:700">Create the first one →</a></td></tr>
+                <tr><td colspan="7" class="empty"><?= $show_archived ? 'Nothing archived.' : 'No invoices found.' ?> <?php if(!$show_archived): ?><a href="<?= $base ?>/admin/invoices/edit.php?new=1" style="color:#dc2626;font-weight:700">Create the first one →</a><?php endif; ?></td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
 
 </div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const BASE = <?= json_encode($base) ?>;
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (type || 'success');
+    setTimeout(() => t.className = 'toast', 2600);
+}
+
+async function invAction(id, action, confirmMsg) {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    const fd = new FormData();
+    fd.append('action', action);
+    fd.append('id', id);
+    try {
+        const resp = await fetch(BASE + '/admin/invoices/api.php', { method:'POST', body:fd, credentials:'same-origin' });
+        const j = await resp.json();
+        if (j.success) {
+            showToast(j.message || 'Done', 'success');
+            setTimeout(() => location.reload(), 650);
+        } else {
+            showToast(j.message || 'Action failed', 'error');
+        }
+    } catch (e) {
+        showToast('Network error — try again', 'error');
+    }
+}
+</script>
 
 </body>
 </html>
