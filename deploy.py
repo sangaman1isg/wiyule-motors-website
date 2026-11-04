@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent
 EXCLUDE_NAMES = {
     ".git", ".gitignore", ".idea", ".vscode", ".claude", ".DS_Store",
     ".deploy.env", ".deploy.env.example", "deploy.py", "deploy.sh",
-    "secrets.example.php", "__MACOSX", "__pycache__",
+    "secrets.example.php", "db.local.php", "dev", "__MACOSX", "__pycache__",
 }
 # Also skip any file with one of these suffixes.
 EXCLUDE_SUFFIX = {".pyc"}

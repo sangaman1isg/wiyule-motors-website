@@ -8,12 +8,18 @@ mysqli_report(MYSQLI_REPORT_OFF);
 // ── Database Connection ──────────────────────────────────────────
 // Credentials are loaded from the untracked secrets.php (see secrets.example.php)
 require_once __DIR__ . '/secrets.php';
-$conn = @new mysqli(
-    WM_DB_HOST,
-    WM_DB_USER,
-    WM_DB_PASS,
-    WM_DB_NAME
-);
+
+// Connection parameters (production values from secrets.php).
+$wm_db = ['host' => WM_DB_HOST, 'user' => WM_DB_USER, 'pass' => WM_DB_PASS, 'name' => WM_DB_NAME, 'port' => null];
+
+// Local-development override: ONLY when served by `php -S` (the built-in
+// dev server reports SAPI 'cli-server') AND a gitignored db.local.php exists.
+// This never runs in production (different SAPI, file absent, not deployed).
+if (php_sapi_name() === 'cli-server' && is_file(__DIR__ . '/db.local.php')) {
+    $wm_db = array_merge($wm_db, require __DIR__ . '/db.local.php');
+}
+
+$conn = @new mysqli($wm_db['host'], $wm_db['user'], $wm_db['pass'], $wm_db['name'], $wm_db['port']);
 
 if ($conn->connect_error) {
     // Log the real error for debugging — never shown to users

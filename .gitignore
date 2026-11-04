@@ -43,3 +43,6 @@ includes/secrets.php
 # Python
 __pycache__/
 *.pyc
+
+# Local dev DB override — never commit or deploy
+includes/db.local.php
