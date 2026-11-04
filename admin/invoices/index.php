@@ -118,6 +118,48 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
     .archived-row .num, .archived-row td { opacity:0.72; }
     .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:13px 20px; border-radius:11px; font-weight:600; font-size:14px; color:#fff; box-shadow:0 8px 30px rgba(0,0,0,0.18); z-index:100; opacity:0; pointer-events:none; transition:opacity 0.2s; }
     .toast.show { opacity:1; } .toast.success { background:#16a34a; } .toast.error { background:#dc2626; }
+
+    /* ── Mobile: turn the table into stacked cards ── */
+    @media (max-width: 640px) {
+        html, body { max-width:100%; overflow-x:hidden; }
+        .topbar { padding:12px 14px; }
+        .topbar-brand img { width:28px; height:28px; }
+        .topbar-brand strong { font-size:14px; }
+        .topbar-back { font-size:12px; }
+        .page { padding:18px 12px; }
+        .page-head h1 { font-size:21px; }
+        .stats { gap:10px; margin-bottom:16px; }
+        .filters { gap:8px; }
+        .filters input[type=text] { min-width:0; flex:1 1 100%; }
+        .filters select { flex:1 1 calc(50% - 5px); min-width:0; }
+
+        /* Natural block widths (no width:100% — lets padding nest correctly) */
+        .table-wrap { background:transparent; border:none; overflow:visible; }
+        table, thead, tbody, tr { display:block; }
+        thead { display:none; }
+        tbody tr {
+            background:#fff; border:1px solid #e2e8f0; border-radius:14px;
+            margin-bottom:12px; padding:4px 14px 10px;
+            box-shadow:0 1px 3px rgba(15,23,42,0.04);
+        }
+        tbody tr:hover { background:#fff; }
+        td {
+            display:flex; align-items:center; justify-content:space-between; gap:12px;
+            padding:9px 0; border:none; text-align:right; font-size:14px; min-width:0;
+        }
+        td + td { border-top:1px solid #f4f6f9; }
+        td::before {
+            content:attr(data-label);
+            font-weight:700; color:#64748b; text-transform:uppercase;
+            font-size:10.5px; letter-spacing:0.04em; text-align:left; flex-shrink:0;
+        }
+        td > * { min-width:0; }
+        td.num { font-size:16px; font-weight:800; }
+        /* Actions: full-width button row with big tap targets */
+        td.actions { flex-wrap:wrap; gap:8px; padding-top:12px; margin-top:2px; border-top:1px solid #eef2f7; }
+        td.actions::before { display:none; }
+        td.actions .act-btn { flex:1 1 auto; justify-content:center; margin-left:0; padding:12px 10px; font-size:13px; }
+    }
 </style>
 </head>
 <body>
@@ -211,15 +253,15 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
                     $iid = (int)$inv['id'];
                 ?>
                 <tr class="<?= $show_archived ? 'archived-row' : '' ?>" onclick="window.location='<?= $base ?>/admin/invoices/edit.php?id=<?= $iid ?>'">
-                    <td class="num"><?= htmlspecialchars($inv['invoice_number']) ?></td>
-                    <td><span class="pill" style="background:<?= $tcol ?>"><?= $tlabel ?></span></td>
-                    <td>
+                    <td class="num" data-label="Invoice #"><?= htmlspecialchars($inv['invoice_number']) ?></td>
+                    <td data-label="Type"><span class="pill" style="background:<?= $tcol ?>"><?= $tlabel ?></span></td>
+                    <td data-label="Customer">
                         <div style="font-weight:600"><?= htmlspecialchars($inv['customer_name']) ?></div>
                         <div style="font-size:11px;color:#94a3b8"><?= htmlspecialchars($inv['customer_phone']) ?></div>
                     </td>
-                    <td style="color:#64748b"><?= date('d M Y', strtotime($inv['issued_at'])) ?></td>
-                    <td class="amount"><?= wm_invoice_format_mwk($inv['total']) ?></td>
-                    <td><span class="pill" style="background:<?= $scol ?>"><?= $slabel ?></span></td>
+                    <td data-label="Date" style="color:#64748b"><?= date('d M Y', strtotime($inv['issued_at'])) ?></td>
+                    <td class="amount" data-label="Total"><?= wm_invoice_format_mwk($inv['total']) ?></td>
+                    <td data-label="Status"><span class="pill" style="background:<?= $scol ?>"><?= $slabel ?></span></td>
                     <td class="actions" onclick="event.stopPropagation()">
                         <?php if ($show_archived): ?>
                             <button class="act-btn green" onclick="invAction(<?= $iid ?>,'restore','Restore this document to the active list?')">↩ Restore</button>
