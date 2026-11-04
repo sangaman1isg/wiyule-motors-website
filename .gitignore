@@ -36,3 +36,6 @@ includes/secrets.php
 .dart_tool/
 .metadata
 .flutter-plugins-dependencies
+
+# FTP deploy credentials — never commit
+.deploy.env
