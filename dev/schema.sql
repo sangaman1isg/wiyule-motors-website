@@ -148,3 +148,5 @@ CREATE TABLE `vehicles` (
 SET FOREIGN_KEY_CHECKS=1;
 -- our soft-delete/archive migration (local; will also go to prod later)
 ALTER TABLE invoices ADD COLUMN archived_at DATETIME NULL DEFAULT NULL AFTER payment_status;
+-- Phase 4: track when we last emailed the customer a reminder/nudge for this invoice
+ALTER TABLE invoices ADD COLUMN last_reminder_at DATETIME NULL DEFAULT NULL AFTER archived_at;

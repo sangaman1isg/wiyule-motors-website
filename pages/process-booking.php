@@ -137,6 +137,19 @@ if ($stmt->execute()) {
         $mark->close();
     }
 
+    // Notify the owner of the new booking (non-blocking — never break the booking response)
+    try {
+        require_once __DIR__ . '/../includes/email.php';
+        wm_send_new_booking_alert([
+            'full_name'    => $full_name, 'phone' => $phone,
+            'vehicle_make' => $vehicle_make, 'vehicle_model' => $vehicle_model, 'vehicle_year' => $vehicle_year,
+            'services'     => $services, 'booking_date' => $booking_date, 'booking_time' => $booking_time,
+            'source'       => $source ?? '—',
+        ]);
+    } catch (Throwable $e) {
+        error_log('New-booking owner alert failed: ' . $e->getMessage());
+    }
+
     echo json_encode([
         'success'             => true,
         'booking_id'          => $booking_id,

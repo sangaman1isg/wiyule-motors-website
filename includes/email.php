@@ -212,3 +212,83 @@ function wm_send_invoice_email(array $invoice, array $items) {
 
     return wm_send_email($to_email, $invoice['customer_name'], $subject, $html, $text);
 }
+
+/** Shared wrapper for a simple branded Wiyule email card. */
+function _wm_email_shell(string $heading, string $badge, string $body_html): string {
+    return '
+<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f5;padding:28px 14px;color:#0f172a;">
+  <div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(15,23,42,0.08);">
+    <div style="background:#0f172a;padding:20px 26px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:17px;font-weight:800;color:#fff;">Wiyule &amp; F A Motors</div>
+      <div style="font-size:12px;font-weight:700;color:#fca5a5;text-transform:uppercase;letter-spacing:0.06em;">' . htmlspecialchars($badge, ENT_QUOTES) . '</div>
+    </div>
+    <div style="padding:26px;">
+      <h1 style="font-size:19px;font-weight:800;margin:0 0 14px;color:#0f172a;">' . htmlspecialchars($heading, ENT_QUOTES) . '</h1>
+      ' . $body_html . '
+    </div>
+    <div style="background:#f8fafc;padding:14px 26px;border-top:1px solid #e2e8f0;text-align:center;">
+      <p style="font-size:12px;color:#64748b;margin:0;">Wiyule Motors · Blantyre, Malawi · +265 993 575 111</p>
+    </div>
+  </div>
+</div>';
+}
+
+/** Payment reminder for an overdue invoice. $invoice is an invoices row. */
+function wm_send_payment_reminder_email(array $invoice) {
+    require_once __DIR__ . '/invoices.php';
+    $to = trim($invoice['customer_email'] ?? '');
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) return ['ok'=>false,'error'=>'no valid email'];
+    $bal  = (float)$invoice['total'] - (float)$invoice['amount_paid'];
+    $num  = htmlspecialchars($invoice['invoice_number'], ENT_QUOTES);
+    $cust = htmlspecialchars($invoice['customer_name'], ENT_QUOTES);
+    $due  = $invoice['due_date'] ? date('d M Y', strtotime($invoice['due_date'])) : '';
+    $body = '<p style="font-size:14px;color:#334155;margin:0 0 14px;">Hi ' . $cust . ', this is a friendly reminder that invoice <strong>' . $num . '</strong> has an outstanding balance' . ($due ? ' (due ' . $due . ')' : '') . '.</p>'
+          . '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;text-align:center;margin:0 0 16px;">'
+          . '<div style="font-size:12px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.05em;">Balance due</div>'
+          . '<div style="font-size:26px;font-weight:800;color:#dc2626;margin-top:4px;">' . wm_invoice_format_mwk($bal) . '</div></div>'
+          . '<p style="font-size:13px;color:#64748b;margin:0;">Please settle at your earliest convenience, or reply/call us to arrange payment. Thank you!</p>';
+    $html = _wm_email_shell('Payment reminder', 'Invoice ' . $invoice['invoice_number'], $body);
+    $text = "Hi " . $invoice['customer_name'] . ",\n\nReminder: invoice " . $invoice['invoice_number'] . " has an outstanding balance of " . wm_invoice_format_mwk($bal) . ($due ? " (due $due)" : "") . ".\nPlease settle at your earliest convenience.\n\n— Wiyule Motors · +265 993 575 111";
+    return wm_send_email($to, $invoice['customer_name'], 'Payment reminder — invoice ' . $invoice['invoice_number'], $html, $text);
+}
+
+/** Expiry nudge for a quotation approaching its 14-day validity. */
+function wm_send_quote_expiry_email(array $invoice) {
+    require_once __DIR__ . '/invoices.php';
+    $to = trim($invoice['customer_email'] ?? '');
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) return ['ok'=>false,'error'=>'no valid email'];
+    $num  = htmlspecialchars($invoice['invoice_number'], ENT_QUOTES);
+    $cust = htmlspecialchars($invoice['customer_name'], ENT_QUOTES);
+    $body = '<p style="font-size:14px;color:#334155;margin:0 0 14px;">Hi ' . $cust . ', your quotation <strong>' . $num . '</strong> for ' . wm_invoice_format_mwk($invoice['total']) . ' is valid for 14 days and will expire soon.</p>'
+          . '<p style="font-size:13px;color:#64748b;margin:0;">If you\'d like to go ahead, just reply or call us and we\'ll get your vehicle booked in. Prices may change after the quote expires.</p>';
+    $html = _wm_email_shell('Your quotation expires soon', 'Quotation ' . $invoice['invoice_number'], $body);
+    $text = "Hi " . $invoice['customer_name'] . ",\n\nYour quotation " . $invoice['invoice_number'] . " for " . wm_invoice_format_mwk($invoice['total']) . " is valid for 14 days and will expire soon. Reply or call to proceed.\n\n— Wiyule Motors · +265 993 575 111";
+    return wm_send_email($to, $invoice['customer_name'], 'Your Wiyule Motors quotation expires soon', $html, $text);
+}
+
+/** Notify the owner that a new booking just came in. $b is an associative array of booking fields. */
+function wm_send_new_booking_alert(array $b) {
+    $owner = defined('OWNER_EMAIL') ? OWNER_EMAIL : (defined('BREVO_SENDER_EMAIL') ? BREVO_SENDER_EMAIL : '');
+    if ($owner === '') return ['ok'=>false,'error'=>'no owner email'];
+    $name = htmlspecialchars($b['full_name'] ?? '', ENT_QUOTES);
+    $veh  = htmlspecialchars(trim(($b['vehicle_year'] ?? '') . ' ' . ($b['vehicle_make'] ?? '') . ' ' . ($b['vehicle_model'] ?? '')), ENT_QUOTES);
+    $rows = [
+        'Customer' => $name,
+        'Phone'    => htmlspecialchars($b['phone'] ?? '', ENT_QUOTES),
+        'Vehicle'  => $veh,
+        'Service'  => htmlspecialchars($b['services'] ?? '', ENT_QUOTES),
+        'Date'     => htmlspecialchars(trim(($b['booking_date'] ?? '') . ' ' . ($b['booking_time'] ?? '')), ENT_QUOTES),
+        'Source'   => htmlspecialchars($b['source'] ?? '—', ENT_QUOTES),
+    ];
+    $tbl = '';
+    foreach ($rows as $k => $v) {
+        if ($v === '') continue;
+        $tbl .= '<tr><td style="padding:6px 0;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">' . $k . '</td>'
+              . '<td style="padding:6px 0;font-size:14px;color:#0f172a;text-align:right;">' . $v . '</td></tr>';
+    }
+    $body = '<p style="font-size:14px;color:#334155;margin:0 0 14px;">A new booking just came in via the website.</p>'
+          . '<table style="width:100%;border-collapse:collapse;">' . $tbl . '</table>';
+    $html = _wm_email_shell('New booking received', 'Booking', $body);
+    $text = "New booking:\n" . implode("\n", array_map(fn($k,$v)=>"$k: $v", array_keys($rows), array_values($rows)));
+    return wm_send_email($owner, 'Wiyule Motors', '🔔 New booking: ' . ($b['full_name'] ?? 'customer'), $html, $text);
+}

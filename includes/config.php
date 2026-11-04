@@ -18,3 +18,6 @@ define('BREVO_SENDER_NAME',  'Wiyule Motors');
 
 // Public site URL (used in email links)
 define('SITE_URL', 'https://www.wiyulemotors.co.mw');
+
+// Where new-booking alert emails are sent (owner inbox). Defaults to the sender.
+define('OWNER_EMAIL', 'wiyulemotors@gmail.com');

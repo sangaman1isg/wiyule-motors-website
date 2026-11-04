@@ -25,3 +25,6 @@ define('WM_ADMIN_SETUP_PASSWORD', 'change-me');
 // admin/setup.php and email-test.php refuse to run unless this is true.
 // Keep it false in production; flip to true only while you need them.
 define('WM_ALLOW_SETUP_TOOLS', false);
+
+// ── Cron key for cron/run-reminders.php (scheduled reminders) ──
+define('WM_CRON_KEY', 'change-me-to-a-long-random-string');

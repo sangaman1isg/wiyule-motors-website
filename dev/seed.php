@@ -140,6 +140,8 @@ $c->query("UPDATE invoice_counter SET last_number=7 WHERE year=$Y");
 $c->query("UPDATE invoices SET due_date = DATE_SUB(CURDATE(), INTERVAL 22 DAY) WHERE invoice_number='WM-$Y-003'"); // overdue
 $c->query("UPDATE invoices SET due_date = DATE_SUB(CURDATE(), INTERVAL 48 DAY) WHERE invoice_number='WM-$Y-004'"); // badly overdue
 $c->query("UPDATE invoices SET due_date = DATE_ADD(CURDATE(), INTERVAL 10 DAY) WHERE invoice_number='WM-$Y-002'"); // not due yet
+// Age a quotation to 12 days so the expiry-nudge (11–14 day window) has test data
+$c->query("UPDATE invoices SET issued_at = DATE_SUB(NOW(), INTERVAL 12 DAY) WHERE invoice_number='WM-$Y-006'");
 
 // report
 $out = [];

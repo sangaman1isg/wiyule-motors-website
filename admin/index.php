@@ -736,7 +736,7 @@ if ($vm) {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="#dc2626"><path d="M13.7 3.5a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 20.5h16a2 2 0 0 0 1.7-3l-8-14zM12 17a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4zm1-5a1 1 0 0 1-2 0V9a1 1 0 0 1 2 0z"/></svg>
                         Overdue invoices
                     </div>
-                    <div style="font-size:12px;color:#94a3b8">Follow up for payment</div>
+                    <button id="remindBtn" onclick="sendReminders()" style="background:#dc2626;color:#fff;border:none;padding:8px 14px;border-radius:9px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px">✉ Send reminders</button>
                 </div>
                 <div style="overflow-x:auto" class="table-scroll">
                     <table class="data-table cards-mobile">
@@ -1445,6 +1445,19 @@ function msgBtn(label, text, phone) {
 function closeDetail(){document.getElementById('detailModal').classList.remove('open');}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDetail()});
+
+// ── Send overdue-payment + quote-expiry reminders now (owner-triggered) ──
+async function sendReminders(){
+    const btn = document.getElementById('remindBtn');
+    if (!confirm('Email reminders now?\n\nThis sends payment reminders to customers with overdue invoices, and expiry nudges for quotations nearing their 14-day limit. Each customer is reminded at most once a week.')) return;
+    if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+    try {
+        const r = await fetch(<?= json_encode($base . '/admin/api/send-reminders.php') ?>, { method:'POST', credentials:'same-origin' });
+        const j = await r.json();
+        showToast(j.message || (j.success ? 'Done' : 'Failed'), j.success ? 'success' : 'error');
+    } catch(e){ showToast('Network error — try again', 'error'); }
+    if (btn){ btn.disabled = false; btn.textContent = '✉ Send reminders'; }
+}
 
 // ── Live dashboard heartbeat: poll for new bookings / updated counts ──
 (function(){
