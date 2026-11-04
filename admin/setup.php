@@ -5,6 +5,13 @@
 // Then DELETE this file immediately for security!
 // ============================================================
 
+// ── Kill-switch: inert unless explicitly enabled in secrets.php ──
+require_once __DIR__ . '/../includes/secrets.php';
+if (!defined('WM_ALLOW_SETUP_TOOLS') || WM_ALLOW_SETUP_TOOLS !== true) {
+    http_response_code(404);
+    exit('Not found');
+}
+
 require_once __DIR__ . '/../includes/db_connection.php';
 
 echo "<style>body{font-family:sans-serif;max-width:600px;margin:40px auto;padding:0 20px;line-height:1.6}code{background:#f1f5f9;padding:2px 8px;border-radius:4px}.ok{color:#16a34a}.warn{color:#dc2626;font-weight:bold}</style>";

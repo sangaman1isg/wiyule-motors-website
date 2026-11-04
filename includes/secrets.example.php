@@ -20,3 +20,8 @@ define('WM_HEALTH_KEY', 'change-me-to-a-long-random-string');
 
 // ── Admin bootstrap/reset password (admin/setup.php) ──
 define('WM_ADMIN_SETUP_PASSWORD', 'change-me');
+
+// ── Dev/diagnostic tools kill-switch ──
+// admin/setup.php and email-test.php refuse to run unless this is true.
+// Keep it false in production; flip to true only while you need them.
+define('WM_ALLOW_SETUP_TOOLS', false);

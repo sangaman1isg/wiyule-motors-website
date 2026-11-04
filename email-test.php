@@ -10,6 +10,13 @@
  */
 
 require_once __DIR__ . '/includes/secrets.php';
+
+// ── Kill-switch: inert unless explicitly enabled in secrets.php ──
+if (!defined('WM_ALLOW_SETUP_TOOLS') || WM_ALLOW_SETUP_TOOLS !== true) {
+    http_response_code(404);
+    exit('Not found');
+}
+
 $SECRET = WM_HEALTH_KEY;   // defined in the untracked secrets.php
 
 header('Content-Type: text/plain; charset=utf-8');
