@@ -815,22 +815,22 @@ if ($vm) {
                     <div style="font-size:15px;font-weight:700;color:#0f172a">Recent Bookings</div>
                     <a onclick="showTab('bookings')" style="font-size:13px;font-weight:600;color:var(--red);cursor:pointer">View all →</a>
                 </div>
-                <div style="overflow-x:auto">
-                    <table class="data-table">
+                <div style="overflow-x:auto" class="table-scroll">
+                    <table class="data-table cards-mobile">
                         <thead>
                             <tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th><th>Actions</th></tr>
                         </thead>
                         <tbody>
                             <?php foreach(array_slice($bookings, 0, 8) as $b): ?>
                             <tr>
-                                <td>
+                                <td data-label="Customer">
                                     <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['full_name']) ?></div>
                                     <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['phone']) ?></div>
                                 </td>
-                                <td><?= htmlspecialchars($b['services']) ?></td>
-                                <td style="white-space:nowrap"><?= date('d M Y', strtotime($b['booking_date'])) ?><br><span style="font-size:12px;color:#94a3b8"><?= $b['booking_time'] ?></span></td>
-                                <td><span class="status-pill status-<?= $b['status'] ?>"><?= ucfirst($b['status']) ?></span></td>
-                                <td>
+                                <td data-label="Service"><?= htmlspecialchars($b['services']) ?></td>
+                                <td data-label="Date" style="white-space:nowrap"><?= date('d M Y', strtotime($b['booking_date'])) ?><br><span style="font-size:12px;color:#94a3b8"><?= $b['booking_time'] ?></span></td>
+                                <td data-label="Status"><span class="status-pill status-<?= $b['status'] ?>"><?= ucfirst($b['status']) ?></span></td>
+                                <td data-label="" class="cell-actions">
                                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                                         <button class="action-btn" onclick="viewBooking(<?= $b['id'] ?>)">View</button>
                                         <?php if($b['status']==='pending'): ?>
@@ -963,20 +963,20 @@ if ($vm) {
                 <p style="font-size:13px;color:#64748b;margin-top:4px"><?= count($customers) ?> registered user<?= count($customers)!==1?'s':'' ?> · <span style="color:#dc2626;font-weight:600">click a row to view their vehicles &amp; history</span></p>
             </div>
             <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden">
-                <div style="overflow-x:auto">
-                    <table class="data-table">
+                <div style="overflow-x:auto" class="table-scroll">
+                    <table class="data-table cards-mobile">
                         <thead>
                             <tr><th>Name</th><th>Email</th><th>Phone</th><th>Bookings</th><th>Last Booking</th><th>Joined</th></tr>
                         </thead>
                         <tbody>
                             <?php foreach($customers as $c): ?>
                             <tr onclick="viewCustomer(<?= (int)$c['id'] ?>)" style="cursor:pointer">
-                                <td style="font-weight:600;color:#0f172a"><?= htmlspecialchars($c['full_name']) ?></td>
-                                <td style="color:#64748b"><?= htmlspecialchars($c['email']) ?></td>
-                                <td style="color:#64748b"><?= htmlspecialchars($c['phone'] ?: '—') ?></td>
-                                <td><span style="background:#f1f5f9;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700"><?= $c['booking_count'] ?></span></td>
-                                <td style="color:#64748b;font-size:12px"><?= $c['last_booking'] ? date('d M Y', strtotime($c['last_booking'])) : '—' ?></td>
-                                <td style="color:#94a3b8;font-size:12px"><?= date('d M Y', strtotime($c['created_at'])) ?></td>
+                                <td data-label="Name" style="font-weight:600;color:#0f172a"><?= htmlspecialchars($c['full_name']) ?></td>
+                                <td data-label="Email" style="color:#64748b"><?= htmlspecialchars($c['email']) ?></td>
+                                <td data-label="Phone" style="color:#64748b"><?= htmlspecialchars($c['phone'] ?: '—') ?></td>
+                                <td data-label="Bookings"><span style="background:#f1f5f9;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700"><?= $c['booking_count'] ?></span></td>
+                                <td data-label="Last booking" style="color:#64748b;font-size:12px"><?= $c['last_booking'] ? date('d M Y', strtotime($c['last_booking'])) : '—' ?></td>
+                                <td data-label="Joined" style="color:#94a3b8;font-size:12px"><?= date('d M Y', strtotime($c['created_at'])) ?></td>
                             </tr>
                             <?php endforeach; ?>
                             <?php if(empty($customers)): ?>
@@ -998,7 +998,7 @@ if ($vm) {
             </div>
             <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden">
                 <div style="overflow-x:auto">
-                    <table class="data-table">
+                    <table class="data-table cards-mobile">
                         <thead>
                             <tr><th>Customer</th><th>Vehicle</th><th>Last Service</th><th>Status</th><th>Send Reminder</th></tr>
                         </thead>
@@ -1030,14 +1030,14 @@ if ($vm) {
                                 $wa = 'https://wa.me/'.$phone.'?text='.urlencode($msg);
                             ?>
                             <tr>
-                                <td>
+                                <td data-label="Customer">
                                     <div style="font-weight:700;color:#0f172a"><?= htmlspecialchars($dc['full_name']) ?></div>
                                     <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($dc['phone'] ?: 'No phone') ?></div>
                                 </td>
-                                <td><?= htmlspecialchars($veh.$reg) ?></td>
-                                <td><?= htmlspecialchars($last_txt) ?></td>
-                                <td><span style="display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;color:#fff;background:<?= $status_color ?>"><?= htmlspecialchars($status_txt) ?></span></td>
-                                <td>
+                                <td data-label="Vehicle"><?= htmlspecialchars($veh.$reg) ?></td>
+                                <td data-label="Last service"><?= htmlspecialchars($last_txt) ?></td>
+                                <td data-label="Status"><span style="display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;color:#fff;background:<?= $status_color ?>"><?= htmlspecialchars($status_txt) ?></span></td>
+                                <td data-label="Reminder">
                                     <?php if($dc['phone']): ?>
                                     <a href="<?= htmlspecialchars($wa) ?>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#22c55e;color:#fff;padding:7px 14px;border-radius:9px;font-size:12px;font-weight:700;text-decoration:none">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2z"/></svg>

@@ -199,6 +199,27 @@ $is_locked = ($invoice['payment_status'] === 'void');
     .toast.show { opacity:1; }
     .toast.success { background:#16a34a; color:#fff; }
     .toast.error   { background:#dc2626; color:#fff; }
+
+    /* ── Mobile ── */
+    @media (max-width: 640px) {
+        html, body { overflow-x:hidden; }
+        .topbar { flex-wrap:wrap; gap:8px; padding:10px 14px; }
+        .topbar-brand strong { font-size:14px; }
+        .topbar-actions { flex-wrap:wrap; gap:6px; width:100%; }
+        .top-btn { flex:1 1 auto; justify-content:center; padding:10px 8px; font-size:12px; }
+        .page { padding:16px 12px; }
+        .card { padding:16px; }
+        .page-head h1 { font-size:21px; }
+        /* Line items: hide the row-# and per-line Total columns, shrink inputs,
+           so Description + Qty + Unit Price fit a phone with little/no scroll. */
+        table.items { min-width:0; width:100%; }
+        table.items th:nth-child(1), table.items td:nth-child(1),
+        table.items th:nth-child(5), table.items td:nth-child(5) { display:none; }
+        table.items th:nth-child(3) { width:50px; }
+        table.items th:nth-child(4) { width:96px; }
+        table.items td input { padding:8px 7px; font-size:13px; }
+        table.items td .remove-btn { opacity:1; }   /* always tappable on touch */
+    }
 </style>
 </head>
 <body>
