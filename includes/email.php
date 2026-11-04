@@ -17,6 +17,15 @@ require_once __DIR__ . '/config.php';
  * Returns ['ok'=>true] on success or ['ok'=>false, 'error'=>...] on failure.
  */
 function wm_send_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
+    // Local dev (php -S): never hit Brevo. Capture the email to a file so it can
+    // be inspected, and report success. Never runs in production (different SAPI).
+    if (php_sapi_name() === 'cli-server') {
+        $f = sys_get_temp_dir() . '/wm_dev_mail.html';
+        @file_put_contents($f, "<!-- DEV MAIL (not sent) | TO: $to_email | SUBJECT: $subject -->\n" . $html_body);
+        error_log("[DEV MAIL] to=$to_email subject=\"$subject\" written to $f (not sent)");
+        return ['ok' => true, 'dev' => true];
+    }
+
     if (!defined('BREVO_API_KEY') || BREVO_API_KEY === 'PASTE_YOUR_BREVO_API_KEY_HERE') {
         return ['ok' => false, 'error' => 'Brevo API key not configured'];
     }
@@ -120,4 +129,86 @@ function wm_send_password_reset_email($to_email, $to_name, $reset_url) {
     $text = "Hi $to_name,\n\nReset your Wiyule Motors password by visiting:\n$reset_url\n\nThis link expires in 1 hour and can only be used once.\n\nIf you didn't request this, ignore this email.\n\n— Wiyule Motors";
 
     return wm_send_email($to_email, $to_name, $subject, $html, $text);
+}
+
+/**
+ * Email a formatted invoice / quotation to the customer.
+ * $invoice is a row from `invoices`; $items are its invoice_items rows.
+ * Returns ['ok'=>bool, ...] from wm_send_email.
+ */
+function wm_send_invoice_email(array $invoice, array $items) {
+    require_once __DIR__ . '/invoices.php';
+
+    $to_email = trim($invoice['customer_email'] ?? '');
+    if ($to_email === '' || !filter_var($to_email, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'error' => 'Customer has no valid email address'];
+    }
+
+    $is_quote = ($invoice['type'] === 'quotation');
+    $doc_word = $is_quote ? 'Quotation' : 'Invoice';
+    $num      = htmlspecialchars($invoice['invoice_number'], ENT_QUOTES);
+    $cust     = htmlspecialchars($invoice['customer_name'], ENT_QUOTES);
+    $date     = date('d M Y', strtotime($invoice['issued_at']));
+    $vehicle  = htmlspecialchars($invoice['vehicle_info'] ?? '', ENT_QUOTES);
+    $site     = defined('SITE_URL') ? SITE_URL : 'https://www.wiyulemotors.co.mw';
+
+    // Line-item rows grouped by section
+    $rows_html = '';
+    foreach (wm_invoice_group_items($items) as $section => $rows) {
+        $rows_html .= '<tr><td colspan="2" style="padding:14px 0 6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#dc2626;">' . htmlspecialchars($section) . '</td></tr>';
+        foreach ($rows as $r) {
+            $desc = htmlspecialchars($r['description'], ENT_QUOTES);
+            $qty  = rtrim(rtrim(number_format((float)$r['quantity'], 2), '0'), '.');
+            $rows_html .= '<tr>'
+                . '<td style="padding:5px 0;font-size:14px;color:#334155;border-bottom:1px solid #f1f5f9;">' . $desc . ' <span style="color:#94a3b8;font-size:12px;">×' . $qty . '</span></td>'
+                . '<td style="padding:5px 0;font-size:14px;color:#0f172a;text-align:right;white-space:nowrap;border-bottom:1px solid #f1f5f9;">' . wm_invoice_format_mwk($r['line_total']) . '</td>'
+                . '</tr>';
+        }
+    }
+
+    // Totals rows
+    $totals_html = '<tr><td style="padding:6px 0;font-size:14px;color:#64748b;">Subtotal</td><td style="padding:6px 0;font-size:14px;text-align:right;color:#334155;">' . wm_invoice_format_mwk($invoice['subtotal']) . '</td></tr>';
+    if ((float)$invoice['discount_amount'] > 0) {
+        $totals_html .= '<tr><td style="padding:6px 0;font-size:14px;color:#64748b;">Discount</td><td style="padding:6px 0;font-size:14px;text-align:right;color:#16a34a;">− ' . wm_invoice_format_mwk($invoice['discount_amount']) . '</td></tr>';
+    }
+    if ($invoice['vat_enabled']) {
+        $totals_html .= '<tr><td style="padding:6px 0;font-size:14px;color:#64748b;">VAT (' . rtrim(rtrim(number_format((float)$invoice['vat_rate'], 2), '0'), '.') . '%)</td><td style="padding:6px 0;font-size:14px;text-align:right;color:#334155;">' . wm_invoice_format_mwk($invoice['vat_amount']) . '</td></tr>';
+    }
+    if ((float)$invoice['less_excess'] > 0) {
+        $totals_html .= '<tr><td style="padding:6px 0;font-size:14px;color:#64748b;">Less excess</td><td style="padding:6px 0;font-size:14px;text-align:right;color:#16a34a;">− ' . wm_invoice_format_mwk($invoice['less_excess']) . '</td></tr>';
+    }
+    $total_label = ((float)$invoice['less_excess'] > 0) ? 'Net Payable' : 'Total';
+
+    $note = $is_quote
+        ? 'This quotation is valid for 14 days. Additional damage identified after stripping will be quoted separately.'
+        : 'Thank you for choosing Wiyule Motors. Payment within 21 days is appreciated.';
+
+    $subject = "$doc_word $num from Wiyule Motors";
+
+    $html = '
+<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f5;padding:28px 14px;color:#0f172a;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(15,23,42,0.08);">
+    <div style="background:#0f172a;padding:22px 28px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:18px;font-weight:800;color:#fff;">Wiyule &amp; F A Motors</div>
+      <div style="font-size:13px;font-weight:700;color:#fca5a5;text-transform:uppercase;letter-spacing:0.06em;">' . $doc_word . '</div>
+    </div>
+    <div style="padding:26px 28px;">
+      <p style="font-size:15px;color:#334155;margin:0 0 4px;">Hi ' . $cust . ',</p>
+      <p style="font-size:14px;color:#64748b;margin:0 0 20px;">Here is your ' . strtolower($doc_word) . ' <strong style="color:#0f172a;">' . $num . '</strong> dated ' . $date . ($vehicle ? ' for <strong style="color:#0f172a;">' . $vehicle . '</strong>' : '') . '.</p>
+      <table style="width:100%;border-collapse:collapse;">' . $rows_html . '</table>
+      <table style="width:100%;border-collapse:collapse;margin-top:14px;border-top:2px solid #e2e8f0;">' . $totals_html . '
+        <tr><td style="padding:12px 0 0;font-size:17px;font-weight:800;color:#0f172a;">' . $total_label . '</td>
+            <td style="padding:12px 0 0;font-size:18px;font-weight:800;text-align:right;color:#dc2626;">' . wm_invoice_format_mwk($invoice['total']) . '</td></tr>
+      </table>
+      <p style="font-size:13px;color:#94a3b8;margin:22px 0 0;line-height:1.6;">' . htmlspecialchars($note, ENT_QUOTES) . '</p>
+    </div>
+    <div style="background:#f8fafc;padding:16px 28px;border-top:1px solid #e2e8f0;text-align:center;">
+      <p style="font-size:12px;color:#64748b;margin:0;">Wiyule Motors · Blantyre, Malawi · +265 993 575 111 · <a href="' . htmlspecialchars($site, ENT_QUOTES) . '" style="color:#dc2626;text-decoration:none;">wiyulemotors.co.mw</a></p>
+    </div>
+  </div>
+</div>';
+
+    $text = "$doc_word $num from Wiyule Motors\n\nHi $cust,\n\nYour $total_label is " . wm_invoice_format_mwk($invoice['total']) . ".\n\n$note\n\n— Wiyule Motors, Blantyre · +265 993 575 111";
+
+    return wm_send_email($to_email, $invoice['customer_name'], $subject, $html, $text);
 }

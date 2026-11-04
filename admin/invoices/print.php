@@ -577,6 +577,9 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2z"/></svg>
             WhatsApp summary
         </a>
+        <?php if (!empty($invoice['customer_email'])): ?>
+            <button class="t-btn ghost" id="emailBtn" onclick="emailInvoice()" title="Email this document to <?= htmlspecialchars($invoice['customer_email']) ?>">✉ Email to customer</button>
+        <?php endif; ?>
         <button class="t-btn dark" onclick="window.print()">🖨 Print / Save as PDF</button>
     </div>
 </div>
@@ -849,6 +852,36 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
 
     </div>
 </div>
+
+<div id="toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:13px 20px;border-radius:11px;font-weight:600;font-size:14px;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,0.18);z-index:100;opacity:0;pointer-events:none;transition:opacity 0.2s;font-family:'Sora',sans-serif;"></div>
+
+<script>
+const BASE = <?= json_encode($base) ?>;
+const INVOICE_ID = <?= (int)$invoice['id'] ?>;
+function pToast(msg, ok) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.background = ok ? '#16a34a' : '#dc2626';
+    t.style.opacity = '1';
+    setTimeout(() => t.style.opacity = '0', 2800);
+}
+async function emailInvoice() {
+    const btn = document.getElementById('emailBtn');
+    if (!confirm('Email this document to the customer?')) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+    const fd = new FormData();
+    fd.append('action', 'email_invoice');
+    fd.append('id', INVOICE_ID);
+    try {
+        const r = await fetch(BASE + '/admin/invoices/api.php', { method:'POST', body:fd, credentials:'same-origin' });
+        const j = await r.json();
+        pToast(j.message || (j.success ? 'Sent' : 'Failed'), !!j.success);
+    } catch (e) {
+        pToast('Network error — try again', false);
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '✉ Email to customer'; }
+}
+</script>
 
 </body>
 </html>

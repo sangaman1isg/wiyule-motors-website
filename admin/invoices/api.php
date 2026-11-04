@@ -44,12 +44,24 @@ if (($_POST['action'] ?? '') === 'add_insurance_company') {
 // ── Simple record actions (form-encoded POST with ?action=…) ──
 // archive (soft-delete), restore, convert_to_invoice, duplicate, mark_paid.
 $action = $_POST['action'] ?? '';
-if (in_array($action, ['archive', 'restore', 'convert_to_invoice', 'duplicate', 'mark_paid'], true)) {
+if (in_array($action, ['archive', 'restore', 'convert_to_invoice', 'duplicate', 'mark_paid', 'email_invoice'], true)) {
     $iid = (int)($_POST['id'] ?? 0);
     if ($iid <= 0) { echo json_encode(['success' => false, 'message' => 'Missing invoice id']); exit; }
     $cur = wm_invoice_fetch($conn, $iid);
     if (!$cur) { echo json_encode(['success' => false, 'message' => 'Invoice not found']); exit; }
     $inv = $cur['invoice'];
+
+    if ($action === 'email_invoice') {
+        require_once __DIR__ . '/../../includes/email.php';
+        $res = wm_send_invoice_email($inv, $cur['items']);
+        if (!empty($res['ok'])) {
+            $msg = !empty($res['dev']) ? 'Email generated (dev mode — not actually sent)' : 'Emailed to ' . $inv['customer_email'];
+            echo json_encode(['success' => true, 'message' => $msg]);
+        } else {
+            echo json_encode(['success' => false, 'message' => $res['error'] ?? 'Could not send email']);
+        }
+        exit;
+    }
 
     if ($action === 'archive') {
         $s = $conn->prepare("UPDATE invoices SET archived_at = NOW() WHERE id = ?");
