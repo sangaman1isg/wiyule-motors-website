@@ -496,6 +496,41 @@ if ($vm) {
             .page-body { padding:16px; }
         }
 
+        /* ── Mobile: turn .cards-mobile data-tables into stacked cards ── */
+        @media(max-width:640px) {
+            html, body { overflow-x:hidden; }
+            #main { min-width:0; }
+            .top-bar { padding:0 14px; gap:10px; }
+            .search-box { min-width:0; max-width:none; }
+            .table-card { background:transparent !important; box-shadow:none !important; border-radius:0 !important; }
+            .cards-mobile .table-scroll, .table-scroll { overflow-x:visible; }
+            table.data-table.cards-mobile, .cards-mobile thead, .cards-mobile tbody, .cards-mobile tr { display:block; }
+            .cards-mobile thead { display:none; }
+            .cards-mobile tbody tr {
+                background:#fff; border:1px solid #e2e8f0; border-radius:14px;
+                margin-bottom:12px; padding:4px 14px 10px;
+                box-shadow:0 1px 3px rgba(15,23,42,0.05);
+            }
+            .cards-mobile tbody tr:hover td { background:transparent; }
+            .cards-mobile td {
+                display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
+                padding:9px 0; border:none; border-bottom:1px solid #f4f6f9; text-align:right; min-width:0;
+            }
+            .cards-mobile td:last-child { border-bottom:none; }
+            .cards-mobile td::before {
+                content:attr(data-label); flex-shrink:0; text-align:left;
+                font-size:10.5px; font-weight:700; letter-spacing:0.04em;
+                text-transform:uppercase; color:#94a3b8;
+            }
+            .cards-mobile td > * { min-width:0; }
+            .cards-mobile td[data-label="Service"] { text-align:right; }
+            /* Actions row: full-width buttons */
+            .cards-mobile td.cell-actions { padding-top:12px; border-bottom:none; }
+            .cards-mobile td.cell-actions::before { display:none; }
+            .cards-mobile td.cell-actions > div { width:100%; gap:8px; }
+            .cards-mobile td.cell-actions .action-btn { flex:1 1 auto; text-align:center; justify-content:center; padding:11px 10px; font-size:13px; }
+        }
+
         /* Toast */
         .toast { position:fixed; bottom:24px; right:24px; background:#fff; border-radius:12px; padding:14px 20px; box-shadow:0 4px 20px rgba(0,0,0,0.15); display:flex; align-items:center; gap:10px; font-size:14px; font-weight:500; z-index:999; transform:translateX(120%); transition:transform 0.3s; }
         .toast.show { transform:translateX(0); }
@@ -866,35 +901,35 @@ if ($vm) {
             <?php endif; ?>
 
             <!-- Table -->
-            <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden">
-                <div style="overflow-x:auto">
-                    <table class="data-table">
+            <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden" class="table-card">
+                <div style="overflow-x:auto" class="table-scroll">
+                    <table class="data-table cards-mobile">
                         <thead>
                             <tr><th>#</th><th>Customer</th><th>Vehicle</th><th>Service</th><th>Date & Time</th><th>Status</th><th>Actions</th></tr>
                         </thead>
                         <tbody>
                             <?php foreach($bookings as $b): ?>
                             <tr id="row-<?= $b['id'] ?>">
-                                <td style="font-family:monospace;color:#94a3b8;font-size:12px">#<?= $b['id'] ?></td>
-                                <td>
+                                <td data-label="Ref" style="font-family:monospace;color:#94a3b8;font-size:12px">#<?= $b['id'] ?></td>
+                                <td data-label="Customer">
                                     <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['full_name']) ?></div>
                                     <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['phone']) ?></div>
                                     <?php if($b['email']): ?><div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['email']) ?></div><?php endif; ?>
                                 </td>
-                                <td>
+                                <td data-label="Vehicle">
                                     <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['vehicle_make'].' '.$b['vehicle_model']) ?></div>
                                     <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['vehicle_year']) ?> <?= $b['registration'] ? '· '.htmlspecialchars($b['registration']) : '' ?></div>
                                 </td>
-                                <td style="max-width:180px"><?= htmlspecialchars($b['services']) ?></td>
-                                <td style="white-space:nowrap">
+                                <td data-label="Service" style="max-width:180px"><?= htmlspecialchars($b['services']) ?></td>
+                                <td data-label="When" style="white-space:nowrap">
                                     <?= date('d M Y', strtotime($b['booking_date'])) ?><br>
                                     <span style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['booking_time']) ?></span>
                                     <?php if (!empty($b['source'])): ?>
                                         <div style="margin-top:4px;font-size:11px;color:#64748b;font-weight:500">via <?= htmlspecialchars($b['source']) ?></div>
                                     <?php endif; ?>
                                 </td>
-                                <td><span class="status-pill status-<?= $b['status'] ?>" id="status-<?= $b['id'] ?>"><?= ucfirst($b['status']) ?></span></td>
-                                <td>
+                                <td data-label="Status"><span class="status-pill status-<?= $b['status'] ?>" id="status-<?= $b['id'] ?>"><?= ucfirst($b['status']) ?></span></td>
+                                <td data-label="" class="cell-actions">
                                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                                         <button class="action-btn" onclick="viewBooking(<?= $b['id'] ?>)">View</button>
                                         <?php if($b['status']==='pending'): ?>
