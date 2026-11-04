@@ -136,6 +136,11 @@ add_invoice($c,"WM-$Y-007",'quotation','Thoko Banda','+265991234501','thoko.band
 
 $c->query("UPDATE invoice_counter SET last_number=7 WHERE year=$Y");
 
+// Give some invoices due dates so the dashboard overdue widget has data
+$c->query("UPDATE invoices SET due_date = DATE_SUB(CURDATE(), INTERVAL 22 DAY) WHERE invoice_number='WM-$Y-003'"); // overdue
+$c->query("UPDATE invoices SET due_date = DATE_SUB(CURDATE(), INTERVAL 48 DAY) WHERE invoice_number='WM-$Y-004'"); // badly overdue
+$c->query("UPDATE invoices SET due_date = DATE_ADD(CURDATE(), INTERVAL 10 DAY) WHERE invoice_number='WM-$Y-002'"); // not due yet
+
 // report
 $out = [];
 foreach (['users','bookings','vehicles','insurance_companies','invoices','invoice_items'] as $t) {
