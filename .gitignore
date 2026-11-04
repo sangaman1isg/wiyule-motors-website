@@ -26,6 +26,7 @@ composer.lock
 .env
 .env.local
 .env.*.local
+htdocs/includes/db_config.php
 
 # --------------------
 # Legacy / Unused

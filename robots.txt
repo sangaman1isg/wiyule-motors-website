@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /pages/
-
-# Sitemaps
-Sitemap: https://wiyulemotors.com/sitemap.xml
