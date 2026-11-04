@@ -39,3 +39,7 @@ includes/secrets.php
 
 # FTP deploy credentials — never commit
 .deploy.env
+
+# Python
+__pycache__/
+*.pyc
