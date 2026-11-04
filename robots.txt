@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /pages/dashboard.php
+Disallow: /pages/login.php
+Disallow: /pages/signup.php
+Disallow: /pages/logout.php
+Disallow: /pages/process-*
+Disallow: /admin/
+Disallow: /api/
+Disallow: /includes/
+
+Sitemap: https://wiyulemotors.com/sitemap.xml

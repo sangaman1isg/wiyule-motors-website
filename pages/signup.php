@@ -1,6 +1,8 @@
 <?php
 // ── MUST BE FIRST — session & processing before any HTML output ──
-session_start();
+require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/email.php';
+wm_secure_session_start();
 
 $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
 
@@ -45,52 +47,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $stmt->close();
 
-            // Hash password and insert
-            $hash = password_hash($password, PASSWORD_BCRYPT);
-            $stmt = $conn->prepare("INSERT INTO users (full_name, email, password, phone) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("ssss", $full_name, $email, $hash, $phone);
+            // Hash password & generate a 6-digit verification code
+            $hash       = password_hash($password, PASSWORD_BCRYPT);
+            $code       = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $code_hash  = password_hash($code, PASSWORD_BCRYPT);
+            $expires_at = date('Y-m-d H:i:s', time() + 15 * 60);
+            $now        = date('Y-m-d H:i:s');
+
+            $stmt = $conn->prepare(
+                "INSERT INTO users (full_name, email, password, phone, email_verified, verification_code, verification_expires_at, last_verification_sent)
+                 VALUES (?, ?, ?, ?, 0, ?, ?, ?)"
+            );
+            $stmt->bind_param("sssssss", $full_name, $email, $hash, $phone, $code_hash, $expires_at, $now);
 
             if ($stmt->execute()) {
                 $new_id = $conn->insert_id;
+                $stmt->close();
 
-                // ── Regenerate session to prevent fixation ────
-                session_regenerate_id(true);
-
-                $_SESSION['user_id']    = $new_id;
-                $_SESSION['first_name'] = $first_name;
-                $_SESSION['last_name']  = $last_name;
-                $_SESSION['user_name']  = $full_name;
-                $_SESSION['email']      = $email;
-                $_SESSION['user_email'] = $email;
-                $_SESSION['phone']      = $phone;
-                $_SESSION['city']       = $city;
-                $_SESSION['user_type']  = $type;
-
-                // ── Save vehicle details from step 3 ─────────
-                $_SESSION['vehicle_make']  = trim($_POST['v_make']  ?? '');
-                $_SESSION['vehicle_model'] = trim($_POST['v_model'] ?? '');
-                $_SESSION['vehicle_year']  = trim($_POST['v_year']  ?? '');
-                $_SESSION['vehicle_reg']   = trim($_POST['v_reg']   ?? '');
-                $_SESSION['vehicle_color'] = '';
-                $_SESSION['vehicle_mileage']       = 0;
-                $_SESSION['last_service_mileage']   = 0;
-                $_SESSION['next_service_mileage']   = 5000;
-                $_SESSION['vehicle_engine']         = '';
-                $_SESSION['vehicle_transmission']   = '';
-
-                // ── Also save vehicle to database ────────────
-                if ($_SESSION['vehicle_make']) {
-                    $vstmt = $conn->prepare("INSERT INTO vehicles (user_id, make, model, year, registration) VALUES (?, ?, ?, ?, ?)");
-                    $vstmt->bind_param("issss", $new_id, $_SESSION['vehicle_make'], $_SESSION['vehicle_model'], $_SESSION['vehicle_year'], $_SESSION['vehicle_reg']);
-                    $vstmt->execute();
-                    $vstmt->close();
+                // ── Send the verification email via Brevo ──
+                $send = wm_send_verification_email($email, $first_name, $code);
+                if (!$send['ok']) {
+                    error_log("Verification email failed: " . ($send['error'] ?? 'unknown'));
+                    // Don't block signup — let the user resend from the verify page
                 }
 
-                // Mark as new user for onboarding
-                $_SESSION['user_created']           = time();
-                $_SESSION['onboarding_completed']   = false;
+                // Stash signup info in session so we can finish login after verification
+                $_SESSION['pending_verify_id']      = $new_id;
+                $_SESSION['pending_verify_email']   = $email;
+                $_SESSION['pending_first_name']     = $first_name;
+                $_SESSION['pending_last_name']      = $last_name;
+                $_SESSION['pending_phone']          = $phone;
+                $_SESSION['pending_city']           = $city;
+                $_SESSION['pending_type']           = $type;
+                // Carry vehicle details for after verification
+                $_SESSION['pending_v_make']  = trim($_POST['v_make']  ?? '');
+                $_SESSION['pending_v_model'] = trim($_POST['v_model'] ?? '');
+                $_SESSION['pending_v_year']  = trim($_POST['v_year']  ?? '');
+                $_SESSION['pending_v_reg']   = trim($_POST['v_reg']   ?? '');
 
-                header('Location: ' . $base . '/pages/dashboard.php');
+                header('Location: ' . $base . '/pages/verify-email.php');
                 exit;
 
             } else {
@@ -104,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php include __DIR__ . '/../includes/analytics.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Create your Wiyule Motors account — manage bookings, track services, and get exclusive offers in Blantyre, Malawi.">
@@ -115,9 +111,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 
     <style>
+        html, body { max-width: 100%; overflow-x: hidden; }
+        img, video, svg { max-width: 100%; height: auto; }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Sora', sans-serif; background: #f8fafc; }
 
@@ -262,15 +259,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         /* ── Buttons ──────────────────────────────────────────── */
         .btn-primary {
-            width: 100%; background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            color: #fff; border: none; border-radius: 14px; padding: 16px 24px;
+            position: relative; overflow: hidden;
+            width: 100%; background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+            backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%);
+            color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 16px; padding: 16px 24px;
             font-size: 16px; font-weight: 700; font-family: 'Sora', sans-serif;
             cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
-            transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(220,38,38,0.3);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(220,38,38,0.35);
         }
-        .btn-primary:hover    { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(220,38,38,0.4); }
+        .btn-primary::before {
+            content: ''; position: absolute; top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+        .btn-primary:hover::before { left: 120%; }
+        .btn-primary:hover    { transform: translateY(-3px) scale(1.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(220,38,38,0.45); }
         .btn-primary:active   { transform: translateY(0); }
         .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+        @media (prefers-reduced-motion: reduce) { .btn-primary { transition: none !important; } .btn-primary::before { display: none; } }
         .btn-ghost {
             width: 100%; border: 2px solid #e5e7eb; background: transparent;
             color: #374151; border-radius: 14px; padding: 14px 24px;
@@ -309,6 +317,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         @media(max-width:767px) { .feedback-btn span{display:none} .feedback-btn{padding:10px;border-radius:50%} }
 
         @media (max-width: 1023px) { .signup-hero { padding: 48px 24px 32px; } }
+        /* ── Shared with index.php: liquid glass nav + glass buttons ── */
+        .glass-nav {
+            background: rgba(255,255,255,0.72);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 24px rgba(0,0,0,0.04);
+        }
+        .gbtn {
+            position: relative; overflow: hidden;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 14px 28px; border-radius: 16px;
+            font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700;
+            text-decoration: none; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.25);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+        }
+        .gbtn::before {
+            content: ''; position: absolute; top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+        .gbtn:hover::before { left: 120%; }
+        .gbtn:hover { transform: translateY(-3px) scale(1.02); }
+        .gbtn-primary {
+            background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+            backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%);
+            color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(220,38,38,0.35);
+        }
+        .gbtn-primary:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(220,38,38,0.45); }
+        .gbtn-dark {
+            background: linear-gradient(135deg, rgba(45,45,47,0.95), rgba(15,15,17,0.95));
+            backdrop-filter: blur(12px) saturate(160%); -webkit-backdrop-filter: blur(12px) saturate(160%);
+            color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 10px 28px rgba(15,23,42,0.3);
+        }
+        .gbtn-dark:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 16px 38px rgba(15,23,42,0.4); }
     </style>
 </head>
 <body class="antialiased">
@@ -325,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </a>
 
 <!-- ═══ Navigation ═══ -->
-<nav class="bg-white shadow-md sticky top-0 z-50">
+<nav class="glass-nav sticky top-0 z-50">
     <div class="nav-accent"></div>
     <div class="max-w-7xl mx-auto px-6">
         <div class="flex justify-between items-center h-20">
@@ -346,15 +391,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <a href="<?= $base ?>/#contact"  class="text-gray-600 hover:text-red-600 font-medium text-sm transition">Contact</a>
             </div>
             <div class="hidden md:flex items-center gap-3">
-                <a href="<?= $base ?>/pages/login.php"
-                   style="padding:8px 18px;border:1.5px solid #e5e7eb;color:#374151;border-radius:12px;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px"
-                   onmouseover="this.style.borderColor='#dc2626';this.style.color='#dc2626';this.style.background='#fef2f2'"
-                   onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#374151';this.style.background='transparent'">
+                <a href="<?= $base ?>/pages/login.php" class="gbtn gbtn-dark" style="padding:9px 18px;font-size:13px;border-radius:12px">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                     Sign In
                 </a>
-                <a href="<?= $base ?>/pages/signup.php"
-                   style="padding:8px 18px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border-radius:12px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 10px rgba(220,38,38,0.3)">
+                <a href="<?= $base ?>/pages/signup.php" class="gbtn gbtn-primary" style="padding:9px 18px;font-size:13px;border-radius:12px">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
                     Create Account
                 </a>
@@ -458,8 +499,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- Header -->
             <div class="mb-8" data-aos="fade-up">
-                <div class="w-14 h-14 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-lg mb-5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                <div class="w-14 h-14 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-lg mb-5" style="box-shadow:0 8px 18px -4px rgba(220,38,38,0.5)">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-3.3 0-6 1.8-6 4v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2c0-2.2-2.7-4-6-4zm10-3a1 1 0 0 0-1 1v2h-2a1 1 0 0 0 0 2h2v2a1 1 0 0 0 2 0v-2h2a1 1 0 0 0 0-2h-2v-2a1 1 0 0 0-1-1z"/></svg>
                 </div>
                 <h2 class="text-3xl font-extrabold text-gray-900 mb-1">Create your free account</h2>
                 <p class="text-gray-500 text-sm">Takes less than 2 minutes. No credit card required.</p>
@@ -711,7 +752,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <option value="detailing">Auto Detailing</option>
                                 <option value="brakes">Brake Services</option>
                                 <option value="ac">AC Repair</option>
-                                <option value="tyres">Tyre Services</option>
+                                <option value="bodywork">Auto Body Work</option>
+                                <option value="polishing">Polishing</option>
                                 <option value="battery">Battery Services</option>
                                 <option value="wrapping">Vehicle Wrapping</option>
                                 <option value="parts">Parts Supply</option>
@@ -796,7 +838,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 AOS.init({ duration:600, once:true, offset:60 });
-feather.replace();
+if(window.feather)feather.replace();
 
 // Mobile menu handled by inline onclick
 // (see button onclick above)
@@ -929,5 +971,6 @@ document.getElementById('signupForm').addEventListener('submit', function(e) {
     btn.innerHTML = '<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Creating account…';
 });
 </script>
+<?php if (isset($conn) && $conn instanceof mysqli) { @$conn->close(); } ?>
 </body>
 </html>

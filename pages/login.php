@@ -1,6 +1,7 @@
 <?php
 // ── Session & auth ────────────────────────────────────────────
-session_start();
+require_once __DIR__ . '/../includes/security.php';
+wm_secure_session_start();
 
 // Base URL — auto-detects localhost vs live site
 $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
@@ -30,8 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please enter a valid email address.';
 
     } else {
+        // ── Rate limit check (5 attempts / 15 min per email or IP) ──
+        $throttle = wm_login_throttle($email);
+        if (!$throttle['ok']) {
+            $error = $throttle['reason'];
+        } else {
         // ── Fetch all fields dashboard needs ─────────────────
-        $stmt = $conn->prepare("SELECT id, full_name, email, password, phone, created_at FROM users WHERE email = ?");
+        $stmt = $conn->prepare("SELECT id, full_name, email, password, phone, created_at, email_verified FROM users WHERE email = ?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -40,6 +46,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $result->fetch_assoc();
 
             if (password_verify($password, $user['password'])) {
+                // ── Email verification gate ──
+                if (isset($user['email_verified']) && (int)$user['email_verified'] === 0) {
+                    // Don't fully log them in — send them to verify-email instead
+                    $_SESSION['pending_verify_id']    = $user['id'];
+                    $_SESSION['pending_verify_email'] = $user['email'];
+                    $names = explode(' ', $user['full_name'], 2);
+                    $_SESSION['pending_first_name']   = $names[0] ?? '';
+                    $_SESSION['pending_last_name']    = $names[1] ?? '';
+                    $_SESSION['pending_phone']        = $user['phone'] ?? '';
+                    header('Location: ' . $base . '/pages/verify-email.php');
+                    exit();
+                }
+                wm_login_record_success($email);
                 // ── Regenerate session ID to prevent fixation ──
                 session_regenerate_id(true);
 
@@ -82,20 +101,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit();
 
             } else {
+                wm_login_record_failure($email);
                 // ── Vague error on purpose — don't reveal if email exists ──
                 $error = 'Incorrect email or password. Please try again.';
             }
         } else {
+            wm_login_record_failure($email);
             $error = 'Incorrect email or password. Please try again.';
         }
 
         $stmt->close();
+        }
     }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php include __DIR__ . '/../includes/analytics.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Sign in to your Wiyule Motors account — manage bookings, track services and more.">
@@ -107,9 +130,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 
     <style>
+        html, body { max-width: 100%; overflow-x: hidden; }
+        img, video, svg { max-width: 100%; height: auto; }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Sora', sans-serif; background: #f8fafc; }
 
@@ -240,19 +264,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         /* ── Submit button ───────────────────────────────────── */
         .btn-primary {
+            position: relative; overflow: hidden;
             width: 100%;
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            color: #fff; border: none; border-radius: 14px;
+            background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 16px;
             padding: 16px 24px; font-size: 16px; font-weight: 700;
             font-family: 'Sora', sans-serif; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 10px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(220,38,38,0.3);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(220,38,38,0.35);
             letter-spacing: 0.01em;
         }
-        .btn-primary:hover    { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(220,38,38,0.4); }
+        .btn-primary::before {
+            content: ''; position: absolute; top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+        .btn-primary:hover::before { left: 120%; }
+        .btn-primary:hover    { transform: translateY(-3px) scale(1.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(220,38,38,0.45); }
         .btn-primary:active   { transform: translateY(0); }
         .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+        @media (prefers-reduced-motion: reduce) { .btn-primary { transition: none !important; } .btn-primary::before { display: none; } }
 
         /* ── Alert banner ────────────────────────────────────── */
         .alert {
@@ -308,9 +343,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .feedback-btn svg { width:16px;height:16px;flex-shrink:0; }
         @media(max-width:767px) { .feedback-btn span{display:none} .feedback-btn{padding:10px;border-radius:50%} }
 
+        /* ── Shared with index.php: liquid glass nav + glass buttons ── */
+        .glass-nav {
+            background: rgba(255,255,255,0.72);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 24px rgba(0,0,0,0.04);
+        }
+        .gbtn {
+            position: relative; overflow: hidden;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 14px 28px; border-radius: 16px;
+            font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700;
+            text-decoration: none; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.25);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+        }
+        .gbtn::before {
+            content: ''; position: absolute; top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+        .gbtn:hover::before { left: 120%; }
+        .gbtn:hover { transform: translateY(-3px) scale(1.02); }
+        .gbtn-primary {
+            background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+            backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%);
+            color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(220,38,38,0.35);
+        }
+        .gbtn-primary:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(220,38,38,0.45); }
+        .gbtn-dark {
+            background: linear-gradient(135deg, rgba(45,45,47,0.95), rgba(15,15,17,0.95));
+            backdrop-filter: blur(12px) saturate(160%); -webkit-backdrop-filter: blur(12px) saturate(160%);
+            color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 10px 28px rgba(15,23,42,0.3);
+        }
+        .gbtn-dark:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 16px 38px rgba(15,23,42,0.4); }
+
         /* ── Responsive ──────────────────────────────────────── */
         @media (max-width: 1023px) {
             .login-hero { padding: 48px 24px 36px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .gbtn { transition: none !important; }
+            .gbtn::before { display: none; }
         }
     </style>
 </head>
@@ -322,14 +399,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </a>
 
 <!-- ═══ Navigation ═══ -->
-<nav class="bg-white shadow-md sticky top-0 z-50">
+<nav class="glass-nav sticky top-0 z-50">
     <div class="nav-accent"></div>
     <div class="max-w-7xl mx-auto px-6">
         <div class="flex justify-between items-center h-20">
             <!-- Logo -->
             <a href="<?= $base ?>/" class="flex items-center space-x-3" style="text-decoration:none">
                 <img class="h-12 w-auto"
-                     src="assets/images/logo.png"
+                     src="<?= $base ?>/assets/images/logo.png"
                      alt="Wiyule Motors Logo">
                 <div>
                     <span class="text-xl font-bold text-gray-900 block leading-tight">Wiyule Motors</span>
@@ -348,13 +425,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- Desktop auth -->
             <div class="hidden md:flex items-center gap-3">
-                <a href="<?= $base ?>/pages/login.php"
-                   style="padding:8px 18px;border:1.5px solid #dc2626;color:#dc2626;border-radius:12px;font-size:13px;font-weight:700;text-decoration:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;background:#fef2f2">
+                <a href="<?= $base ?>/pages/login.php" class="gbtn gbtn-dark" style="padding:9px 18px;font-size:13px;border-radius:12px">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                     Sign In
                 </a>
-                <a href="<?= $base ?>/pages/signup.php"
-                   style="padding:8px 18px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border-radius:12px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 10px rgba(220,38,38,0.3)">
+                <a href="<?= $base ?>/pages/signup.php" class="gbtn gbtn-primary" style="padding:9px 18px;font-size:13px;border-radius:12px">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
                     Create Account
                 </a>
@@ -376,7 +451,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="<?= $base ?>/#about"     class="block py-2 px-3 rounded-xl text-gray-700 hover:bg-gray-50 font-medium text-sm">About</a>
             <a href="<?= $base ?>/#contact"   class="block py-2 px-3 rounded-xl text-gray-700 hover:bg-gray-50 font-medium text-sm">Contact</a>
             <div style="height:1px;background:#f1f5f9;margin:8px 0"></div>
-            <a href="<?= $base ?>/pages/signup.php" class="block text-center bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded-xl font-bold text-sm">Create Free Account</a>
+            <a href="<?= $base ?>/pages/signup.php" class="gbtn gbtn-primary" style="width:100%">Create Free Account</a>
         </div>
     </div>
 </nav>
@@ -426,16 +501,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="space-y-2.5">
                 <?php
                 $features = [
-                    ['icon'=>'calendar', 'text'=>'View & manage all your bookings'],
-                    ['icon'=>'clock',    'text'=>'Full vehicle service history'],
-                    ['icon'=>'bell',     'text'=>'Maintenance reminders'],
-                    ['icon'=>'tag',      'text'=>'Member-only discounts'],
-                    ['icon'=>'settings', 'text'=>'Vehicle & account settings'],
+                    ['svg'=>'<svg width="100%" height="100%" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M19 4h-1V3a1 1 0 0 0-2 0v1H8V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zm1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9h16z"/></svg>', 'text'=>'View & manage all your bookings'],
+                    ['svg'=>'<svg width="100%" height="100%" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22zm4 12h-4a1 1 0 0 1-1-1V6a1 1 0 0 1 2 0v5h3a1 1 0 0 1 0 2z"/></svg>', 'text'=>'Full vehicle service history'],
+                    ['svg'=>'<svg width="100%" height="100%" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2a6 6 0 0 0-6 6c0 3.5-1.5 5.5-2.3 6.4A1 1 0 0 0 4.5 16h15a1 1 0 0 0 .8-1.6C19.5 13.5 18 11.5 18 8a6 6 0 0 0-6-6zm0 20a3 3 0 0 0 2.8-2H9.2a3 3 0 0 0 2.8 2z"/></svg>', 'text'=>'Maintenance reminders'],
+                    ['svg'=>'<svg width="100%" height="100%" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M20.6 13.4L13.4 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5.5A1.5 1.5 0 0 1 4.5 4h6.7c.5 0 1 .2 1.4.6l8 8a2 2 0 0 1 0 2.8zM8 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>', 'text'=>'Member-only discounts'],
+                    ['svg'=>'<svg width="100%" height="100%" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H1a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V7a1.7 1.7 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>', 'text'=>'Vehicle & account settings'],
                 ];
                 foreach ($features as $f): ?>
                 <div class="feature-pill">
-                    <div class="w-7 h-7 bg-white/15 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <i data-feather="<?= $f['icon'] ?>" class="w-3.5 h-3.5 text-white"></i>
+                    <div class="w-7 h-7 bg-white/15 rounded-lg flex items-center justify-center flex-shrink-0" style="padding:5px">
+                        <?= $f['svg'] ?>
                     </div>
                     <span class="text-white text-sm font-medium"><?= htmlspecialchars($f['text']) ?></span>
                 </div>
@@ -482,8 +557,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- Header -->
             <div class="mb-8" data-aos="fade-up">
-                <div class="w-14 h-14 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-lg mb-5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                <div class="w-14 h-14 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-lg mb-5" style="box-shadow:0 8px 18px -4px rgba(220,38,38,0.5)">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M11 3a2 2 0 0 0-2 2v2a1 1 0 0 0 2 0V5h8v14h-8v-2a1 1 0 0 0-2 0v2a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-1.3 5.3a1 1 0 0 0 0 1.4L11.6 11H4a1 1 0 0 0 0 2h7.6l-1.9 1.3a1 1 0 1 0 1.4 1.4l3-3a1 1 0 0 0 0-1.4l-3-3a1 1 0 0 0-1.4 0z"/></svg>
                 </div>
                 <h2 class="text-3xl font-extrabold text-gray-900 mb-1">Sign in to your account</h2>
                 <p class="text-gray-500 text-sm">Enter your credentials to access your dashboard.</p>
@@ -525,7 +600,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="field-wrap">
                     <label for="password">
                         Password <span class="req">*</span>
-                        <a href="#" class="text-red-600 text-xs font-semibold hover:underline" id="forgotLink">Forgot password?</a>
+                        <a href="<?= $base ?>/pages/forgot-password.php" class="text-red-600 text-xs font-semibold hover:underline">Forgot password?</a>
                     </label>
                     <div class="field-input-wrap">
                         <input type="password" id="password" name="password"
@@ -588,8 +663,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </span>
                     <?php endforeach; ?>
                 </div>
-                <a href="<?= $base ?>/pages/signup.php"
-                   class="inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 transform transition-all duration-200">
+                <a href="<?= $base ?>/pages/signup.php" class="gbtn gbtn-primary">
                     Create Free Account
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                 </a>
@@ -650,7 +724,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 AOS.init({ duration:600, once:true, offset:60 });
-feather.replace();
+if(window.feather)feather.replace();
 
 // ── Mobile nav ───────────────────────────────────────────────
 // Mobile menu handled by inline onclick
@@ -784,5 +858,6 @@ function socialLogin(provider) {
     toast ? toast.show(provider.charAt(0).toUpperCase()+provider.slice(1)+' sign-in coming soon!','info') : alert(provider+' sign-in coming soon!');
 }
 </script>
+<?php if (isset($conn) && $conn instanceof mysqli) { @$conn->close(); } ?>
 </body>
 </html>

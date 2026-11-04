@@ -17,21 +17,42 @@ $vehicle_make = trim($_POST['make']         ?? '');
 $vehicle_model= trim($_POST['model']        ?? '');
 $vehicle_year = trim($_POST['year']         ?? '');
 $registration = trim($_POST['registration'] ?? '');
-$services     = trim($_POST['services']     ?? '');
+
+// Accept either `services` (plural — from dashboard) or `service` (singular — from /book.php)
+$services_raw = $_POST['services'] ?? $_POST['service'] ?? '';
+$services     = is_array($services_raw)
+    ? implode(', ', array_map('trim', $services_raw))
+    : trim($services_raw);
+
 $booking_date = trim($_POST['date']         ?? '');
 $booking_time = trim($_POST['time']         ?? '');
 $notes        = trim($_POST['notes']        ?? '');
+$source       = trim($_POST['source']       ?? '');
 $claim_offer  = isset($_POST['claim_offer']) && $_POST['claim_offer'] == '1';
 
+// ── Validate source against known values (defensive — prevents arbitrary data) ──
+// Empty source is allowed (customer skipped the optional field)
+$allowed_sources = ['Google', 'Friend', 'WhatsApp', 'Instagram', 'Facebook',
+                    'Walked past', 'Returning customer', 'Other'];
+if ($source !== '' && !in_array($source, $allowed_sources, true)) {
+    $source = 'Other';   // Anything unexpected gets bucketed as 'Other' rather than rejected
+}
+// Convert empty string to NULL so the database stores it cleanly
+$source = ($source === '') ? null : $source;
+
+// ── Sensible defaults for fields that the slim /book.php form doesn't collect ──
+// (Vehicle details and exact time are captured later by admin when customer arrives.)
+if ($vehicle_make  === '') $vehicle_make  = 'TBD';
+if ($vehicle_model === '') $vehicle_model = 'TBD';
+if ($vehicle_year  === '' || !is_numeric($vehicle_year)) $vehicle_year = (string)date('Y');
+if ($booking_time  === '') $booking_time = '09:00:00';
+
+// ── Required fields (the genuine minimums) ──
 $errors = [];
-if (empty($full_name))                                  $errors[] = 'Full name is required.';
-if (empty($phone))                                      $errors[] = 'Phone number is required.';
-if (empty($vehicle_make))                               $errors[] = 'Vehicle make is required.';
-if (empty($vehicle_model))                              $errors[] = 'Vehicle model is required.';
-if (empty($vehicle_year) || !is_numeric($vehicle_year)) $errors[] = 'Valid vehicle year is required.';
-if (empty($services))                                   $errors[] = 'Please select at least one service.';
-if (empty($booking_date))                               $errors[] = 'Booking date is required.';
-if (empty($booking_time))                               $errors[] = 'Booking time is required.';
+if (empty($full_name))    $errors[] = 'Full name is required.';
+if (empty($phone))        $errors[] = 'Phone number is required.';
+if (empty($services))     $errors[] = 'Please select a service.';
+if (empty($booking_date)) $errors[] = 'Booking date is required.';
 
 if (!empty($booking_date)) {
     $today    = new DateTime('today');
@@ -48,18 +69,26 @@ if (!empty($errors)) {
 
 $user_id = $_SESSION['user_id'] ?? null;
 
-// ── FIRST-TIME OFFER VALIDATION ─────────────────────────────
-// Only qualifies if:
-// 1. User claims the offer in this booking
-// 2. User is logged in (must have account to track)
-// 3. User hasn't used it before (first_offer_used = 0)
-// 4. User has no previous bookings (extra safety check)
-// 5. Phone number hasn't been used in previous booking (guest safety)
+// ── FIRST-TIME DETECTION & OFFER VALIDATION ─────────────────
+// Step 1: Detect if this is a first-time customer (by phone number)
+// This runs for EVERY booking regardless of claim, so WhatsApp can alert you
+$phone_check = $conn->prepare("SELECT COUNT(*) as cnt FROM bookings WHERE phone = ?");
+$phone_check->bind_param("s", $phone);
+$phone_check->execute();
+$prev_bookings_count = (int)$phone_check->get_result()->fetch_assoc()['cnt'];
+$phone_check->close();
+
+$is_first_time = ($prev_bookings_count === 0);
+
+// Step 2: Apply discount ONLY if:
+// - Customer is first-time (phone never used)
+// - They checked the claim box
+// - They're logged in (so we can track)
+// - Their account hasn't already used the offer
 $first_time_discount = 0;
 $offer_message = '';
 
-if ($claim_offer && $user_id) {
-    // Check 1: Has user already used their first offer?
+if ($claim_offer && $is_first_time && $user_id) {
     $check = $conn->prepare("SELECT first_offer_used FROM users WHERE id = ?");
     $check->bind_param("i", $user_id);
     $check->execute();
@@ -69,33 +98,15 @@ if ($claim_offer && $user_id) {
     $already_used = $user_row ? (int)$user_row['first_offer_used'] : 1;
 
     if ($already_used == 0) {
-        // Check 2: Does user have any existing bookings? (extra safety)
-        $check2 = $conn->prepare("SELECT COUNT(*) as cnt FROM bookings WHERE user_id = ?");
-        $check2->bind_param("i", $user_id);
-        $check2->execute();
-        $booking_count = (int)$check2->get_result()->fetch_assoc()['cnt'];
-        $check2->close();
-
-        if ($booking_count == 0) {
-            // Check 3: Has the phone number been used in any previous booking?
-            $check3 = $conn->prepare("SELECT COUNT(*) as cnt FROM bookings WHERE phone = ?");
-            $check3->bind_param("s", $phone);
-            $check3->execute();
-            $phone_count = (int)$check3->get_result()->fetch_assoc()['cnt'];
-            $check3->close();
-
-            if ($phone_count == 0) {
-                $first_time_discount = 1;
-                $offer_message = ' 🎉 10% FIRST-TIME DISCOUNT applied!';
-            } else {
-                $offer_message = ' (First-time offer not valid — phone already used for a previous booking)';
-            }
-        } else {
-            $offer_message = ' (First-time offer not valid — you have existing bookings)';
-        }
+        $first_time_discount = 1;
+        $offer_message = ' 🎉 10% FIRST-TIME DISCOUNT applied!';
     } else {
-        $offer_message = ' (First-time offer not valid — already used)';
+        $offer_message = ' (First-time offer already used on this account)';
     }
+} elseif ($claim_offer && !$is_first_time) {
+    $offer_message = ' (First-time offer not valid — phone number already has a booking)';
+} elseif ($claim_offer && !$user_id) {
+    $offer_message = ' (Please sign in to claim the first-time offer)';
 }
 
 // ── Insert booking ──────────────────────────────────────────
@@ -103,16 +114,16 @@ $stmt = $conn->prepare("
     INSERT INTO bookings
         (user_id, full_name, phone, email,
          vehicle_make, vehicle_model, vehicle_year, registration,
-         services, booking_date, booking_time, notes, first_time_discount)
+         services, booking_date, booking_time, notes, source, first_time_discount)
     VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ");
 
 $stmt->bind_param(
-    "isssssssssssi",
+    "issssssssssssi",
     $user_id, $full_name, $phone, $email,
     $vehicle_make, $vehicle_model, $vehicle_year, $registration,
-    $services, $booking_date, $booking_time, $notes, $first_time_discount
+    $services, $booking_date, $booking_time, $notes, $source, $first_time_discount
 );
 
 if ($stmt->execute()) {
@@ -130,6 +141,7 @@ if ($stmt->execute()) {
         'success'             => true,
         'booking_id'          => $booking_id,
         'first_time_discount' => $first_time_discount,
+        'is_first_time'       => $is_first_time,
         'offer_message'       => $offer_message,
         'message'             => 'Booking confirmed successfully.' . $offer_message,
         'data'                => [
@@ -147,6 +159,7 @@ if ($stmt->execute()) {
             'time'                => $booking_time,
             'notes'               => $notes,
             'first_time_discount' => $first_time_discount,
+            'is_first_time'       => $is_first_time,
         ]
     ]);
 } else {

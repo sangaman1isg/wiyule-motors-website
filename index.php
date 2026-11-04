@@ -27,26 +27,51 @@ $autofill = $is_logged_in ? [
     'phone' => htmlspecialchars($_SESSION['phone'] ?? ''),
     'email' => htmlspecialchars($_SESSION['email'] ?? ''),
 ] : ['name'=>'','phone'=>'','email'=>''];
+
+// ── Check if current user is eligible for first-time offer ────
+$offer_eligible = false;
+if ($is_logged_in && isset($_SESSION['user_id'])) {
+    require_once __DIR__ . '/includes/db_connection.php';
+    $uid = (int)$_SESSION['user_id'];
+    $chk = $conn->prepare("SELECT first_offer_used FROM users WHERE id = ?");
+    if ($chk) {
+        $chk->bind_param("i", $uid);
+        $chk->execute();
+        $r = $chk->get_result()->fetch_assoc();
+        $chk->close();
+        $offer_eligible = $r && (int)$r['first_offer_used'] === 0;
+    }
+}
+// Guests are always "eligible" (they'll see the signup prompt)
+$show_offer_banner = !$is_logged_in || $offer_eligible;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php include __DIR__ . '/includes/analytics.php'; ?>
     <meta charset="UTF-8">
-    <meta name="description" content="Wiyule Motors offers premium automotive parts and services in Blantyre, Malawi. Shop high-quality parts and book expert vehicle maintenance today.">
-    <meta name="keywords" content="automotive parts, vehicle maintenance, auto detailing, car repair, Wiyule Motors, Blantyre, Malawi, brake services, engine repair, oil change">
-    <meta property="og:title" content="Wiyule Motors - Premium Automotive Parts &amp; Services">
-    <meta property="og:description" content="Your one-stop shop for automotive parts and services in Blantyre, Malawi.">
-    <meta property="og:image" content="https://wiyulemotors.com/assets/images/workshop_navara.jpg">
-    <meta property="og:url" content="https://wiyulemotors.com">
+    <meta name="description" content="Wiyule Motors offers premium auto services & parts and expert vehicle care in Blantyre, Malawi. Book professional servicing and shop quality parts today.">
+    <meta name="keywords" content="auto services, car service Blantyre, vehicle maintenance, auto detailing, car repair, automotive parts, Wiyule Motors, Malawi, brake services, engine repair, oil change">
+    <meta property="og:title" content="Wiyule Motors - Premium Auto Services &amp; Parts">
+    <meta property="og:description" content="Blantyre's most trusted auto workshop. Premium services, expert repairs & genuine parts — book online today.">
+    <meta property="og:image" content="https://wiyulemotors.co.mw/assets/images/logo.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:url" content="https://wiyulemotors.co.mw">
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Wiyule Motors">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Wiyule Motors - Premium Automotive Parts &amp; Services">
-    <meta name="twitter:description" content="Your one-stop shop for automotive parts and services in Blantyre, Malawi.">
+    <meta name="twitter:title" content="Wiyule Motors - Premium Auto Services &amp; Parts">
+    <meta name="twitter:description" content="Blantyre's most trusted auto workshop. Premium services, expert repairs & genuine parts — book online today.">
+    <meta name="twitter:image" content="https://wiyulemotors.co.mw/assets/images/logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#dc2626">
-    <title>Wiyule Motors - Premium Automotive Parts &amp; Services | Blantyre, Malawi</title>
-    <link rel="icon" type="image/x-icon" href="<?= $base ?>/static/favicon_io/favicon.ico">
-    <link rel="canonical" href="https://wiyulemotors.com">
+    <title>Wiyule Motors - Premium Auto Services &amp; Parts | Blantyre, Malawi</title>
+    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo.png?v=2">
+    <link rel="shortcut icon" type="image/png" href="<?= $base ?>/assets/images/logo.png?v=2">
+    <link rel="apple-touch-icon" href="<?= $base ?>/assets/images/logo.png?v=2">
+    <link rel="manifest" href="<?= $base ?>/static/favicon_io/site.webmanifest">
+    <link rel="canonical" href="https://wiyulemotors.co.mw">
 
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-HMM03HL39K"></script>
@@ -75,8 +100,8 @@ $autofill = $is_logged_in ? [
         "telephone": "+265993575111",
         "priceRange": "$$",
         "openingHoursSpecification": [
-            {"@type":"OpeningHoursSpecification","dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday"],"opens":"08:00","closes":"17:00"},
-            {"@type":"OpeningHoursSpecification","dayOfWeek":"Saturday","opens":"08:00","closes":"14:00"}
+            {"@type":"OpeningHoursSpecification","dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday"],"opens":"08:30","closes":"17:00"},
+            {"@type":"OpeningHoursSpecification","dayOfWeek":["Saturday","Sunday"],"opens":"09:00","closes":"13:00"}
         ],
         "aggregateRating": {"@type":"AggregateRating","ratingValue":"5","reviewCount":"120"}
     }
@@ -86,10 +111,18 @@ $autofill = $is_logged_in ? [
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <link rel="stylesheet" href="<?= $base ?>/assets/css/style.css">
 
     <style>
+        /* ── Global mobile safeguards (prevent sideways scroll & oversized media) ── */
+        html, body { max-width: 100%; overflow-x: hidden; }
+        img, video, svg, iframe { max-width: 100%; height: auto; }
+        * { min-width: 0; }
+        @media (max-width: 640px) {
+            /* Stop any fixed-width element from forcing horizontal scroll */
+            .container, section, .max-w-7xl, .max-w-6xl { max-width: 100% !important; }
+        }
+
         /* ── Nav ─────────────────────────────────────────────── */
         .nav-link {
             position:relative; font-weight:600; color:#374151;
@@ -171,48 +204,233 @@ $autofill = $is_logged_in ? [
         .dd-badge { margin-left:auto; background:#fef2f2; color:#dc2626; font-size:10px; font-weight:800; padding:2px 8px; border-radius:99px; }
         .dd-divider { height:1px; background:#f1f5f9; margin:6px 8px; }
 
-        .mob-item { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:12px; color:#374151; font-size:14px; font-weight:500; text-decoration:none; transition:all 0.15s; }
-        .mob-item:hover { background:#f8fafc; color:#0f172a; }
-        .mob-item svg { width:18px; height:18px; flex-shrink:0; }
+        .mob-item { display:flex; align-items:center; gap:14px; padding:10px 12px; border-radius:14px; color:#1d1d1f; font-size:15px; font-weight:600; text-decoration:none; transition:all 0.18s; }
+        .mob-item:hover { background:#f5f5f7; }
+        .mob-item:active { transform:scale(0.98); }
+        /* Icon tile — colored rounded square, our brand take on the app-icon style */
+        .mi-tile {
+            width:40px; height:40px; flex-shrink:0;
+            border-radius:12px;
+            display:flex; align-items:center; justify-content:center;
+            box-shadow:0 4px 10px -2px rgba(0,0,0,0.18);
+            transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .mob-item:hover .mi-tile { transform:translateY(-2px) rotate(-3deg); }
+        .mi-tile svg { width:22px; height:22px; flex-shrink:0; display:block; }
+        /* Brand tile colors */
+        .mi-red   { background:#dc2626; }
+        .mi-green { background:#16a34a; }
+        .mi-dark  { background:#1d1d1f; }
+        .mi-white { background:#f5f5f7; box-shadow:inset 0 0 0 1px #e5e7eb, 0 4px 10px -2px rgba(0,0,0,0.10); }
         .mob-item.danger { color:#dc2626; }
         .mob-item.danger:hover { background:#fef2f2; }
 
         /* ── Mobile Menu Smooth Slide ────────────────────────── */
-        #mobile-menu { max-height:0; overflow:hidden; transition:max-height 0.4s ease; border-top:1px solid transparent; }
-        #mobile-menu.open { max-height:700px; border-top-color:#f1f5f9; }
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+            border-top: 1px solid transparent;
+        }
+        #mobile-menu.open {
+            /* Cap to the viewport below the 80px nav, and allow scrolling
+               so long (logged-in) menus never get clipped */
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            border-top-color: #f1f5f9;
+        }
+        /* Slimmer scrollbar inside the menu */
+        #mobile-menu.open::-webkit-scrollbar { width: 4px; }
+        #mobile-menu.open::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
         .mobile-user-card { background:linear-gradient(135deg,#0f172a,#1e293b); border-radius:14px; padding:14px; display:flex; align-items:center; gap:12px; margin-bottom:8px; }
         .mobile-user-avatar { width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#dc2626,#b91c1c); color:#fff; font-size:15px; font-weight:800; display:flex; align-items:center; justify-content:center; }
 
-        /* ── Hero ─────────────────────────────────────────────── */
-        .hero-bg { background-color:#0f172a; color:#fff; }
+        /* ── Hero (refined: real photos, crossfade, left-aligned) ── */
+        .hero-bg { background-color:#0b0f1a; color:#fff; }
+
+        /* The hero wrapper holds the two crossfading background images */
         .hero-bg-image {
-            background-image:
-                linear-gradient(135deg,rgba(15,23,42,0.82) 0%,rgba(127,29,29,0.70) 50%,rgba(15,23,42,0.85) 100%),
-                url('<?= $base ?>/assets/images/workshop_navara.jpg');
-            background-size:cover;
-            background-position:center;
-            background-repeat:no-repeat;
-            transform:translateZ(0);
+            background-color: #0b0f1a; /* fallback while images load (or if missing) */
+            position: relative;
+            isolation: isolate;
         }
+
+        /* Each photo is a full-bleed absolute layer, ken-burns + crossfade */
+        .hero-photo {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center right;
+            will-change: opacity;
+        }
+        /* Layer 1 — BMW front — ALWAYS visible (base layer) */
+        .hero-photo.layer-1 {
+            background-image: url('<?= $base ?>/assets/images/hero-bmw.jpg');
+            opacity: 1;
+            z-index: 0;
+            animation: heroKenBurns 20s ease-in-out infinite;
+        }
+        /* Layer 2 — taillight — periodically fades over the BMW for variety */
+        .hero-photo.layer-2 {
+            background-image: url('<?= $base ?>/assets/images/taillight.jpg');
+            background-position: center;
+            opacity: 0;
+            z-index: 1;
+            animation: heroFadeOverlay 20s ease-in-out infinite;
+        }
+        @media (max-width: 768px) {
+            .hero-photo.layer-1 { background-position: 65% center; }
+            .hero-photo.layer-2 { background-position: center; }
+        }
+        @keyframes heroKenBurns {
+            0%, 100% { transform: scale(1.00); }
+            50%      { transform: scale(1.04); }
+        }
+        @keyframes heroFadeOverlay {
+            0%, 45%   { opacity: 0; }
+            55%       { opacity: 0.7; }
+            65%, 100% { opacity: 0; }
+        }
+
+        /* Dark gradient overlay so the text on the left stays crisp.
+           Strong on the left, fades toward the right where the car face is.   */
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background:
+                linear-gradient(105deg,
+                    rgba(11,15,26,0.92) 0%,
+                    rgba(11,15,26,0.75) 35%,
+                    rgba(11,15,26,0.35) 65%,
+                    rgba(11,15,26,0.55) 100%),
+                linear-gradient(to top, rgba(11,15,26,0.7), transparent 35%);
+            pointer-events: none;
+        }
+        @media (max-width: 768px) {
+            /* On mobile, darken the whole overlay so text reads clearly over the centered car */
+            .hero-overlay {
+                background:
+                    linear-gradient(180deg,
+                        rgba(11,15,26,0.72) 0%,
+                        rgba(11,15,26,0.55) 40%,
+                        rgba(11,15,26,0.78) 100%);
+            }
+        }
+
+        /* Soft moving light sweep — looks expensive, costs nothing */
+        .hero-sweep {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background: linear-gradient(115deg,
+                transparent 30%,
+                rgba(255,255,255,0.04) 50%,
+                transparent 70%);
+            transform: translateX(-100%);
+            animation: heroSweep 9s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes heroSweep {
+            0%   { transform: translateX(-100%); }
+            55%  { transform: translateX(100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* The status pill — inline above the headline (belongs to the text group) */
+        .hero-status-pill {
+            display: inline-flex; align-items: center; gap: 9px;
+            background: rgba(11,15,26,0.55);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 99px;
+            padding: 8px 16px 8px 12px;
+            font-size: 12.5px; font-weight: 600;
+            color: #fff;
+            letter-spacing: 0.01em;
+            margin-bottom: 22px;
+        }
+        .hero-status-pill .dot {
+            width: 7px; height: 7px;
+            background: #22c55e; border-radius: 50%;
+            box-shadow: 0 0 0 3px rgba(34,197,94,0.25);
+            animation: pulseDot 2s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        .hero-status-pill .sep {
+            opacity: 0.45;
+        }
+        @keyframes pulseDot {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(34,197,94,0.25); }
+            50%      { box-shadow: 0 0 0 6px rgba(34,197,94,0.0); }
+        }
+        @media (max-width: 768px) {
+            .hero-status-pill { font-size: 11px; padding: 7px 14px 7px 11px; margin-bottom: 18px; }
+        }
+
         .text-shadow { text-shadow:0 2px 12px rgba(0,0,0,0.5); }
         .main-title {
-            font-size:clamp(2.2rem,6vw,4.5rem);
+            font-size:clamp(2rem, 5.2vw, 3.8rem);
             font-weight:800; color:#ffffff; line-height:1.05;
-            letter-spacing:-0.03em; margin-bottom:1.5rem;
-            text-shadow:0 4px 24px rgba(0,0,0,0.5);
+            letter-spacing:-0.03em; margin-bottom:1.2rem;
+            text-shadow:0 4px 24px rgba(0,0,0,0.6);
+        }
+
+        /* ── Hero CTA buttons — equal height, single-line, consistent ── */
+        .hero-cta-row {
+            display: flex; flex-wrap: wrap; gap: 12px;
+            align-items: stretch; /* equal heights */
+        }
+        .hero-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 10px;
+            padding: 14px 24px;
+            border-radius: 14px;
+            font-size: 15px; font-weight: 700;
+            font-family: 'Sora', sans-serif;
+            text-decoration: none; color: #fff;
+            white-space: nowrap;            /* no wrap onto two lines */
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+            border: 1px solid transparent;
+            min-height: 52px;
+        }
+        .hero-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .hero-btn:hover { transform: translateY(-2px); }
+        .hero-btn-primary {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            box-shadow: 0 6px 22px rgba(220,38,38,0.35);
+        }
+        .hero-btn-primary:hover { box-shadow: 0 10px 30px rgba(220,38,38,0.45); }
+        .hero-btn-ghost {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.18);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .hero-btn-ghost:hover {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.28);
+        }
+        @media (max-width: 640px) {
+            .hero-cta-row { gap: 10px; }
+            .hero-btn { padding: 13px 20px; font-size: 14px; flex: 1 1 calc(50% - 6px); min-height: 50px; }
+            .hero-btn-primary { flex-basis: 100%; }  /* primary takes full row on small phones */
         }
 
         /* ── UPGRADE 1: Hero Stats Bar ──────────────────────── */
         .hero-stats-bar {
             display:grid; grid-template-columns:repeat(4, 1fr);
-            background:rgba(255,255,255,0.06);
-            backdrop-filter:blur(12px);
-            border:1px solid rgba(255,255,255,0.12);
-            border-radius:20px;
-            padding:20px 24px;
-            margin-top:48px;
-            max-width:700px;
-            margin-left:auto;
+            background:rgba(11,15,26,0.55);
+            backdrop-filter:blur(14px);
+            -webkit-backdrop-filter:blur(14px);
+            border:1px solid rgba(255,255,255,0.14);
+            border-radius:18px;
+            padding:18px 20px;
+            margin-top:36px;
+            max-width:680px;
+            margin-left:0;
             margin-right:auto;
         }
         .hero-stat {
@@ -243,13 +461,13 @@ $autofill = $is_logged_in ? [
             .hero-stat-label { font-size:10px; }
         }
 
-        /* ── Speed lines (static - no animation) ─────────────── */
+        /* ── Speed lines (static, no animation for performance) ── */
         .speed-lines {
             position:absolute; inset:0;
             background:repeating-linear-gradient(90deg,transparent,transparent 80px,rgba(255,255,255,0.04) 81px,rgba(255,255,255,0.04) 82px);
         }
 
-        /* ── Hero lights (static - no animation, better performance) ── */
+        /* ── Hero lights (static, no animation for performance) ── */
         .hero-light { position:absolute; border-radius:50%; filter:blur(80px); opacity:0.3; }
         .light1 { width:300px; height:300px; background:red; top:10%; left:10%; }
         .light2 { width:250px; height:250px; background:white; bottom:20%; right:10%; }
@@ -378,9 +596,9 @@ $autofill = $is_logged_in ? [
         /* ── Gallery ──────────────────────────────────────────── */
         .gallery-img { background:#f1f5f9; display:block; width:100%; height:16rem; object-fit:cover; }
 
-        /* ── UPGRADE 5: Back to top button ────────────────────── */
+        /* ── Back to top button (bottom-left, opposite side from WhatsApp) ─── */
         #backToTop {
-            position:fixed; bottom:96px; right:24px;
+            position:fixed; bottom:24px; left:24px;
             width:44px; height:44px; border-radius:12px;
             background:linear-gradient(135deg,#0f172a,#1e293b);
             color:#fff; border:none; cursor:pointer;
@@ -416,24 +634,19 @@ $autofill = $is_logged_in ? [
         }
         .whatsapp-btn:hover { transform:scale(1.1); box-shadow:0 6px 24px rgba(37,211,102,0.5); }
 
-        /* ── Feedback Button ─────────────────────────────────── */
-        .feedback-btn {
-            position:fixed; bottom:24px; left:24px;
-            display:flex; align-items:center; gap:8px;
-            background:#fff; color:#374151;
-            padding:10px 16px; border-radius:99px;
-            box-shadow:0 4px 20px rgba(0,0,0,0.12);
-            border:1.5px solid #e5e7eb;
-            font-size:13px; font-weight:600;
-            font-family:'Sora',sans-serif;
-            cursor:pointer; text-decoration:none;
-            transition:all 0.3s; z-index:50;
+        /* ── MOBILE: floating buttons positioned cleanly, no overlap ── */
+        @media(max-width:1023px) {
+            /* WhatsApp sits bottom-right, lifted above the sticky booking bar */
+            .whatsapp-btn { bottom:84px !important; right:16px !important; width:48px; height:48px; z-index:60; }
+            /* Back-to-top sits bottom-LEFT (opposite of WhatsApp), lifted above sticky bar */
+            #backToTop { bottom:84px !important; left:16px !important; right:auto !important; width:44px; height:44px; z-index:60; }
+            /* Give the page bottom breathing room so nothing hides behind the bar */
+            footer { padding-bottom:90px !important; }
         }
-        .feedback-btn:hover { border-color:#dc2626; color:#dc2626; box-shadow:0 6px 24px rgba(0,0,0,0.16); transform:translateY(-2px); }
-        .feedback-btn svg { width:16px; height:16px; flex-shrink:0; }
-        @media(max-width:767px) {
-            .feedback-btn span { display:none; }
-            .feedback-btn { padding:10px; border-radius:50%; }
+        /* Very small phones: tighten spacing a touch more */
+        @media(max-width:380px) {
+            .whatsapp-btn { bottom:80px !important; }
+            #backToTop    { bottom:80px !important; }
         }
 
         /* ── Comprehensive Mobile Fixes ──────────────────────── */
@@ -490,11 +703,6 @@ $autofill = $is_logged_in ? [
             .step-label { font-size:9px; }
             .step:not(:last-child)::after { top:15px; }
 
-            /* Floating buttons - move above sticky bar */
-            .whatsapp-btn { bottom:76px; width:46px; height:46px; }
-            #backToTop { bottom:130px; }
-            .feedback-btn { bottom:76px; }
-
             /* Footer extra padding for sticky bar */
             footer { padding-bottom:100px !important; }
         }
@@ -508,42 +716,525 @@ $autofill = $is_logged_in ? [
             #hero .text-xl { font-size:0.9rem; }
             .nav-link { font-size:12px; }
         }
+        /* ═══════════════════════════════════════════════════════
+           ✨ LIQUID GLASS UPGRADES — Apple-inspired, premium
+        ═══════════════════════════════════════════════════════ */
+
+        /* ── Liquid glass navigation bar ── */
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 24px rgba(0,0,0,0.04);
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+        /* When scrolled, make it slightly more opaque + deeper shadow */
+        .glass-nav.scrolled {
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.08);
+        }
+
+        /* ── Liquid glass hero buttons ── */
+        .glass-btn {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.12) !important;
+            backdrop-filter: blur(16px) saturate(160%);
+            -webkit-backdrop-filter: blur(16px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 8px 24px rgba(0,0,0,0.15);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s, background 0.3s;
+        }
+        .glass-btn::before {
+            content: '';
+            position: absolute; top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+            transition: left 0.6s ease;
+        }
+        .glass-btn:hover::before { left: 120%; }
+        .glass-btn:hover {
+            background: rgba(255,255,255,0.2) !important;
+            transform: translateY(-3px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 14px 32px rgba(0,0,0,0.22);
+        }
+
+        /* Primary red glass button (the main CTA) */
+        .glass-btn-primary {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, rgba(239,68,68,0.92), rgba(185,28,28,0.92)) !important;
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            border: 1px solid rgba(255,255,255,0.25) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(220,38,38,0.4);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+        }
+        .glass-btn-primary::before {
+            content: '';
+            position: absolute; top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+        .glass-btn-primary:hover::before { left: 120%; }
+        .glass-btn-primary:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(220,38,38,0.5);
+        }
+
+        /* ── "Our Work" auto-rotating slideshow ── */
+        .work-slider {
+            position: relative;
+            max-width: 1000px;
+            margin: 0 auto;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 24px 64px -16px rgba(15,23,42,0.35);
+            background: #0a0a0a;
+            aspect-ratio: 16 / 9;
+        }
+        .work-slide {
+            position: absolute; inset: 0;
+            opacity: 0;
+            transform: scale(1.05);
+            transition: opacity 1s cubic-bezier(0.4,0,0.2,1), transform 6s ease-out;
+            pointer-events: none;
+        }
+        .work-slide.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        .work-slide img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        /* Gradient scrim + caption */
+        .work-slide::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 40%, transparent 70%);
+        }
+        .work-slide-caption {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 32px 36px;
+            color: #fff;
+            z-index: 2;
+        }
+        .work-slide-caption .ws-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.18);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.25);
+            padding: 6px 14px; border-radius: 99px;
+            font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
+            margin-bottom: 10px;
+        }
+        .work-slide-caption .ws-title {
+            font-size: 24px; font-weight: 800; letter-spacing: -0.01em;
+        }
+        /* Dots */
+        .work-dots {
+            display: flex; justify-content: center; gap: 10px;
+            margin-top: 24px;
+        }
+        .work-dot {
+            width: 10px; height: 10px; border-radius: 99px;
+            background: #d1d5db; border: none; cursor: pointer; padding: 0;
+            transition: width 0.4s ease, background 0.4s ease;
+        }
+        .work-dot.active { width: 32px; background: var(--red, #dc2626); }
+        /* Arrows */
+        .work-arrow {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            z-index: 3;
+            width: 44px; height: 44px; border-radius: 99px;
+            background: rgba(255,255,255,0.18);
+            backdrop-filter: blur(12px) saturate(160%);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s, transform 0.2s;
+            opacity: 0;
+        }
+        .work-slider:hover .work-arrow { opacity: 1; }
+        .work-arrow:hover { background: rgba(255,255,255,0.32); }
+        .work-arrow.prev { left: 16px; }
+        .work-arrow.next { right: 16px; }
+        @media (max-width: 768px) {
+            .work-slider { border-radius: 20px; aspect-ratio: 4 / 3; }
+            .work-slide-caption { padding: 20px 22px; }
+            .work-slide-caption .ws-title { font-size: 18px; }
+            .work-arrow { opacity: 1; width: 38px; height: 38px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .work-slide { transition: opacity 0.4s ease; transform: none; }
+            .work-slide.active { transform: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .glass-btn, .glass-btn-primary, .work-slide,
+            .work-slide-caption { transition: none !important; }
+            .glass-btn::before, .glass-btn-primary::before { display: none; }
+        }
+        /* ═══════════════════════════════════════════════════════
+           ✦ SERVICES — refined Apple aesthetic
+        ═══════════════════════════════════════════════════════ */
+        .svc-eyebrow {
+            display: inline-block;
+            font-size: 13px; font-weight: 600;
+            color: #dc2626; letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        .svc-h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            color: #1d1d1f;
+            letter-spacing: -0.03em;
+            margin-bottom: 14px;
+            line-height: 1.05;
+        }
+        .svc-sub {
+            font-size: 19px; color: #6e6e73;
+            max-width: 540px; margin: 0 auto 28px;
+            font-weight: 400; line-height: 1.5;
+        }
+        .svc-pricelist {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #1d1d1f; color: #fff;
+            padding: 12px 22px; border-radius: 980px;
+            font-size: 14px; font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.25s ease, background 0.25s ease;
+        }
+        .svc-pricelist:hover { background: #000; transform: translateY(-1px); }
+
+        .svc-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        @media (max-width: 1024px) { .svc-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px)  { .svc-grid { grid-template-columns: 1fr; } }
+
+        .svc-card {
+            background: linear-gradient(180deg, #ffffff 0%, #fdf6f6 100%);
+            border: 1px solid #f6dede;
+            border-radius: 24px;
+            padding: 34px 30px;
+            transition: transform 0.35s cubic-bezier(0.22,1,0.36,1), box-shadow 0.35s, border-color 0.35s;
+            position: relative;
+            overflow: hidden;
+        }
+        /* Soft red glow that appears on hover — premium Apple depth */
+        .svc-card::before {
+            content: '';
+            position: absolute;
+            top: -40%; right: -30%;
+            width: 220px; height: 220px;
+            background: radial-gradient(circle, rgba(220,38,38,0.10) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.45s ease;
+            pointer-events: none;
+        }
+        .svc-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 50px -16px rgba(220,38,38,0.20);
+            border-color: #f0c4c4;
+        }
+        .svc-card:hover::before { opacity: 1; }
+        /* Bold solid-color icon tile (app-icon style), white icon, soft shadow */
+        .svc-icon {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: #dc2626;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 18px -4px rgba(220,38,38,0.4);
+            transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .svc-icon i, .svc-icon svg {
+            width: 26px; height: 26px;
+            color: #fff;
+            stroke-width: 2;
+        }
+        .svc-card:hover .svc-icon {
+            transform: translateY(-3px) rotate(-4deg) scale(1.04);
+        }
+        /* Alternating brand tile colors — red & charcoal only */
+        .svc-card:nth-child(even) .svc-icon { background: #1d1d1f; box-shadow: 0 8px 18px -4px rgba(29,29,31,0.4); }
+
+        .svc-title {
+            font-size: 20px; font-weight: 600;
+            color: #1d1d1f; letter-spacing: -0.01em;
+            margin-bottom: 10px;
+        }
+        .svc-desc {
+            font-size: 15px; color: #6e6e73;
+            line-height: 1.6; margin-bottom: 22px;
+        }
+        .svc-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #dc2626; font-size: 15px; font-weight: 600;
+            text-decoration: none;
+            transition: gap 0.25s ease;
+        }
+        .svc-link svg { transition: transform 0.25s ease; }
+        .svc-link:hover { gap: 10px; }
+        .svc-link:hover svg { transform: translateX(2px); }
+
+        /* Feature card (Vehicle Wrapping) — subtle red wash, red tile */
+        .svc-card-feature {
+            background: linear-gradient(180deg, #ffffff 0%, #fdf6f6 100%);
+            border-color: #f6dede;
+        }
+        .svc-card-feature .svc-icon { background: #dc2626 !important; box-shadow: 0 8px 18px -4px rgba(220,38,38,0.4) !important; }
+        .svc-card-feature:hover {
+            box-shadow: 0 20px 50px -16px rgba(220,38,38,0.20);
+            border-color: #f0c4c4;
+        }
+        .svc-card-feature::before {
+            background: radial-gradient(circle, rgba(220,38,38,0.10) 0%, transparent 70%);
+        }
+        .svc-card-feature .svc-link { color: #dc2626; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .svc-card, .svc-icon, .svc-link, .svc-link svg { transition: none !important; }
+        }
+        /* ═══════════════════════════════════════════════════════
+           ✦ WHY CHOOSE US — light, brand colors (red + green hints)
+        ═══════════════════════════════════════════════════════ */
+        .why-section {
+            padding: 96px 0;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(220,38,38,0.05) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(22,163,74,0.05) 0%, transparent 40%),
+                #ffffff;
+            color: #1d1d1f;
+            position: relative;
+            overflow: hidden;
+        }
+        .why-eyebrow {
+            display: inline-block;
+            font-size: 13px; font-weight: 600;
+            color: #dc2626; letter-spacing: 0.04em;
+            text-transform: uppercase; margin-bottom: 16px;
+        }
+        .why-h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700; letter-spacing: -0.03em;
+            color: #1d1d1f; margin-bottom: 14px; line-height: 1.05;
+        }
+        .why-sub {
+            font-size: 19px; color: #6e6e73;
+            max-width: 520px; margin: 0 auto; font-weight: 400;
+        }
+        .why-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+        }
+        @media (max-width: 900px) { .why-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 520px) { .why-grid { grid-template-columns: 1fr; } }
+
+        /* Stat strip merged from old About section */
+        .why-stats {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+            margin-top: 56px;
+            padding: 28px 24px;
+            background: #ffffff;
+            border: 1px solid #ededed;
+            border-radius: 22px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+        }
+        .why-stat { text-align: center; min-width: 0; }
+        .why-stat-num {
+            font-size: clamp(28px, 5vw, 42px);
+            font-weight: 800;
+            color: #dc2626;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: 6px;
+            white-space: nowrap;
+        }
+        .why-stat-label {
+            font-size: clamp(11px, 2.5vw, 14px);
+            color: #6b7280; font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        @media (max-width: 480px) {
+            .why-stats { padding: 20px 12px; gap: 8px; margin-top: 40px; }
+        }
+        .why-card {
+            background: #ffffff;
+            border: 1px solid #ededed;
+            border-radius: 22px;
+            padding: 32px 26px;
+            text-align: center;
+            transition: transform 0.35s cubic-bezier(0.22,1,0.36,1), box-shadow 0.35s, border-color 0.35s;
+        }
+        .why-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 18px 44px -16px rgba(15,23,42,0.12);
+            border-color: #f0c4c4;
+        }
+        .why-icon {
+            width: 60px; height: 60px; margin: 0 auto 18px;
+            border-radius: 16px;
+            background: #dc2626;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 8px 18px -4px rgba(220,38,38,0.4);
+            transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .why-icon i, .why-icon svg { width: 28px; height: 28px; color: #fff; stroke-width: 2; }
+        .why-card:hover .why-icon { transform: translateY(-3px) rotate(-4deg) scale(1.05); }
+        .why-title { font-size: 18px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px; letter-spacing: -0.01em; }
+        .why-desc  { font-size: 14px; color: #6e6e73; line-height: 1.55; }
+        /* Alternate green tiles on 2nd & 4th cards for brand balance */
+        .why-card:nth-child(2) .why-icon,
+        .why-card:nth-child(4) .why-icon { background: #16a34a; box-shadow: 0 8px 18px -4px rgba(22,163,74,0.4); }
+        .why-card:nth-child(2):hover,
+        .why-card:nth-child(4):hover { border-color: #a7e0b8; }
+
+        /* ── About stats — refined ── */
+        .about-stat {
+            text-align: center; padding: 18px 8px;
+            background: #f5f5f7; border-radius: 18px;
+            transition: transform 0.3s ease;
+            min-width: 0;          /* allow shrinking inside a tight grid */
+            overflow: hidden;       /* don't push neighbouring cells */
+        }
+        .about-stat:hover { transform: translateY(-3px); }
+        .about-stat-num {
+            font-size: clamp(20px, 5vw, 32px);   /* scales down on narrow screens */
+            font-weight: 700; color: #dc2626;
+            letter-spacing: -0.02em; margin-bottom: 4px;
+            white-space: nowrap;
+            line-height: 1.1;
+        }
+        .about-stat-label { font-size: clamp(11px, 2.5vw, 13px); color: #6e6e73; font-weight: 500; line-height: 1.3; }
+        @media (max-width: 380px) {
+            .about-stat { padding: 14px 6px; border-radius: 14px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .why-card, .why-icon, .about-stat { transition: none !important; }
+        }
+        /* ═══════════════════════════════════════════════════════
+           ✦ UNIVERSAL GLASS BUTTONS (for light backgrounds)
+           Matches the hero Book a Service / Call Us Now feel,
+           but tuned to sit on white/light sections.
+        ═══════════════════════════════════════════════════════ */
+        .gbtn {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 15px; font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.25);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+        }
+        .gbtn::before {
+            content: '';
+            position: absolute; top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+        .gbtn:hover::before { left: 120%; }
+        .gbtn:hover { transform: translateY(-3px) scale(1.02); }
+
+        /* Primary red glass (default action) */
+        .gbtn-primary {
+            background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            color: #fff;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(220,38,38,0.35);
+        }
+        .gbtn-primary:hover {
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(220,38,38,0.45);
+        }
+
+        /* Dark glass (for things like 'View Price List') */
+        .gbtn-dark {
+            background: linear-gradient(135deg, rgba(45,45,47,0.95), rgba(15,15,17,0.95));
+            backdrop-filter: blur(12px) saturate(160%);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            color: #fff;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 10px 28px rgba(15,23,42,0.3);
+        }
+        .gbtn-dark:hover {
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 16px 38px rgba(15,23,42,0.4);
+        }
+
+        /* Green glass (WhatsApp / quote actions) */
+        .gbtn-green {
+            background: linear-gradient(135deg, rgba(22,163,74,0.95), rgba(21,128,61,0.95));
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            color: #fff;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(22,163,74,0.35);
+        }
+        .gbtn-green:hover {
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(22,163,74,0.45);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .gbtn { transition: none !important; }
+            .gbtn::before { display: none; }
+        }
     </style>
 </head>
 <body class="font-[Sora] antialiased text-gray-800">
 
+<?php if($show_offer_banner): ?>
+<!-- ═══ First-Time Customer Offer Banner ═══ -->
+<div id="offerBanner" style="background:linear-gradient(90deg,#dc2626,#b91c1c,#991b1b);color:#fff;padding:10px 44px 10px 16px;text-align:center;position:relative;z-index:60;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:16px">🎉</span>
+    <span><strong>First-time customer?</strong> Get <strong>10% OFF</strong> your first service —</span>
+    <?php if(!$is_logged_in): ?>
+        <a href="<?= $base ?>/pages/signup.php?offer=first10" style="background:#fff;color:#b91c1c;padding:5px 14px;border-radius:99px;font-weight:800;text-decoration:none;font-size:12px">Claim Now →</a>
+    <?php else: ?>
+        <a href="<?= $base ?>/book.php?offer=first10" style="background:#fff;color:#b91c1c;padding:5px 14px;border-radius:99px;font-weight:800;text-decoration:none;font-size:12px">Book & Apply →</a>
+    <?php endif; ?>
+    <button onclick="dismissOfferBanner()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center" aria-label="Dismiss">✕</button>
+</div>
+<script>
+if (sessionStorage.getItem('offerDismissed') === '1') {
+    var b = document.getElementById('offerBanner');
+    if (b) b.style.display = 'none';
+}
+function dismissOfferBanner(){
+    var b = document.getElementById('offerBanner');
+    if (b) b.style.display = 'none';
+    sessionStorage.setItem('offerDismissed','1');
+}
+</script>
+<?php endif; ?>
+
 <!-- WhatsApp Button -->
 <a href="https://wa.me/265993575111" class="whatsapp-btn" target="_blank" rel="noopener noreferrer" title="Chat on WhatsApp">
-    <i data-feather="message-circle"></i>
+    <svg viewBox="0 0 24 24" fill="#fff" stroke="none" width="28" height="28"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.8.9.9-2.7-.2-.3A8 8 0 1 1 12 20zm4.5-5.9c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.2.2-.3.2-.5.1a6.5 6.5 0 0 1-1.9-1.2 7.3 7.3 0 0 1-1.4-1.7c-.1-.2 0-.4.1-.5l.4-.5.3-.5v-.5L9 7.7c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3c-.2.3-.9.9-.9 2.1s.9 2.5 1.1 2.6c.1.2 1.8 2.7 4.3 3.8.6.3 1.1.4 1.5.5.6.2 1.2.2 1.6.1.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2z"/></svg>
 </a>
 
-<!-- Feedback Button -->
-<a href="https://wa.me/265993575111?text=Hi%20Wiyule%20Motors%2C%20I%20found%20an%20issue%20on%20your%20website%3A%20" class="feedback-btn" target="_blank" rel="noopener noreferrer" title="Report an issue or give feedback">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    <span>Feedback</span>
-</a>
-
-<!-- UPGRADE 5: Back to Top Button -->
+<!-- Back to Top Button -->
 <button id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
 </button>
 
-<!-- UPGRADE 6: Mobile Sticky Booking Bar -->
-<div class="mobile-sticky-bar">
-    <a href="https://wa.me/265993575111" target="_blank" rel="noopener noreferrer"
-       class="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white py-3 rounded-xl font-bold text-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-        WhatsApp
-    </a>
-    <a href="#booking"
-       class="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded-xl font-bold text-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Book Now
-    </a>
-</div>
-
 <!-- ═══ Navigation ═══ -->
-<nav class="bg-white shadow-md sticky top-0 z-50">
+<nav class="glass-nav sticky top-0 z-50" id="mainNav">
     <div style="height:3px;background:linear-gradient(90deg,#dc2626,#b91c1c,#7f1d1d);"></div>
     <div class="max-w-7xl mx-auto px-6">
         <div class="flex justify-between items-center h-20">
@@ -551,7 +1242,7 @@ $autofill = $is_logged_in ? [
             <!-- Logo -->
             <a href="<?= $base ?>/" class="flex items-center space-x-3" style="text-decoration:none">
                 <img class="h-12 w-auto"
-                     src="assets/images/logo.png"
+                     src="<?= $base ?>/assets/images/logo.png"
                      alt="Wiyule Motors Logo">
                 <div>
                     <span class="text-xl font-bold text-gray-900 block leading-tight">Wiyule Motors</span>
@@ -560,23 +1251,25 @@ $autofill = $is_logged_in ? [
             </a>
 
             <!-- Desktop Nav Links -->
-            <div class="hidden md:flex items-center" style="gap:28px">
+            <div class="hidden lg:flex items-center" style="gap:28px">
                 <a href="<?= $base ?>/"        class="nav-link active">Home</a>
                 <a href="#services"             class="nav-link">Services</a>
-                <a href="#booking"              class="nav-link">Book</a>
-                <a href="#about"                class="nav-link">About</a>
-                <a href="#contact"              class="nav-link">Contact</a>
+                <a href="#our-work"             class="nav-link">Our Work</a>
+                <a href="<?= $base ?>/pricing.php" class="nav-link">Pricing</a>
+                <a href="<?= $base ?>/book.php"              class="nav-link">Book</a>
+                <a href="<?= $base ?>/about.php"                class="nav-link">About</a>
+                <a href="<?= $base ?>/contact.php"              class="nav-link">Contact</a>
             </div>
 
             <!-- Desktop Auth -->
-            <div class="hidden md:flex items-center" style="gap:10px">
+            <div class="hidden lg:flex items-center" style="gap:10px">
                 <?php if ($is_logged_in && $nav_user): ?>
                     <a href="<?= $base ?>/pages/dashboard.php?panel=notifications" class="nav-bell" title="Notifications">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                         <?php if ($nav_user['unread_notifs'] > 0): ?><span class="nav-bell-badge"></span><?php endif; ?>
                     </a>
-                    <a href="<?= $base ?>/pages/dashboard.php" class="nav-dashboard-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    <a href="<?= $base ?>/pages/dashboard.php" class="gbtn gbtn-dark" style="padding:9px 18px;font-size:13px;border-radius:12px">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                         Dashboard
                     </a>
                     <div class="nav-avatar-wrap" id="avatarWrap">
@@ -625,17 +1318,11 @@ $autofill = $is_logged_in ? [
                         </div>
                     </div>
                 <?php else: ?>
-                    <a href="<?= $base ?>/pages/login.php"
-                       style="padding:8px 18px;border:1.5px solid #e5e7eb;color:#374151;border-radius:12px;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px"
-                       onmouseover="this.style.borderColor='#dc2626';this.style.color='#dc2626';this.style.background='#fef2f2'"
-                       onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#374151';this.style.background='transparent'">
+                    <a href="<?= $base ?>/pages/login.php" class="gbtn gbtn-dark" style="padding:9px 18px;font-size:13px;border-radius:12px">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                         Sign In
                     </a>
-                    <a href="<?= $base ?>/pages/signup.php"
-                       style="padding:8px 18px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border-radius:12px;font-size:13px;font-weight:700;text-decoration:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 10px rgba(220,38,38,0.3)"
-                       onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 18px rgba(220,38,38,0.4)'"
-                       onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 10px rgba(220,38,38,0.3)'">
+                    <a href="<?= $base ?>/pages/signup.php" class="gbtn gbtn-primary" style="padding:9px 18px;font-size:13px;border-radius:12px">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
                         Create Account
                     </a>
@@ -643,7 +1330,7 @@ $autofill = $is_logged_in ? [
             </div>
 
             <!-- Mobile Toggle -->
-            <div class="md:hidden flex items-center gap-3">
+            <div class="lg:hidden flex items-center gap-3">
                 <?php if ($is_logged_in && $nav_user): ?>
                 <a href="<?= $base ?>/pages/dashboard.php?panel=notifications" class="nav-bell" style="width:36px;height:36px">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -659,7 +1346,7 @@ $autofill = $is_logged_in ? [
     </div>
 
     <!-- Mobile Menu (smooth slide) -->
-    <div id="mobile-menu" class="md:hidden bg-white">
+    <div id="mobile-menu" class="lg:hidden bg-white">
         <div style="padding:16px;display:flex;flex-direction:column;gap:4px">
             <?php if ($is_logged_in && $nav_user): ?>
             <div class="mobile-user-card">
@@ -671,27 +1358,66 @@ $autofill = $is_logged_in ? [
             </div>
             <?php endif; ?>
 
-            <a href="<?= $base ?>/"   onclick="closeMobileMenu()" class="mob-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home</a>
-            <a href="#services"       onclick="closeMobileMenu()" class="mob-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Services</a>
-            <a href="#booking"        onclick="closeMobileMenu()" class="mob-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Book a Service</a>
-            <a href="#about"          onclick="closeMobileMenu()" class="mob-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>About</a>
-            <a href="#contact"        onclick="closeMobileMenu()" class="mob-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Contact</a>
+            <a href="<?= $base ?>/"   onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-red"><svg viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"/></svg></span>
+                Home
+            </a>
+            <a href="#services"       onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-dark"><svg viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"><path d="M12 3l2.3 5.9 6.2.4-4.8 4 1.6 6-5.3-3.4L6.7 19.3l1.6-6-4.8-4 6.2-.4z"/></svg></span>
+                Services
+            </a>
+            <a href="#our-work"       onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-green"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="#fff" stroke="#fff"/><circle cx="8.5" cy="9.5" r="1.6" fill="#16a34a" stroke="none"/><path d="M20 14l-4.5-4L7 18.5" stroke="#16a34a"/></svg></span>
+                Our Work
+            </a>
+            <a href="<?= $base ?>/pricing.php" onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-dark"><svg viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"><path d="M20.6 13.4L13.4 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5.5A1.5 1.5 0 0 1 4.5 4h6.7c.5 0 1 .2 1.4.6l8 8a2 2 0 0 1 0 2.8z"/><circle cx="8" cy="8" r="1.5" fill="#1d1d1f" stroke="none"/></svg></span>
+                Pricing
+            </a>
+            <a href="<?= $base ?>/book.php"        onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-red"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5" fill="#fff" stroke="#fff"/><path d="M3.5 9.5h17" stroke="#dc2626"/><path d="M8 3v4M16 3v4" stroke="#fff"/><path d="M8.5 14.5l2.2 2.2 4.3-4.3" stroke="#dc2626"/></svg></span>
+                Book a Service
+            </a>
+            <a href="<?= $base ?>/about.php"          onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-green"><svg viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1.5"><circle cx="12" cy="12" r="9" fill="#fff" stroke="#fff"/><circle cx="12" cy="8" r="1.3" fill="#16a34a" stroke="none"/><rect x="11" y="11" width="2" height="6" rx="1" fill="#16a34a" stroke="none"/></svg></span>
+                About
+            </a>
+            <a href="<?= $base ?>/contact.php"        onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-dark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5" fill="#fff" stroke="#fff"/><path d="M4 7l8 5.5L20 7" stroke="#1d1d1f"/></svg></span>
+                Contact
+            </a>
 
             <div style="height:1px;background:#f1f5f9;margin:8px 0"></div>
 
             <?php if ($is_logged_in && $nav_user): ?>
-                <a href="<?= $base ?>/pages/dashboard.php" onclick="closeMobileMenu()" class="mob-item" style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;font-weight:700"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>My Dashboard</a>
-                <a href="<?= $base ?>/pages/dashboard.php?panel=bookings" onclick="closeMobileMenu()" class="mob-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>My Bookings</a>
-                <a href="<?= $base ?>/pages/dashboard.php?panel=vehicle" onclick="closeMobileMenu()" class="mob-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>My Vehicle</a>
-                <a href="<?= $base ?>/pages/logout.php" onclick="closeMobileMenu()" class="mob-item danger"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out</a>
+                <a href="<?= $base ?>/pages/dashboard.php" onclick="closeMobileMenu()" class="mob-item">
+                    <span class="mi-tile mi-dark"><svg viewBox="0 0 24 24" fill="#fff" stroke="none"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg></span>
+                    My Dashboard
+                </a>
+                <a href="<?= $base ?>/pages/logout.php" onclick="closeMobileMenu()" class="mob-item danger">
+                    <span class="mi-tile mi-white"><svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+                    Sign Out
+                </a>
             <?php else: ?>
-                <a href="<?= $base ?>/pages/login.php" onclick="closeMobileMenu()" class="mob-item" style="border:1.5px solid #e5e7eb;justify-content:center;font-weight:600"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Sign In</a>
-                <a href="<?= $base ?>/pages/signup.php" onclick="closeMobileMenu()" class="mob-item" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-weight:700;justify-content:center;box-shadow:0 2px 10px rgba(220,38,38,0.3)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>Create Free Account</a>
+                <a href="<?= $base ?>/pages/login.php" onclick="closeMobileMenu()" class="mob-item">
+                    <span class="mi-tile mi-dark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></span>
+                    Sign In
+                </a>
+                <a href="<?= $base ?>/pages/signup.php" onclick="closeMobileMenu()" class="mob-item">
+                    <span class="mi-tile mi-red"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span>
+                    Create Free Account
+                </a>
             <?php endif; ?>
 
             <div style="height:1px;background:#f1f5f9;margin:8px 0"></div>
-            <a href="https://wa.me/265993575111" target="_blank" onclick="closeMobileMenu()" class="mob-item" style="background:#f0fdf4;color:#15803d;font-weight:600;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>WhatsApp Us</a>
-            <a href="tel:+265993575111" onclick="closeMobileMenu()" class="mob-item" style="background:#eff6ff;color:#2563eb;font-weight:600;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Call +265 993 575 111</a>
+            <a href="https://wa.me/265993575111" target="_blank" onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-green"><svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.8.9.9-2.7-.2-.3A8 8 0 1 1 12 20z"/><path d="M8.5 7.3c-.2 0-.5 0-.7.4-.2.4-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.7 2.8 4.3 3.8 2.1.8 2.6.7 3 .6.6-.1 1.8-.7 2-1.5.3-.7.3-1.4.2-1.5-.1-.1-.3-.2-.6-.4-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.1-.6.1l-.9 1.1c-.1.2-.3.2-.5.1-.7-.3-1.5-.6-2.4-1.6-.7-.7-1.1-1.5-1.3-1.8-.1-.2 0-.4.1-.5l.4-.5c.1-.1.2-.3.2-.4 0-.1.1-.3 0-.5l-.7-1.8c-.2-.5-.4-.5-.6-.5z"/></svg></span>
+                WhatsApp Us
+            </a>
+            <a href="tel:+265993575111" onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-red"><svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1 .3 2.1.5 3.2.5.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.5-1 1-1h3.5c.6 0 1 .4 1 1 0 1.1.2 2.2.5 3.2.1.4 0 .7-.2 1z"/></svg></span>
+                Call Us
+            </a>
         </div>
     </div>
 </nav>
@@ -732,37 +1458,49 @@ document.addEventListener('keydown', function(e) {
 
 <!-- ═══ HERO ═══ -->
 <div id="hero" class="hero-bg hero-bg-image relative overflow-hidden min-h-screen flex items-center">
-    <div class="hero-light light1"></div>
-    <div class="hero-light light2"></div>
-    <div class="hero-light light3"></div>
-    <div class="speed-lines"></div>
-    <div class="absolute inset-0 opacity-10"><div class="absolute inset-0 hero-overlay-pattern"></div></div>
 
-    <div class="max-w-7xl mx-auto relative z-10 px-4 sm:px-6 lg:px-8 w-full py-24">
-        <div class="text-center" data-aos="fade-up">
-            <!-- Badge -->
-            <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2 mb-6">
-                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                <span class="text-white/90 text-sm font-semibold">Open Today · 8:00 AM – 5:00 PM</span>
+    <!-- ─── Real photo crossfade (your BMW + taillight) ─── -->
+    <div class="hero-photo layer-1" aria-hidden="true"></div>
+    <div class="hero-photo layer-2" aria-hidden="true"></div>
+
+    <!-- Dark gradient so text stays crisp -->
+    <div class="hero-overlay" aria-hidden="true"></div>
+
+    <!-- Slow light-sweep animation -->
+    <div class="hero-sweep" aria-hidden="true"></div>
+
+    <!-- Ambient grid + speed lines kept, but softened -->
+    <div class="speed-lines" style="opacity:0.4"></div>
+    <div class="absolute inset-0 opacity-[0.06]" style="z-index:3"><div class="absolute inset-0 hero-overlay-pattern"></div></div>
+
+    <div class="max-w-7xl mx-auto relative px-4 sm:px-6 lg:px-8 w-full py-24" style="z-index:5">
+        <div data-aos="fade-up" style="max-width:680px">
+
+            <!-- Status pill — inline, above the headline (Option 3) -->
+            <div class="hero-status-pill">
+                <span class="dot"></span>
+                <span><strong style="font-weight:700">Open Today</strong></span>
+                <span class="sep">·</span>
+                <span>8:30 AM – 5:00 PM</span>
             </div>
 
-            <h1 class="main-title">Blantyre's Most Trusted<br><span style="color:#f87171">Auto Workshop</span></h1>
-            <p class="text-xl md:text-2xl text-gray-100 mb-10 max-w-3xl mx-auto leading-relaxed text-shadow">
-                Premium auto parts, expert repairs, and professional vehicle services — all in one place in Malawi.
+            <h1 class="main-title" style="text-align:left">Blantyre's Most Trusted<br><span style="color:#f87171">Auto Workshop</span></h1>
+            <p class="text-xl md:text-2xl text-gray-100 mb-10 max-w-2xl leading-relaxed text-shadow" style="text-align:left">
+                Premium auto services &amp; parts, expert repairs, and professional vehicle care — all in one place in Malawi.
             </p>
 
-            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <a href="#booking" class="inline-flex items-center px-8 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white text-lg font-bold rounded-2xl shadow-2xl hover:-translate-y-2 transform transition-all duration-300">
-                    <i data-feather="calendar" class="w-6 h-6 mr-3"></i>
-                    Book a Service
+            <div class="hero-cta-row">
+                <a href="<?= $base ?>/book.php" class="hero-btn hero-btn-primary">
+                    <svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M19 4h-1V3a1 1 0 0 0-2 0v1H8V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zm1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9h16zm-3.3-7.7l-4.5 4.5a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4l1.3 1.3 3.8-3.8a1 1 0 0 1 1.4 1.4z"/></svg>
+                    <span>Book a Service</span>
                 </a>
-                <a href="#services" class="inline-flex items-center px-8 py-4 bg-white/10 backdrop-blur-md text-white text-lg font-bold rounded-2xl border-2 border-white/30 hover:bg-white/20 hover:-translate-y-2 transform transition-all duration-300">
-                    <i data-feather="tool" class="w-6 h-6 mr-3"></i>
-                    Our Services
+                <a href="#services" class="hero-btn hero-btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M21.7 7.3a1 1 0 0 0-1.6-.3l-2.5 2.5-2.1-2.1 2.5-2.5a1 1 0 0 0-.3-1.6 5.5 5.5 0 0 0-7.1 6.6l-7 7a2.5 2.5 0 0 0 3.5 3.5l7-7a5.5 5.5 0 0 0 6.6-7.1zM6 19.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+                    <span>Our Services</span>
                 </a>
-                <a href="tel:+265993575111" class="inline-flex items-center px-8 py-4 bg-white/10 backdrop-blur-md text-white text-lg font-bold rounded-2xl border-2 border-white/30 hover:bg-white/20 hover:-translate-y-2 transform transition-all duration-300">
-                    <i data-feather="phone" class="w-6 h-6 mr-3"></i>
-                    Call Us Now
+                <a href="tel:+265993575111" class="hero-btn hero-btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1 .3 2.1.5 3.2.5.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.5-1 1-1h3.5c.6 0 1 .4 1 1 0 1.1.2 2.2.5 3.2.1.4 0 .7-.2 1z"/></svg>
+                    <span>Call Us</span>
                 </a>
             </div>
 
@@ -790,289 +1528,141 @@ document.addEventListener('keydown', function(e) {
 </div>
 
 <!-- ═══ SERVICES ═══ -->
-<section id="services" class="py-20 bg-white">
+<section id="services" class="py-24 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-16" data-aos="fade-up">
-            <span class="inline-block bg-red-100 text-red-600 text-sm font-bold px-4 py-1 rounded-full mb-4">What We Do</span>
-            <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Our Services</h2>
-            <p class="text-xl text-gray-600 max-w-2xl mx-auto">Professional automotive services tailored to your needs</p>
+            <span class="svc-eyebrow">What We Do</span>
+            <h2 class="svc-h2">Our Services</h2>
+            <p class="svc-sub">Professional automotive care, tailored to your vehicle.</p>
+            <a href="<?= $base ?>/pricing.php" class="gbtn gbtn-dark">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                View Full Price List
+            </a>
         </div>
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="100">
-                <div class="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mb-4"><i data-feather="tool" class="w-8 h-8 text-red-600"></i></div>
-                <span class="service-price-tag">From MWK 12,000</span>
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">General Maintenance</h3>
-                <p class="text-gray-600 mb-6">Oil changes, filter replacements, and comprehensive vehicle inspections by certified technicians.</p>
-                <a href="#booking" onclick="preselectService('General Maintenance')" class="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-red-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">Book Now <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
-            </div>
-            <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="200">
-                <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4"><i data-feather="settings" class="w-8 h-8 text-blue-600"></i></div>
-                <span class="service-price-tag">From MWK 30,000</span>
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">Engine Repair</h3>
-                <p class="text-gray-600 mb-6">Expert engine diagnostics, repair, and performance optimization by certified technicians.</p>
-                <a href="#booking" onclick="preselectService('Engine Repair')" class="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-red-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">Book Now <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
-            </div>
-            <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="300">
-                <div class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-4"><i data-feather="droplet" class="w-8 h-8 text-green-600"></i></div>
-                <span class="service-price-tag">From MWK 18,000</span>
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">Auto Detailing</h3>
-                <p class="text-gray-600 mb-6">Professional interior and exterior detailing to keep your vehicle looking brand new.</p>
-                <a href="#booking" onclick="preselectService('Auto Detailing')" class="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-red-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">Book Now <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
-            </div>
-            <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="400">
-                <div class="w-16 h-16 bg-yellow-100 rounded-2xl flex items-center justify-center mb-4"><i data-feather="disc" class="w-8 h-8 text-yellow-600"></i></div>
-                <span class="service-price-tag">From MWK 22,000</span>
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">Brake Services</h3>
-                <p class="text-gray-600 mb-6">Complete brake inspection, pad replacement, and system maintenance for optimal safety.</p>
-                <a href="#booking" onclick="preselectService('Brake Services')" class="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-red-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">Book Now <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
-            </div>
-            <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="500">
-                <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-4"><i data-feather="wind" class="w-8 h-8 text-purple-600"></i></div>
-                <span class="service-price-tag">From MWK 20,000</span>
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">AC Repair</h3>
-                <p class="text-gray-600 mb-6">Air conditioning system diagnostics, repair, and recharging services.</p>
-                <a href="#booking" onclick="preselectService('AC Repair')" class="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-red-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">Book Now <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
-            </div>
-            <div class="service-card bg-white rounded-3xl shadow-xl p-8 border border-gray-100" data-aos="fade-up" data-aos-delay="600">
-                <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4"><i data-feather="package" class="w-8 h-8 text-indigo-600"></i></div>
-                <span class="service-price-tag">Ask for Quote</span>
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">Parts Supply</h3>
-                <p class="text-gray-600 mb-6">Wide selection of genuine and aftermarket auto parts with expert guidance.</p>
-                <a href="#booking" onclick="preselectService('Parts Supply')" class="inline-flex items-center gap-2 bg-indigo-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">Get Quote <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- ═══ BOOKING ═══ -->
-<section id="booking" class="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-12" data-aos="fade-up">
-            <span class="inline-block bg-red-100 text-red-600 text-sm font-bold px-4 py-1 rounded-full mb-4">Easy Online Booking</span>
-            <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Book Your Service</h2>
-            <p class="text-xl text-gray-600 max-w-2xl mx-auto">3 simple steps to schedule your appointment</p>
-        </div>
-
-        <div class="bg-white rounded-3xl shadow-2xl p-8 md:p-12" data-aos="fade-up" data-aos-delay="200">
-
-            <!-- UPGRADE 3: Progress Stepper -->
-            <div class="stepper mb-8" id="stepper">
-                <div class="step active" id="step-indicator-1">
-                    <div class="step-circle">1</div>
-                    <div class="step-label">Your Details</div>
+        <div class="svc-grid">
+            <?php
+            $services = [
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M21.7 7.3a1 1 0 0 0-1.6-.3l-2.5 2.5-2.1-2.1 2.5-2.5a1 1 0 0 0-.3-1.6 5.5 5.5 0 0 0-7.1 6.6l-7 7a2.5 2.5 0 0 0 3.5 3.5l7-7a5.5 5.5 0 0 0 6.6-7.1zM6 19.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>', 'title'=>'General Maintenance', 'desc'=>'Oil changes, filter replacements, and full inspections by certified technicians.', 'svc'=>'General Maintenance', 'cta'=>'Book Now'],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H1a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V7a1.7 1.7 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>', 'title'=>'Engine Repair',       'desc'=>'Expert engine diagnostics, repair, and performance optimization.', 'svc'=>'Engine Repair', 'cta'=>'Book Now'],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M14 2.2c-.8 0-1.5.5-1.8 1.2L11 6.4 7.6 9.8a2 2 0 0 0 0 2.8l3.8 3.8a2 2 0 0 0 2.8 0l3.4-3.4 3-1.2a2 2 0 0 0 .6-3.2L17 3.2a2 2 0 0 0-1.4-.6zM6 13l-3.6 3.6a2 2 0 0 0 0 2.8l2.2 2.2a2 2 0 0 0 2.8 0L11 18l-5-5z"/></svg>', 'title'=>'Spray Painting',      'desc'=>'Full repaints and panel matching with premium automotive finishes.', 'svc'=>'Spray Painting', 'cta'=>'Book Now'],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2.2S5 10 5 14.5a7 7 0 0 0 14 0C19 10 12 2.2 12 2.2zm0 16.3a4 4 0 0 1-4-4c0-.6.4-1 1-1s1 .4 1 1a2 2 0 0 0 2 2c.6 0 1 .4 1 1s-.4 1-1 1z"/></svg>', 'title'=>'Auto Detailing',      'desc'=>'Professional interior and exterior detailing to keep your vehicle looking brand new.', 'svc'=>'Auto Detailing', 'cta'=>'Book Now'],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M3 14l4-4 3 3 6-6 5 5v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4zm17-7l-2-2-3 3 2 2zm-9 9l-3-3-4 4h12z"/></svg>', 'title'=>'Panel Beating',       'desc'=>'Dent removal, structural straightening, and full collision repairs.', 'svc'=>'Panel Beating', 'cta'=>'Book Now'],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2l2.9 6.3 6.8.6a1 1 0 0 1 .6 1.8l-5.2 4.5 1.6 6.7a1 1 0 0 1-1.5 1.1L12 19.3 6.2 22.8a1 1 0 0 1-1.5-1.1l1.6-6.7L1.1 10.5a1 1 0 0 1 .6-1.8l6.8-.6z"/></svg>', 'title'=>'Vehicle Wrapping',    'desc'=>'Premium vinyl wraps — gloss, matte, carbon fibre finishes, and paint protection.', 'svc'=>'Vehicle Wrapping', 'cta'=>'Book Now', 'feature'=>true],
+            ];
+            foreach ($services as $i => $s):
+            ?>
+            <div class="svc-card<?= !empty($s['feature']) ? ' svc-card-feature' : '' ?>" data-aos="fade-up" data-aos-delay="<?= 60 + $i*40 ?>">
+                <div class="svc-icon">
+                    <?= $s['svg'] ?>
                 </div>
-                <div class="step" id="step-indicator-2">
-                    <div class="step-circle">2</div>
-                    <div class="step-label">Vehicle & Service</div>
-                </div>
-                <div class="step" id="step-indicator-3">
-                    <div class="step-circle">3</div>
-                    <div class="step-label">Date & Time</div>
-                </div>
-            </div>
-
-            <form id="bookingForm">
-                <!-- Step 1: Personal Info -->
-                <div class="booking-step-panel active" id="booking-panel-1">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-6">Your Details</h3>
-                    <?php if($is_logged_in): ?>
-                    <div class="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="text-green-600 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                        <p class="text-green-800 text-sm font-semibold">Your details have been filled in automatically from your account.</p>
-                    </div>
-                    <?php endif; ?>
-                    <div class="grid md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
-                            <input type="text" id="bookingName" name="name" value="<?= $autofill['name'] ?>" placeholder="Daniel Kumwenda" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Phone Number *</label>
-                            <input type="tel" id="bookingPhone" name="phone" value="<?= $autofill['phone'] ?>" placeholder="+265 993 575 111" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                        <input type="email" id="bookingEmail" name="email" value="<?= $autofill['email'] ?>" placeholder="john@example.com" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300">
-                    </div>
-                    <div class="flex justify-end mt-8">
-                        <button type="button" onclick="nextStep(1)" class="step-nav-btn next">Continue → Vehicle Info</button>
-                    </div>
-                </div>
-
-                <!-- Step 2: Vehicle & Services -->
-                <div class="booking-step-panel" id="booking-panel-2">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-6">Vehicle & Service</h3>
-                    <div class="grid md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Make *</label>
-                            <input type="text" id="vehicleMake" name="make" placeholder="Toyota" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Model *</label>
-                            <input type="text" id="vehicleModel" name="model" placeholder="Corolla" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Year *</label>
-                            <input type="number" id="vehicleYear" name="year" placeholder="2020" min="1980" max="<?= date('Y') ?>" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
-                        </div>
-                    </div>
-                    <div class="mb-6">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Registration Number</label>
-                        <input type="text" id="vehicleRegistration" name="registration" placeholder="BT 1234" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300">
-                    </div>
-                    <h4 class="text-lg font-bold text-gray-900 mb-4">Select Service(s) *</h4>
-                    <div class="grid md:grid-cols-2 gap-3 mb-2">
-                        <?php
-                        $services_list = [
-                            ['General Maintenance','Oil change, filters, inspection'],
-                            ['Engine Repair','Diagnostics & repair'],
-                            ['Auto Detailing','Interior & exterior cleaning'],
-                            ['Brake Services','Pads, rotors, inspection'],
-                            ['AC Repair','Cooling system service'],
-                            ['Parts Supply','Genuine & aftermarket parts'],
-                            ['Tire Services','Rotation, balancing, replacement'],
-                            ['Battery Services','Testing & replacement'],
-                        ];
-                        foreach($services_list as $svc): ?>
-                        <div class="service-option border-2 border-gray-200 rounded-xl p-4 hover:border-red-300" onclick="toggleService(this,'<?= $svc[0] ?>',event)">
-                            <div class="flex items-center">
-                                <input type="checkbox" name="services" value="<?= $svc[0] ?>" class="w-5 h-5 text-red-600 rounded focus:ring-red-500" onclick="event.stopPropagation();syncServiceOption(this);">
-                                <div class="ml-3">
-                                    <p class="font-semibold text-gray-900 text-sm"><?= $svc[0] ?></p>
-                                    <p class="text-xs text-gray-500"><?= $svc[1] ?></p>
-                                </div>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <div id="serviceError" class="hidden text-red-600 text-sm mt-2 font-semibold">Please select at least one service.</div>
-                    <div class="flex justify-between mt-8">
-                        <button type="button" onclick="prevStep(2)" class="step-nav-btn prev">← Back</button>
-                        <button type="button" onclick="nextStep(2)" class="step-nav-btn next">Continue → Date & Time</button>
-                    </div>
-                </div>
-
-                <!-- Step 3: Date, Time & Notes -->
-                <div class="booking-step-panel" id="booking-panel-3">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-6">Preferred Date & Time</h3>
-                    <div class="grid md:grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Preferred Date *</label>
-                            <input type="date" id="bookingDate" name="date" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Preferred Time *</label>
-                            <select id="bookingTime" name="time" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300" required>
-                                <option value="">Select time</option>
-                                <option value="08:00">08:00 AM</option>
-                                <option value="09:00">09:00 AM</option>
-                                <option value="10:00">10:00 AM</option>
-                                <option value="11:00">11:00 AM</option>
-                                <option value="12:00">12:00 PM</option>
-                                <option value="13:00">01:00 PM</option>
-                                <option value="14:00">02:00 PM</option>
-                                <option value="15:00">03:00 PM</option>
-                                <option value="16:00">04:00 PM</option>
-                                <option value="17:00">05:00 PM</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mb-6">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Additional Notes</label>
-                        <textarea id="bookingNotes" name="notes" rows="4" placeholder="Tell us about any specific issues or concerns with your vehicle..." class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 transition-all duration-300 resize-vertical"></textarea>
-                    </div>
-                    <div class="flex justify-between mt-4">
-                        <button type="button" onclick="prevStep(3)" class="step-nav-btn prev">← Back</button>
-                        <button type="submit" class="step-nav-btn next px-10 text-base">
-                            <i data-feather="check-circle" class="w-5 h-5 inline-block mr-2"></i>
-                            Confirm Booking
-                        </button>
-                    </div>
-                </div>
-            </form>
-            <div id="bookingMessage" class="mt-6 text-center hidden"></div>
-        </div>
-
-        <!-- Quick Contact Options -->
-        <div class="mt-8 text-center" data-aos="fade-up" data-aos-delay="400">
-            <p class="text-gray-600 mb-4">Prefer to book by phone?</p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="https://wa.me/265993575111" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center bg-green-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-700 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
-                    <i data-feather="message-circle" class="w-5 h-5 mr-2"></i>WhatsApp Us
-                </a>
-                <a href="tel:+265993575111" class="inline-flex items-center justify-center bg-red-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-red-700 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
-                    <i data-feather="phone" class="w-5 h-5 mr-2"></i>Call +265 993 575 111
+                <h3 class="svc-title"><?= htmlspecialchars($s['title']) ?></h3>
+                <p class="svc-desc"><?= htmlspecialchars($s['desc']) ?></p>
+                <a href="<?= $base ?>/book.php?svc=<?= urlencode($s['svc']) ?>" class="svc-link">
+                    <?= htmlspecialchars($s['cta']) ?>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                 </a>
             </div>
+            <?php endforeach; ?>
         </div>
     </div>
 </section>
 
 <!-- ═══ WHY CHOOSE US ═══ -->
-<section class="py-20 bg-gradient-to-br from-red-600 to-red-700 text-white">
+<section class="why-section">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-16" data-aos="fade-up">
-            <h2 class="text-4xl md:text-5xl font-bold mb-4">Why Choose Wiyule Motors?</h2>
-            <p class="text-xl text-red-100 max-w-2xl mx-auto">We're committed to excellence in every aspect of our service</p>
+            <span class="why-eyebrow">Why Wiyule</span>
+            <h2 class="why-h2">Built on trust and craftsmanship</h2>
+            <p class="why-sub">We're committed to excellence in every detail of our service.</p>
         </div>
-        <div class="grid md:grid-cols-4 gap-8">
-            <div class="text-center" data-aos="fade-up" data-aos-delay="100">
-                <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4"><i data-feather="award" class="w-10 h-10"></i></div>
-                <h3 class="text-xl font-bold mb-2">Certified Experts</h3>
-                <p class="text-red-100">Professionally trained and certified technicians</p>
+        <div class="why-grid">
+            <?php
+            $why = [
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2a7 7 0 0 0-4 12.7V15l-1.6 5.3a1 1 0 0 0 1.4 1.2L12 19.7l4.2 1.8a1 1 0 0 0 1.4-1.2L16 15v-.3A7 7 0 0 0 12 2zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>', 'title'=>'Certified Experts',  'desc'=>'Professionally trained and certified technicians.'],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2L4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5l-8-3zm-1 13.4l-3.7-3.7 1.4-1.4L11 12.6l4.3-4.3 1.4 1.4z"/></svg>', 'title'=>'Quality Guarantee',  'desc'=>'All work backed by our satisfaction guarantee.'],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22zm1 16.9V19a1 1 0 0 1-2 0v-1.1a3.5 3.5 0 0 1-2.5-2.2 1 1 0 0 1 1.9-.7c.2.6.8 1 1.6 1 .9 0 1.5-.5 1.5-1.1 0-.5-.3-.9-1.7-1.3-1.3-.4-3.1-1-3.1-3 0-1.4 1-2.5 2.3-2.9V5a1 1 0 0 1 2 0v.8a3.4 3.4 0 0 1 2.3 2 1 1 0 0 1-1.8.8c-.2-.5-.7-.9-1.4-.9-.8 0-1.4.4-1.4 1 0 .5.5.7 1.8 1.1 1.3.4 3 1 3 3.2 0 1.5-1 2.6-2.3 3z"/></svg>', 'title'=>'Fair Pricing',       'desc'=>'Transparent pricing with no hidden fees.'],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22zm4 12h-4a1 1 0 0 1-1-1V6a1 1 0 0 1 2 0v5h3a1 1 0 0 1 0 2z"/></svg>', 'title'=>'Fast Service',       'desc'=>'Quick turnaround without compromising quality.'],
+            ];
+            foreach ($why as $i => $w):
+            ?>
+            <div class="why-card" data-aos="fade-up" data-aos-delay="<?= 80 + $i*60 ?>">
+                <div class="why-icon"><?= $w['svg'] ?></div>
+                <h3 class="why-title"><?= htmlspecialchars($w['title']) ?></h3>
+                <p class="why-desc"><?= htmlspecialchars($w['desc']) ?></p>
             </div>
-            <div class="text-center" data-aos="fade-up" data-aos-delay="200">
-                <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4"><i data-feather="shield" class="w-10 h-10"></i></div>
-                <h3 class="text-xl font-bold mb-2">Quality Guarantee</h3>
-                <p class="text-red-100">All work backed by our satisfaction guarantee</p>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- Stat strip (merged from old About section) -->
+        <div class="why-stats" data-aos="fade-up" data-aos-delay="200">
+            <div class="why-stat">
+                <div class="why-stat-num"><span class="count-up" data-target="10">0</span>+</div>
+                <div class="why-stat-label">Years Experience</div>
             </div>
-            <div class="text-center" data-aos="fade-up" data-aos-delay="300">
-                <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4"><i data-feather="dollar-sign" class="w-10 h-10"></i></div>
-                <h3 class="text-xl font-bold mb-2">Fair Pricing</h3>
-                <p class="text-red-100">Transparent pricing with no hidden fees</p>
+            <div class="why-stat">
+                <div class="why-stat-num"><span class="count-up" data-target="5000">0</span>+</div>
+                <div class="why-stat-label">Vehicles Served</div>
             </div>
-            <div class="text-center" data-aos="fade-up" data-aos-delay="400">
-                <div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4"><i data-feather="clock" class="w-10 h-10"></i></div>
-                <h3 class="text-xl font-bold mb-2">Fast Service</h3>
-                <p class="text-red-100">Quick turnaround without compromising quality</p>
+            <div class="why-stat">
+                <div class="why-stat-num"><span class="count-up" data-target="99">0</span>%</div>
+                <div class="why-stat-label">Satisfaction</div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- ═══ ABOUT ═══ -->
-<section id="about" class="py-20 bg-white">
+<!-- ═══ OUR WORK ═══ -->
+<section id="our-work" class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid md:grid-cols-2 gap-12 items-center">
-            <div data-aos="fade-right">
-                <span class="inline-block bg-red-100 text-red-600 text-sm font-bold px-4 py-1 rounded-full mb-4">Our Story</span>
-                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-6">About Wiyule Motors</h2>
-                <p class="text-lg text-gray-600 mb-6 leading-relaxed">Since 2016, Wiyule Motors has been Blantyre's trusted destination for premium automotive parts and professional vehicle services. We combine expertise, quality, and customer care to keep your vehicle running smoothly.</p>
-                <p class="text-lg text-gray-600 mb-8 leading-relaxed">Our team of certified technicians uses state-of-the-art equipment and genuine parts to deliver exceptional service for all makes and models.</p>
+        <div class="text-center mb-14" data-aos="fade-up">
+            <span class="svc-eyebrow">Our Work</span>
+            <h2 class="svc-h2" style="margin-bottom:14px">Recently Out the Workshop</h2>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">A look at some of the vehicles we've serviced and detailed. Your car could be next.</p>
+        </div>
 
-                <!-- UPGRADE 7: Count-up stats -->
-                <div class="grid grid-cols-3 gap-6">
-                    <div class="text-center p-4 bg-gray-50 rounded-2xl">
-                        <div class="text-4xl font-bold text-red-600 mb-1"><span class="count-up" data-target="10">0</span>+</div>
-                        <div class="text-sm text-gray-600 font-medium">Years Experience</div>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-2xl">
-                        <div class="text-4xl font-bold text-red-600 mb-1"><span class="count-up" data-target="5000">0</span>+</div>
-                        <div class="text-sm text-gray-600 font-medium">Vehicles Served</div>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-2xl">
-                        <div class="text-4xl font-bold text-red-600 mb-1"><span class="count-up" data-target="99">0</span>%</div>
-                        <div class="text-sm text-gray-600 font-medium">Satisfaction</div>
-                    </div>
+        <div class="work-slider" id="workSlider" data-aos="fade-up" data-aos-delay="100">
+            <?php
+            // Slideshow images — uploaded to assets/images/ as work-1.jpg ... work-6.jpg
+            $work_images = [
+                ['file' => 'work-1.jpg', 'caption' => 'Full detail & polish'],
+                ['file' => 'work-2.jpg', 'caption' => 'Finished & ready'],
+                ['file' => 'work-3.jpg', 'caption' => 'Quality workmanship'],
+                ['file' => 'work-4.jpg', 'caption' => 'Showroom shine'],
+                ['file' => 'work-5.jpg', 'caption' => 'Expert service'],
+                ['file' => 'work-6.jpg', 'caption' => 'Premium care'],
+            ];
+            foreach ($work_images as $idx => $img):
+            ?>
+            <div class="work-slide<?= $idx === 0 ? ' active' : '' ?>" data-slide="<?= $idx ?>">
+                <img loading="lazy"
+                     src="<?= $base ?>/assets/images/<?= htmlspecialchars($img['file']) ?>"
+                     alt="<?= htmlspecialchars($img['caption']) ?> — Wiyule Motors"
+                     onerror="this.closest('.work-slide').setAttribute('data-missing','1');">
+                <div class="work-slide-caption">
+                    <span class="ws-tag">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Our Work
+                    </span>
+                    <div class="ws-title"><?= htmlspecialchars($img['caption']) ?></div>
                 </div>
             </div>
-            <div data-aos="fade-left">
-                <img loading="lazy"
-                     src="<?= $base ?>/assets/images/workshop_navara.jpg"
-                     alt="Wiyule Motors workshop"
-                     class="rounded-3xl shadow-2xl w-full object-cover">
-            </div>
+            <?php endforeach; ?>
+
+            <button class="work-arrow prev" id="workPrev" aria-label="Previous">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button class="work-arrow next" id="workNext" aria-label="Next">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+
+        <div class="work-dots" id="workDots"></div>
+
+        <div class="text-center mt-12" data-aos="fade-up">
+            <a href="<?= $base ?>/book.php" class="gbtn gbtn-primary" style="padding:16px 32px;font-size:17px">
+                Book Your Service
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
         </div>
     </div>
 </section>
@@ -1081,8 +1671,8 @@ document.addEventListener('keydown', function(e) {
 <section class="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-16" data-aos="fade-up">
-            <span class="inline-block bg-red-100 text-red-600 text-sm font-bold px-4 py-1 rounded-full mb-4">120+ Reviews</span>
-            <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">What Our Clients Say</h2>
+            <span class="svc-eyebrow">120+ Reviews</span>
+            <h2 class="svc-h2" style="margin-bottom:14px">What Our Clients Say</h2>
             <p class="text-xl text-gray-600 max-w-2xl mx-auto">Don't just take our word for it — hear from our satisfied customers</p>
         </div>
 
@@ -1134,147 +1724,8 @@ document.addEventListener('keydown', function(e) {
     </div>
 </section>
 
-<!-- ═══ GALLERY ═══ -->
-<section class="py-20 bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16" data-aos="fade-up">
-            <span class="inline-block bg-red-100 text-red-600 text-sm font-bold px-4 py-1 rounded-full mb-4">Our Workshop</span>
-            <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Our Facility</h2>
-            <p class="text-xl text-gray-600 max-w-2xl mx-auto">State-of-the-art equipment and a professional workspace</p>
-        </div>
-        <div class="grid md:grid-cols-3 gap-6">
-            <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="100">
-                <img loading="lazy" src="<?= $base ?>/assets/images/servicing.jpeg" alt="Vehicle servicing at Wiyule Motors"
-                     class="gallery-img hover:scale-110 transition-transform duration-500"
-                     onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80';">
-            </div>
-            <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="200">
-                <img loading="lazy" src="<?= $base ?>/assets/images/car-alarm.jpeg" alt="Car electronics at Wiyule Motors"
-                     class="gallery-img hover:scale-110 transition-transform duration-500"
-                     onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&q=80';">
-            </div>
-            <div class="rounded-3xl overflow-hidden shadow-xl" data-aos="fade-up" data-aos-delay="300">
-                <img loading="lazy" src="<?= $base ?>/assets/images/polishing.jpeg" alt="Car polishing at Wiyule Motors"
-                     class="gallery-img hover:scale-110 transition-transform duration-500"
-                     onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=800&q=80';">
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- ═══ FAQ ═══ -->
-<section class="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16" data-aos="fade-up">
-            <span class="inline-block bg-red-100 text-red-600 text-sm font-bold px-4 py-1 rounded-full mb-4">Got Questions?</span>
-            <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
-            <p class="text-xl text-gray-600">Everything you need to know about our services</p>
-        </div>
-        <div class="space-y-4" data-aos="fade-up" data-aos-delay="200">
-            <?php
-            $faqs = [
-                ['What are your operating hours?','We\'re open Monday to Friday from 8:00 AM to 5:00 PM, and Saturdays from 8:00 AM to 2:00 PM. We\'re closed on Sundays and public holidays.'],
-                ['Do I need to book an appointment?','While walk-ins are welcome, we recommend booking an appointment to ensure minimal wait times. You can book online or call us at +265 993 575 111.'],
-                ['Do you use genuine parts?','Yes! We stock both genuine OEM parts and high-quality aftermarket alternatives. We\'ll always discuss your options and help you choose the best solution for your vehicle and budget.'],
-                ['What payment methods do you accept?','We accept cash and mobile money payments (Airtel Money, TNM Mpamba). We also accept bank transfers for larger transactions.'],
-                ['Do you offer warranties on your work?','Absolutely! All our services come with a warranty. The duration varies depending on the type of service or part, but we stand behind our work 100%.'],
-                ['How long does a typical service take?','A basic oil change takes 30–45 minutes, while more extensive repairs may take several hours or days. We\'ll always give you an estimated timeframe when you book.'],
-            ];
-            foreach($faqs as $faq): ?>
-            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <button class="faq-question w-full text-left p-6 focus:outline-none hover:bg-gray-50 transition-colors" onclick="toggleFAQ(this)">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-lg font-bold text-gray-900"><?= $faq[0] ?></h3>
-                        <i data-feather="chevron-down" class="w-6 h-6 text-gray-600 transition-transform flex-shrink-0 ml-4"></i>
-                    </div>
-                </button>
-                <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300">
-                    <div class="p-6 pt-0 text-gray-600"><?= $faq[1] ?></div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-</section>
-
-<!-- ═══ CONTACT ═══ -->
-<section id="contact" class="py-20 bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16" data-aos="fade-up">
-            <span class="inline-block bg-red-100 text-red-600 text-sm font-bold px-4 py-1 rounded-full mb-4">Get In Touch</span>
-            <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">We're Here to Help</h2>
-            <p class="text-xl text-gray-600 max-w-2xl mx-auto">Have questions? We'd love to hear from you.</p>
-        </div>
-        <div class="grid md:grid-cols-2 gap-12">
-            <div data-aos="fade-right" data-aos-delay="200">
-                <div class="space-y-6">
-                    <div class="flex items-start space-x-4 p-6 bg-gray-50 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300">
-                        <div class="w-14 h-14 bg-red-600 text-white rounded-2xl flex items-center justify-center flex-shrink-0"><i data-feather="phone" class="w-7 h-7"></i></div>
-                        <div><h4 class="font-semibold text-lg text-gray-900 mb-1">Phone</h4><p class="text-lg font-semibold text-gray-900">+265 993 575 111</p></div>
-                    </div>
-                    <div class="flex items-start space-x-4 p-6 bg-gray-50 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300">
-                        <div class="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center flex-shrink-0"><i data-feather="map-pin" class="w-7 h-7"></i></div>
-                        <div><h4 class="font-semibold text-lg text-gray-900 mb-1">Location</h4><p class="text-lg font-semibold text-gray-900">Nyambadwe, Blantyre<br>Southern Region, Malawi</p></div>
-                    </div>
-                    <div class="flex items-start space-x-4 p-6 bg-gray-50 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300">
-                        <div class="w-14 h-14 bg-green-600 text-white rounded-2xl flex items-center justify-center flex-shrink-0"><i data-feather="clock" class="w-7 h-7"></i></div>
-                        <div>
-                            <h4 class="font-semibold text-lg text-gray-900 mb-1">Business Hours</h4>
-                            <p class="text-gray-700">Mon – Fri: 8:00 AM – 5:00 PM</p>
-                            <p class="text-gray-700">Sat: 8:00 AM – 2:00 PM</p>
-                            <p class="text-gray-700">Sun: Closed</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mt-6">
-                    <a href="https://wa.me/265993575111" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center bg-green-600 text-white py-4 px-6 rounded-2xl font-bold hover:bg-green-700 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300">
-                        <i data-feather="message-circle" class="w-5 h-5 mr-2"></i>WhatsApp Now
-                    </a>
-                    <a href="tel:+265993575111" class="flex items-center justify-center bg-red-600 text-white py-4 px-6 rounded-2xl font-bold hover:bg-red-700 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300">
-                        <i data-feather="phone" class="w-5 h-5 mr-2"></i>Call Now
-                    </a>
-                </div>
-            </div>
-
-            <div data-aos="fade-left" data-aos-delay="400">
-                <div class="bg-gray-50 rounded-3xl p-8 md:p-12 shadow-2xl">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-8 text-center">Send us a Message</h3>
-                    <form id="contactForm" class="space-y-4">
-                        <input type="text"  id="contactName"    name="name"    placeholder="Your Name"    class="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-red-500 transition-all duration-300" required>
-                        <input type="email" id="contactEmail"   name="email"   placeholder="Your Email"   class="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-red-500 transition-all duration-300" required>
-                        <input type="tel"   id="contactPhone"   name="phone"   placeholder="Phone Number" class="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-red-500 transition-all duration-300">
-                        <textarea id="contactMessage" name="message" rows="5" placeholder="Tell us about your vehicle or service needed..." class="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-red-500 transition-all duration-300 resize-vertical" required></textarea>
-                        <button type="submit" class="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-5 px-8 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-3xl hover:-translate-y-1 transform transition-all duration-300">Send Message</button>
-                    </form>
-                    <div id="formMessage" class="mt-4 text-center hidden"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Google Maps -->
-        <div style="margin-top:40px;border-radius:24px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.1)" data-aos="fade-up" data-aos-delay="500">
-            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15349.2!2d35.0!3d-15.78!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x18d844e4dff7e0b5%3A0x7e5a5b0d0c0f0a0a!2sNyambadwe%2C%20Blantyre%2C%20Malawi!5e0!3m2!1sen!2smw!4v1700000000000!5m2!1sen!2smw" width="100%" height="300" style="border:0" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        </div>
-    </div>
-</section>
-<div id="bookingModal" class="modal">
-    <div class="modal-content">
-        <div class="bg-gradient-to-br from-red-600 to-red-700 p-8 rounded-t-2xl text-white text-center">
-            <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
-                <i data-feather="check-circle" class="w-12 h-12 text-green-600"></i>
-            </div>
-            <h3 class="text-3xl font-bold mb-2">Booking Confirmed!</h3>
-            <p class="text-red-100">Your appointment has been successfully scheduled</p>
-        </div>
-        <div class="p-8" id="modalContent"></div>
-        <div class="p-6 bg-gray-50 rounded-b-2xl">
-            <button onclick="closeModal()" class="w-full bg-red-600 text-white py-4 px-6 rounded-xl font-bold text-lg hover:bg-red-700 transition-all duration-300">Close</button>
-        </div>
-    </div>
-</div>
-
 <!-- ═══ Footer ═══ -->
-<footer class="bg-gray-900 text-white py-12" style="padding-bottom:80px">
+<footer class="bg-gray-900 text-white py-12">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid md:grid-cols-4 gap-8 mb-8">
             <div>
@@ -1303,9 +1754,10 @@ document.addEventListener('keydown', function(e) {
                 <ul class="space-y-2">
                     <li><a href="#hero"     class="text-gray-400 hover:text-white transition">Home</a></li>
                     <li><a href="#services" class="text-gray-400 hover:text-white transition">Services</a></li>
-                    <li><a href="#booking"  class="text-gray-400 hover:text-white transition">Book Now</a></li>
-                    <li><a href="#about"    class="text-gray-400 hover:text-white transition">About</a></li>
-                    <li><a href="#contact"  class="text-gray-400 hover:text-white transition">Contact</a></li>
+                    <li><a href="<?= $base ?>/pricing.php" class="text-gray-400 hover:text-white transition">Pricing</a></li>
+                    <li><a href="<?= $base ?>/book.php"  class="text-gray-400 hover:text-white transition">Book Now</a></li>
+                    <li><a href="<?= $base ?>/about.php"    class="text-gray-400 hover:text-white transition">About</a></li>
+                    <li><a href="<?= $base ?>/contact.php"  class="text-gray-400 hover:text-white transition">Contact</a></li>
                 </ul>
             </div>
             <div>
@@ -1313,7 +1765,8 @@ document.addEventListener('keydown', function(e) {
                 <ul class="space-y-3 text-gray-400">
                     <li class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Nyambadwe, Blantyre</li>
                     <li class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+265 993 575 111</li>
-                    <li class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Mon–Fri: 8AM–5PM · Sat: 8AM–1PM</li>
+                    <li class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+265 996 834 038</li>
+                    <li class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Mon–Fri: 8:30AM–5PM · Sat–Sun: 9AM–1PM</li>
                 </ul>
             </div>
             <div>
@@ -1339,7 +1792,7 @@ document.addEventListener('keydown', function(e) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    feather.replace();
+    if(window.feather)feather.replace();
     AOS.init({ duration:1000, once:true, offset:100 });
 
     // Mobile menu now handled by inline onclick — no JS needed here
@@ -1395,7 +1848,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 formMessage.classList.remove('hidden');
             }
             btn.innerHTML = orig; btn.disabled = false;
-            feather.replace();
+            if(window.feather)feather.replace();
             setTimeout(() => formMessage.classList.add('hidden'), 5000);
         });
     }
@@ -1406,14 +1859,20 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bookingForm) {
         bookingForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const selectedServices = bookingForm.querySelectorAll('input[name="services"]:checked');
-            if (selectedServices.length === 0) {
-                document.getElementById('serviceError').classList.remove('hidden');
+            const formData = new FormData(bookingForm);
+            // Make sure we have required fields
+            if (!formData.get('name') || !formData.get('phone') || !formData.get('services') || !formData.get('date') || !formData.get('time')) {
+                bookingMessage.textContent = 'Please fill in all required fields.';
+                bookingMessage.className   = 'mt-6 text-center text-red-600 font-semibold p-4 bg-red-50 rounded-xl';
+                bookingMessage.classList.remove('hidden');
+                setTimeout(() => bookingMessage.classList.add('hidden'), 4000);
                 return;
             }
-            document.getElementById('serviceError').classList.add('hidden');
-            const formData = new FormData(bookingForm);
-            formData.set('services', Array.from(selectedServices).map(s => s.value).join(', '));
+            // Default missing vehicle fields so DB accepts
+            if (!formData.get('make'))  formData.set('make', 'TBD');
+            if (!formData.get('model')) formData.set('model', 'TBD');
+            if (!formData.get('year'))  formData.set('year', new Date().getFullYear());
+
             const btn  = bookingForm.querySelector('button[type="submit"]');
             const orig = btn.innerHTML;
             btn.innerHTML = 'Processing…'; btn.disabled = true;
@@ -1423,8 +1882,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.success) {
                     showBookingModal(result.data);
                     bookingForm.reset();
-                    document.querySelectorAll('.service-option.selected').forEach(o => o.classList.remove('selected'));
-                    currentStep = 1; renderStep();
+                    document.getElementById('moreDetails').style.display = 'none';
+                    document.getElementById('moreDetailsIcon').textContent = '+';
                 } else {
                     bookingMessage.textContent = result.message || 'Something went wrong. Please call us at +265 993 575 111.';
                     bookingMessage.className   = 'mt-6 text-center text-red-600 font-semibold p-4 bg-red-50 rounded-xl';
@@ -1438,9 +1897,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => bookingMessage.classList.add('hidden'), 6000);
             }
             btn.innerHTML = orig; btn.disabled = false;
-            feather.replace();
+            if(window.feather)feather.replace();
         });
     }
+
+    // Toggle optional vehicle details
+    window.toggleMoreDetails = function() {
+        var d = document.getElementById('moreDetails');
+        var i = document.getElementById('moreDetailsIcon');
+        var open = d.style.display !== 'none';
+        d.style.display = open ? 'none' : 'block';
+        i.textContent = open ? '+' : '−';
+    };
 
     // Smooth scroll
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -1467,133 +1935,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// ── UPGRADE 3: Booking Stepper ────────────────────────────────
-let currentStep = 1;
-const totalSteps = 3;
-
-function renderStep() {
-    for (let i = 1; i <= totalSteps; i++) {
-        const panel = document.getElementById('booking-panel-' + i);
-        const ind   = document.getElementById('step-indicator-' + i);
-        if (!panel || !ind) continue;
-        panel.classList.toggle('active', i === currentStep);
-        ind.classList.remove('active','completed');
-        if (i === currentStep) ind.classList.add('active');
-        else if (i < currentStep) ind.classList.add('completed');
-
-        // Checkmark for completed steps
-        const circle = ind.querySelector('.step-circle');
-        if (i < currentStep) {
-            circle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
-        } else {
-            circle.textContent = i;
-        }
-    }
-}
-
-function nextStep(from) {
-    // Validate step 1
-    if (from === 1) {
-        const name  = document.getElementById('bookingName');
-        const phone = document.getElementById('bookingPhone');
-        let valid = true;
-        name.style.borderColor  = name.value.trim()  ? '#e5e7eb' : '#dc2626';
-        phone.style.borderColor = phone.value.trim() ? '#e5e7eb' : '#dc2626';
-        if (!name.value.trim())  { valid = false; name.focus(); }
-        if (!phone.value.trim()) { valid = false; if(name.value.trim()) phone.focus(); }
-        if (!valid) {
-            showStepError('Please fill in your name and phone number.');
-            return;
-        }
-        clearStepError();
-    }
-    // Validate step 2
-    if (from === 2) {
-        const make  = document.getElementById('vehicleMake');
-        const model = document.getElementById('vehicleModel');
-        const year  = document.getElementById('vehicleYear');
-        const svcs  = document.querySelectorAll('input[name="services"]:checked');
-        let valid = true;
-        make.style.borderColor  = make.value.trim()  ? '#e5e7eb' : '#dc2626';
-        model.style.borderColor = model.value.trim() ? '#e5e7eb' : '#dc2626';
-        year.style.borderColor  = year.value.trim()  ? '#e5e7eb' : '#dc2626';
-        if (!make.value.trim() || !model.value.trim() || !year.value.trim()) {
-            valid = false;
-            showStepError('Please fill in your vehicle details.');
-        }
-        if (svcs.length === 0) {
-            document.getElementById('serviceError').classList.remove('hidden');
-            valid = false;
-            if(make.value.trim() && model.value.trim() && year.value.trim())
-                showStepError('Please select at least one service.');
-        } else {
-            document.getElementById('serviceError').classList.add('hidden');
-        }
-        if (!valid) return;
-        clearStepError();
-    }
-    if (currentStep < totalSteps) { currentStep++; renderStep(); window.scrollTo({top: document.getElementById('booking').offsetTop - 80, behavior:'smooth'}); }
-}
-
-function prevStep(from) {
-    if (currentStep > 1) { currentStep--; renderStep(); clearStepError(); window.scrollTo({top: document.getElementById('booking').offsetTop - 80, behavior:'smooth'}); }
-}
-
-function showStepError(msg) {
-    let el = document.getElementById('stepErrorMsg');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'stepErrorMsg';
-        el.style.cssText = 'background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:16px';
-        el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span></span>';
-        const form = document.getElementById('bookingForm');
-        form.parentNode.insertBefore(el, form);
-    }
-    el.querySelector('span').textContent = msg;
-    el.style.display = 'flex';
-}
-function clearStepError() {
-    const el = document.getElementById('stepErrorMsg');
-    if (el) el.style.display = 'none';
-}
-
 // ── Pre-select service from "Book Now" buttons ───────────────
 function preselectService(serviceName) {
     setTimeout(function() {
-        // Auto-check the matching service checkbox
-        const checkboxes = document.querySelectorAll('input[name="services"]');
-        checkboxes.forEach(function(cb) {
-            const opt = cb.closest('.service-option');
-            if (cb.value === serviceName) {
-                cb.checked = true;
-                if (opt) opt.classList.add('selected');
+        var select = document.getElementById('bookingService');
+        if (select) {
+            // Match option text
+            for (var i = 0; i < select.options.length; i++) {
+                if (select.options[i].text === serviceName || select.options[i].value === serviceName) {
+                    select.selectedIndex = i;
+                    break;
+                }
             }
-        });
-        document.getElementById('serviceError').classList.add('hidden');
-
-        // If user is logged in (fields auto-filled), skip to step 2
-        const nameVal  = document.getElementById('bookingName').value.trim();
-        const phoneVal = document.getElementById('bookingPhone').value.trim();
-        if (nameVal && phoneVal) {
-            currentStep = 2;
-            renderStep();
         }
     }, 600);
-}
-
-// ── Service checkbox toggle ───────────────────────────────────
-function toggleService(element, serviceName, e) {
-    const cb = element.querySelector('input[type="checkbox"]');
-    cb.checked = !cb.checked;
-    element.classList.toggle('selected', cb.checked);
-    if (cb.checked) document.getElementById('serviceError').classList.add('hidden');
-}
-function syncServiceOption(cb) {
-    const opt = cb.closest('.service-option');
-    if (opt) {
-        opt.classList.toggle('selected', cb.checked);
-        if (cb.checked) document.getElementById('serviceError').classList.add('hidden');
-    }
 }
 
 // ── FAQ ───────────────────────────────────────────────────────
@@ -1628,6 +1983,11 @@ function showBookingModal(data) {
         + '📅 *Date:* ' + formattedDate + '\n'
         + '🕐 *Time:* ' + formatTime(data.time) + '\n'
         + (data.notes ? '\n📝 *Notes:* ' + data.notes + '\n' : '')
+        + (data.first_time_discount == 1
+            ? '\n━━━━━━━━━━━━━━━━━━━\n🎉 *FIRST-TIME CUSTOMER*\n💰 *APPLY 10% DISCOUNT*\n━━━━━━━━━━━━━━━━━━━\n'
+            : (data.is_first_time
+                ? '\n⭐ *First-time customer* (10% offer available but not claimed)\n'
+                : ''))
         + '\n✅ Booked via wiyulemotors.wuaze.com';
 
     var waLink = 'https://wa.me/265993575111?text=' + encodeURIComponent(waMsg);
@@ -1759,7 +2119,7 @@ window.addEventListener('scroll', function() {
 }, { passive:true });
 
 document.addEventListener('click', function(e) {
-    if (e.target.closest('a[href="#booking"]') && typeof gtag !== 'undefined') {
+    if (e.target.closest('a[href="<?= $base ?>/book.php"]') && typeof gtag !== 'undefined') {
         gtag('event','click',{event_category:'conversion',event_label:'booking_button_clicked'});
     }
 });
@@ -1773,6 +2133,91 @@ if (window.innerWidth > 768) {
         if (sy < hero.offsetHeight) hero.style.backgroundPositionY = (sy * 0.3) + 'px';
     }, { passive:true });
 }
+
+// Nav glass effect — gets more opaque as you scroll
+(function() {
+    var nav = document.getElementById('mainNav');
+    if (nav) {
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 20) nav.classList.add('scrolled');
+            else nav.classList.remove('scrolled');
+        }, { passive: true });
+    }
+})();
+
+// "Our Work" auto-rotating slideshow
+(function() {
+    var slider = document.getElementById('workSlider');
+    if (!slider) return;
+
+    // Only count slides whose image actually loaded (skip missing ones)
+    var allSlides = Array.prototype.slice.call(slider.querySelectorAll('.work-slide'));
+    // Wait a tick for onerror handlers to mark missing slides
+    setTimeout(function() {
+        var slides = allSlides.filter(function(s){ return !s.getAttribute('data-missing'); });
+        if (slides.length === 0) {
+            // No images uploaded yet — hide the whole section gracefully
+            var section = document.getElementById('our-work');
+            if (section) section.style.display = 'none';
+            return;
+        }
+
+        // Re-index visible slides and build dots
+        var dotsWrap = document.getElementById('workDots');
+        slides.forEach(function(s, i) {
+            s.classList.remove('active');
+            if (i === 0) s.classList.add('active');
+            if (dotsWrap) {
+                var dot = document.createElement('button');
+                dot.className = 'work-dot' + (i === 0 ? ' active' : '');
+                dot.setAttribute('aria-label', 'Go to slide ' + (i+1));
+                dot.addEventListener('click', function(){ go(i); });
+                dotsWrap.appendChild(dot);
+            }
+        });
+
+        var current = 0;
+        var timer = null;
+        var dots = dotsWrap ? Array.prototype.slice.call(dotsWrap.children) : [];
+
+        function show(n) {
+            slides[current].classList.remove('active');
+            if (dots[current]) dots[current].classList.remove('active');
+            current = (n + slides.length) % slides.length;
+            slides[current].classList.add('active');
+            if (dots[current]) dots[current].classList.add('active');
+        }
+        function go(n) { show(n); restart(); }
+        function next() { show(current + 1); }
+        function prev() { show(current - 1); }
+        function restart() {
+            if (timer) clearInterval(timer);
+            timer = setInterval(next, 5000); // auto-advance every 5s
+        }
+
+        // Hide arrows/dots if only one image
+        if (slides.length <= 1) {
+            var pv = document.getElementById('workPrev'), nx = document.getElementById('workNext');
+            if (pv) pv.style.display = 'none';
+            if (nx) nx.style.display = 'none';
+            if (dotsWrap) dotsWrap.style.display = 'none';
+            return;
+        }
+
+        var nextBtn = document.getElementById('workNext');
+        var prevBtn = document.getElementById('workPrev');
+        if (nextBtn) nextBtn.addEventListener('click', function(){ next(); restart(); });
+        if (prevBtn) prevBtn.addEventListener('click', function(){ prev(); restart(); });
+
+        // Pause on hover (desktop)
+        slider.addEventListener('mouseenter', function(){ if (timer) clearInterval(timer); });
+        slider.addEventListener('mouseleave', restart);
+
+        restart();
+    }, 600);
+})();
 </script>
+
+<?php if (isset($conn) && $conn instanceof mysqli) { @$conn->close(); } ?>
 </body>
 </html>

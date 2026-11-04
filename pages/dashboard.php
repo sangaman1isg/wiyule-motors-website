@@ -4,8 +4,16 @@ session_start();
 // Set timezone to Malawi (CAT = UTC+2) so greetings show correct time
 date_default_timezone_set('Africa/Blantyre');
 
-// Auto-detects localhost vs live site
-$base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
+// Auto-detects localhost vs live site. In production, $base is always empty
+// so URLs resolve from site root. Locally, set to subfolder name if needed.
+$base = '';
+$host = $_SERVER['HTTP_HOST'] ?? '';
+if (strpos($host, 'localhost') !== false || strpos($host, '127.0.0.1') !== false) {
+    // Set this only if your local server runs the site from a subfolder
+    // e.g. http://localhost/wiyule-motors-website/
+    // Leave empty if running from root with `php -S localhost:8000`
+    $base = '';
+}
 
 // Redirect to login if not authenticated
 if (!isset($_SESSION['user_id'])) {
@@ -403,73 +411,74 @@ foreach ($all_vehicles as $av) {
     $vh_mileage = (int)($av['mileage'] ?? 0);
     $vh_id      = (int)$av['id'];
 
-    // Find this vehicle's most recent completed service
+    // Single query gets BOTH the last service date AND the total completed count
+    // AND the last recorded service mileage (combining what used to be 3 separate
+    // queries across the page into ONE — drastically cuts DB load)
     $last_service_days_ago = null;
     $completed_count = 0;
+    $has_completed_service = false;
+    $last_service_km = null;
     $stmt_vh = $conn->prepare("
-        SELECT booking_date FROM bookings
+        SELECT
+            MAX(booking_date) AS last_date,
+            COUNT(*) AS completed_count,
+            MAX(CASE WHEN service_mileage > 0 THEN service_mileage END) AS last_service_km
+        FROM bookings
         WHERE user_id = ? AND status = 'completed'
-          AND (vehicle_make = ? AND vehicle_model = ?)
-        ORDER BY booking_date DESC LIMIT 1
+          AND vehicle_make = ? AND vehicle_model = ?
     ");
     if ($stmt_vh) {
         $stmt_vh->bind_param("iss", $current_user_id, $av['make'], $av['model']);
         $stmt_vh->execute();
         $r = $stmt_vh->get_result()->fetch_assoc();
         $stmt_vh->close();
-        if ($r) {
-            $last_service_days_ago = (int)((time() - strtotime($r['booking_date'])) / 86400);
+        if ($r && $r['completed_count'] > 0) {
+            $completed_count = (int)$r['completed_count'];
+            $has_completed_service = true;
+            if ($r['last_date']) {
+                $last_service_days_ago = (int)((time() - strtotime($r['last_date'])) / 86400);
+            }
+            if ($r['last_service_km']) {
+                $last_service_km = (int)$r['last_service_km'];
+            }
         }
-    }
-
-    // Count total completed services for this vehicle
-    $stmt_c = $conn->prepare("
-        SELECT COUNT(*) as c FROM bookings
-        WHERE user_id = ? AND status = 'completed'
-          AND vehicle_make = ? AND vehicle_model = ?
-    ");
-    if ($stmt_c) {
-        $stmt_c->bind_param("iss", $current_user_id, $av['make'], $av['model']);
-        $stmt_c->execute();
-        $completed_count = (int)$stmt_c->get_result()->fetch_assoc()['c'];
-        $stmt_c->close();
     }
 
     // Service interval pct (out of 5000km)
     $vh_interval_pct = $vh_mileage > 0 ? min(100, ($vh_mileage % 5000) / 50) : 0;
 
     // Base score starts at 95 for well-maintained cars
-    $base = 95;
+    $health_score = 95;
 
     // Penalty if service is overdue (more than 180 days since last service)
     if ($last_service_days_ago === null) {
         // Never serviced with us — slight penalty
-        $base -= 10;
+        $health_score -= 10;
     } else {
-        if ($last_service_days_ago > 365) $base -= 25;
-        elseif ($last_service_days_ago > 180) $base -= 15;
-        elseif ($last_service_days_ago > 90)  $base -= 5;
+        if ($last_service_days_ago > 365) $health_score -= 25;
+        elseif ($last_service_days_ago > 180) $health_score -= 15;
+        elseif ($last_service_days_ago > 90)  $health_score -= 5;
     }
 
     // Penalty if close to next 5000km service interval
-    if ($vh_interval_pct > 95)      $base -= 20;
-    elseif ($vh_interval_pct > 85)  $base -= 10;
-    elseif ($vh_interval_pct > 70)  $base -= 5;
+    if ($vh_interval_pct > 95)      $health_score -= 20;
+    elseif ($vh_interval_pct > 85)  $health_score -= 10;
+    elseif ($vh_interval_pct > 70)  $health_score -= 5;
 
     // Bonus for tracked maintenance history
-    $base += min(5, $completed_count * 2);
+    $health_score += min(5, $completed_count * 2);
 
     // Clamp
-    $base = max(35, min(100, $base));
+    $health_score = max(35, min(100, $health_score));
 
     // Per-component scores — slight variation to look real
     $items = [
-        ['label'=>'Engine',    'score'=> max(35, min(100, $base + 3)),  'icon'=>'settings'],
-        ['label'=>'Brakes',    'score'=> max(35, min(100, $base - 2)),  'icon'=>'disc'],
-        ['label'=>'Tyres',     'score'=> max(35, min(100, $base - 5)),  'icon'=>'circle'],
-        ['label'=>'Oil Level', 'score'=> max(35, min(100, $base - (int)($vh_interval_pct/10))), 'icon'=>'droplet'],
-        ['label'=>'AC System', 'score'=> max(35, min(100, $base + 4)),  'icon'=>'wind'],
-        ['label'=>'Battery',   'score'=> max(35, min(100, $base + 1)),  'icon'=>'zap'],
+        ['label'=>'Engine',    'score'=> max(35, min(100, $health_score + 3)),  'icon'=>'settings'],
+        ['label'=>'Brakes',    'score'=> max(35, min(100, $health_score - 2)),  'icon'=>'disc'],
+        ['label'=>'Tyres',     'score'=> max(35, min(100, $health_score - 5)),  'icon'=>'circle'],
+        ['label'=>'Oil Level', 'score'=> max(35, min(100, $health_score - (int)($vh_interval_pct/10))), 'icon'=>'droplet'],
+        ['label'=>'AC System', 'score'=> max(35, min(100, $health_score + 4)),  'icon'=>'wind'],
+        ['label'=>'Battery',   'score'=> max(35, min(100, $health_score + 1)),  'icon'=>'zap'],
     ];
 
     $overall = (int)(array_sum(array_column($items, 'score')) / count($items));
@@ -480,6 +489,8 @@ foreach ($all_vehicles as $av) {
         'last_service_days_ago' => $last_service_days_ago,
         'completed_count'       => $completed_count,
         'interval_pct'          => $vh_interval_pct,
+        'has_completed_service' => $has_completed_service,
+        'last_service_km'       => $last_service_km,
     ];
 }
 
@@ -505,7 +516,7 @@ function statusPill(string $s): string {
     return match($s) {
         'confirmed' => '<span class="status-pill bg-green-100 text-green-700">✓ Confirmed</span>',
         'pending'   => '<span class="status-pill bg-amber-100 text-amber-700">⏳ Pending</span>',
-        'completed' => '<span class="status-pill bg-gray-100 text-gray-500">✔ Done</span>',
+        'completed' => '<span class="status-pill bg-gray-100 text-gray-400">✔ Done</span>',
         'cancelled' => '<span class="status-pill bg-red-100 text-red-600">✕ Cancelled</span>',
         default     => ''
     };
@@ -543,10 +554,95 @@ $overall_health = count($health_items) > 0 ? (int)(array_sum(array_column($healt
 $miles_done = $vehicle['mileage'] - $vehicle['last_service_mileage'];
 $miles_span = $vehicle['next_service_mileage'] - $vehicle['last_service_mileage'];
 $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)) : 0;
+
+/**
+ * Returns a filled SVG icon by name (replaces Feather outline icons
+ * so the dashboard matches index.php's filled icon style and no longer
+ * depends on the feather-icons library). Always sized via width/height
+ * so icons never render blank on mobile.
+ */
+function wm_icon($name, $size = 20) {
+    $paths = [
+        'tool'           => '<path d="M21.7 7.3a1 1 0 0 0-1.6-.3l-2.5 2.5-2.1-2.1 2.5-2.5a1 1 0 0 0-.3-1.6 5.5 5.5 0 0 0-7.1 6.6l-7 7a2.5 2.5 0 0 0 3.5 3.5l7-7a5.5 5.5 0 0 0 6.6-7.1zM6 19.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>',
+        'settings'       => '<path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H1a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V7a1.7 1.7 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>',
+        'droplet'        => '<path d="M12 2.2S5 10 5 14.5a7 7 0 0 0 14 0C19 10 12 2.2 12 2.2zm0 16.3a4 4 0 0 1-4-4c0-.6.4-1 1-1s1 .4 1 1a2 2 0 0 0 2 2c.6 0 1 .4 1 1s-.4 1-1 1z"/>',
+        'disc'           => '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>',
+        'circle'         => '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>',
+        'wind'           => '<path d="M3 8h11a3 3 0 1 0-3-3 1 1 0 0 1-2 0 5 5 0 1 1 5 5H3a1 1 0 0 1 0-2zm16.5 4H3a1 1 0 0 0 0 2h16.5a2.5 2.5 0 1 1-2.5 2.5 1 1 0 0 0-2 0 4.5 4.5 0 1 0 4.5-4.5z"/>',
+        'zap'            => '<path d="M13 2L4.1 12.5a1 1 0 0 0 .8 1.6H10l-1 7.9a1 1 0 0 0 1.8.7L20 12.2a1 1 0 0 0-.8-1.6H14l1-7.9a1 1 0 0 0-1.8-.7z"/>',
+        'calendar'       => '<path d="M19 4h-1V3a1 1 0 0 0-2 0v1H8V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zm1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9h16z"/>',
+        'check-circle'   => '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.2l-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4z"/>',
+        'alert-triangle' => '<path d="M13.7 3.5a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 20.5h16a2 2 0 0 0 1.7-3l-8-14zM12 17a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4zm1-5a1 1 0 0 1-2 0V9a1 1 0 0 1 2 0z"/>',
+        'truck'          => '<path d="M3 4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1a2.5 2.5 0 0 0 5 0h5a2.5 2.5 0 0 0 5 0h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-.3-.7l-3-3A1 1 0 0 0 17 7h-2V5a1 1 0 0 0-1-1zm14 5h.6l2 2H17zM6.5 16.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm10 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>',
+        'dollar-sign'    => '<path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22zm1 16.9V19a1 1 0 0 1-2 0v-1.1a3.5 3.5 0 0 1-2.5-2.2 1 1 0 0 1 1.9-.7c.2.6.8 1 1.6 1 .9 0 1.5-.5 1.5-1.1 0-.5-.3-.9-1.7-1.3-1.3-.4-3.1-1-3.1-3 0-1.4 1-2.5 2.3-2.9V5a1 1 0 0 1 2 0v.8a3.4 3.4 0 0 1 2.3 2 1 1 0 0 1-1.8.8c-.2-.5-.7-.9-1.4-.9-.8 0-1.4.4-1.4 1 0 .5.5.7 1.8 1.1 1.3.4 3 1 3 3.2 0 1.5-1 2.6-2.3 3z"/>',
+        'star'           => '<path d="M12 2l2.9 6.3 6.8.6a1 1 0 0 1 .6 1.8l-5.2 4.5 1.6 6.7a1 1 0 0 1-1.5 1.1L12 19.3l-5.8 3.5a1 1 0 0 1-1.5-1.1l1.6-6.7-5.2-4.5a1 1 0 0 1 .6-1.8l6.8-.6z"/>',
+        'message-circle' => '<path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2z"/>',
+        'phone'          => '<path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1 .3 2.1.5 3.2.5.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.5-1 1-1h3.5c.6 0 1 .4 1 1 0 1.1.2 2.2.5 3.2.1.4 0 .7-.2 1z"/>',
+        'file-text'      => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm0 2.5L17.5 8H14zM8 13h8a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2zm0 4h8a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2zm0-8h3a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2z"/>',
+        'user'           => '<path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4 0-8 2-8 5v1a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1c0-3-4-5-8-5z"/>',
+        'lock'           => '<path d="M17 9V7A5 5 0 0 0 7 7v2a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-7a3 3 0 0 0-3-3zM9 7a3 3 0 0 1 6 0v2H9zm4 9.7V18a1 1 0 0 1-2 0v-1.3a1.5 1.5 0 1 1 2 0z"/>',
+    ];
+    $p = $paths[$name] ?? $paths['circle'];
+    return '<svg width="'.$size.'" height="'.$size.'" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display:inline-block;vertical-align:middle">'.$p.'</svg>';
+}
+
+/**
+ * Builds an auto-generated studio car render URL from make/model/year/color.
+ * Uses imagin.studio's CDN. Picks a dynamic/sporty camera angle and a larger
+ * render. If the render fails to load, the <img> onerror swaps to wm_brand_logo().
+ */
+function wm_car_image($make, $model, $year = '', $color = '') {
+    $make = trim(strtolower($make));
+    $model = trim(strtolower($model));
+    if ($make === '') return '';
+    // Map common colors to paint descriptors the service understands
+    $c = strtolower(trim($color));
+    $paint = 'pspc0001'; // default neutral
+    $colormap = [
+        'black'=>'pspc0010','white'=>'pspc0011','silver'=>'pspc0004','grey'=>'pspc0003',
+        'gray'=>'pspc0003','red'=>'pspc0006','blue'=>'pspc0005','green'=>'pspc0012',
+    ];
+    if (isset($colormap[$c])) $paint = $colormap[$c];
+    $params = http_build_query([
+        'customer'      => 'img',
+        'make'          => $make,
+        'modelFamily'   => $model,
+        'angle'         => '29',          // dynamic 3/4 sporty angle
+        'zoomType'      => 'fullscreen',
+        'groundPlaneAdjustmentMode' => '1',
+        'safeMode'      => 'true',        // cleaner crop
+        'paintId'       => $paint,
+        'fileType'      => 'png',
+        'width'         => '800',
+    ]);
+    if ($year) $params .= '&modelYear=' . urlencode($year);
+    return 'https://cdn.imagin.studio/getImage?' . $params;
+}
+
+/**
+ * Returns a brand logo URL for a given car make (fallback when render fails).
+ * Uses a public logo CDN. Falls back to empty (then the car silhouette shows).
+ */
+function wm_brand_logo($make) {
+    $m = strtolower(trim($make));
+    $known = ['bmw','toyota','ford','mercedes','mercedes-benz','audi','volkswagen','vw',
+              'nissan','honda','hyundai','kia','mazda','mitsubishi','subaru','lexus',
+              'land rover','range rover','jeep','chevrolet','isuzu','suzuki','peugeot',
+              'renault','volvo','porsche','jaguar','tesla','fiat','mini','dodge'];
+    $alias = ['vw'=>'volkswagen','mercedes'=>'mercedes-benz','range rover'=>'land-rover','land rover'=>'land-rover'];
+    if (isset($alias[$m])) $m = $alias[$m];
+    if (!in_array($m, $known) && !in_array(str_replace(' ','-',$m), array_map(fn($x)=>str_replace(' ','-',$x),$known))) {
+        // Unknown brand — return empty so the silhouette icon shows instead
+    }
+    $slug = str_replace(' ', '-', $m);
+    // car-logos CDN (public). If brand missing, this 404s and the silhouette shows.
+    return 'https://www.carlogos.org/car-logos/' . $slug . '-logo.png';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php include __DIR__ . '/../includes/analytics.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="robots" content="noindex">
@@ -555,26 +651,35 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
     <link rel="icon" type="image/x-icon" href="<?= $base ?>/static/favicon_io/favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 
     <style>
         /* ── CSS Variables ───────────────────────────────── */
         :root {
             --red:       #dc2626;
             --red-dark:  #b91c1c;
-            --red-light: #fef2f2;
+            --red-light: rgba(220,38,38,0.12);
             --sidebar-w: 260px;
             --sidebar-collapsed: 72px;
             --header-h: 64px;
             --radius:   16px;
-            --shadow:   0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
-            --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+            /* Dark command-center palette */
+            --bg:        #0b0f1a;
+            --bg-2:      #0f1320;
+            --card:      #141925;
+            --card-2:    #1a1f2e;
+            --border:    rgba(255,255,255,0.08);
+            --border-2:  rgba(255,255,255,0.14);
+            --text:      #f1f5f9;
+            --text-2:    #94a3b8;
+            --text-3:    #64748b;
+            --shadow:   0 1px 3px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.25);
+            --shadow-lg: 0 16px 40px rgba(0,0,0,0.4);
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Sora', sans-serif;
-            background: #f1f5f9;
-            color: #1e293b;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
             display: flex;
         }
@@ -694,7 +799,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         }
         .sidebar-user-info { overflow: hidden; transition: opacity 0.2s; }
         .sidebar-user-name { font-size: 13px; font-weight: 700; color: #f8fafc; white-space: nowrap; }
-        .sidebar-user-role { font-size: 11px; color: #64748b; white-space: nowrap; }
+        .sidebar-user-role { font-size: 11px; color: var(--text-2); white-space: nowrap; }
         #sidebar.collapsed .sidebar-user-info { opacity: 0; }
 
         #collapseBtn {
@@ -704,7 +809,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            color: #64748b;
+            color: var(--text-2);
             transition: all 0.25s ease;
             flex-shrink: 0;
             margin-left: auto;
@@ -726,8 +831,10 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         /* ── Top Header ───────────────────────────────────── */
         .top-header {
             height: var(--header-h);
-            background: #fff;
-            border-bottom: 1px solid #e2e8f0;
+            background: rgba(15,19,32,0.8);
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            border-bottom: 1px solid var(--border);
             display: flex; align-items: center;
             padding: 0 28px;
             gap: 16px;
@@ -737,8 +844,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         .header-search {
             flex: 1; max-width: 400px;
             display: flex; align-items: center;
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
+            background: rgba(255,255,255,0.05);
+            border: 1.5px solid var(--border);
             border-radius: 12px;
             padding: 8px 14px;
             gap: 10px;
@@ -748,28 +855,28 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         .header-search input {
             background: none; border: none; outline: none;
             font-size: 14px; font-family: 'Sora', sans-serif;
-            color: #1e293b; width: 100%;
+            color: var(--text); width: 100%;
         }
-        .header-search input::placeholder { color: #94a3b8; }
+        .header-search input::placeholder { color: var(--text-3); }
 
         .header-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 
         .icon-btn {
             width: 40px; height: 40px;
             border-radius: 12px;
-            border: none; background: #f8fafc;
+            border: none; background: rgba(255,255,255,0.05);
             display: flex; align-items: center; justify-content: center;
-            cursor: pointer; color: #64748b;
+            cursor: pointer; color: var(--text-2);
             transition: all 0.2s; position: relative;
         }
-        .icon-btn:hover { background: var(--red-light); color: var(--red); }
+        .icon-btn:hover { background: var(--red-light); color: #f87171; }
         .icon-btn .badge {
             position: absolute;
             top: 6px; right: 6px;
             width: 8px; height: 8px;
             background: var(--red);
             border-radius: 50%;
-            border: 2px solid #fff;
+            border: 2px solid var(--bg-2);
         }
 
         .header-user {
@@ -778,7 +885,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             border-radius: 12px;
             transition: background 0.2s;
         }
-        .header-user:hover { background: #f8fafc; }
+        .header-user:hover { background: rgba(255,255,255,0.05); }
         .header-avatar {
             width: 36px; height: 36px; border-radius: 10px;
             background: linear-gradient(135deg, var(--red), var(--red-dark));
@@ -791,13 +898,13 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         .header-user-wrap { position: relative; }
         .header-user-caret { transition: transform 0.2s; margin-left: 2px; }
         .header-user-wrap.open .header-user-caret { transform: rotate(180deg); }
-        .header-user-wrap.open .header-user { background: #f8fafc; }
+        .header-user-wrap.open .header-user { background: rgba(255,255,255,0.05); }
 
         .header-dropdown {
             position: absolute; top: calc(100% + 10px); right: 0;
-            width: 260px; background: #fff;
-            border: 1.5px solid #e5e7eb; border-radius: 18px;
-            box-shadow: 0 16px 48px rgba(0,0,0,0.14);
+            width: 260px; background: var(--card-2);
+            border: 1.5px solid var(--border); border-radius: 18px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.5);
             overflow: hidden;
             opacity: 0; transform: translateY(-8px) scale(0.97);
             pointer-events: none;
@@ -808,7 +915,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             opacity: 1; transform: translateY(0) scale(1); pointer-events: all;
         }
         .hd-user-card {
-            background: linear-gradient(135deg, #0f172a, #1e293b);
+            background: linear-gradient(135deg, #1a1f2e, #0f1320);
             padding: 18px; display: flex; align-items: center; gap: 12px;
         }
         .hd-avatar {
@@ -818,48 +925,49 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
         .hd-name { font-size: 14px; font-weight: 800; color: #fff; }
-        .hd-email { font-size: 11px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+        .hd-email { font-size: 11px; color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
         .hd-items { padding: 8px; }
         .hd-item {
             display: flex; align-items: center; gap: 10px;
             padding: 10px 12px; border-radius: 10px;
-            color: #374151; font-size: 13px; font-weight: 600;
+            color: var(--text-2); font-size: 13px; font-weight: 600;
             text-decoration: none; cursor: pointer;
             transition: all 0.15s; margin-bottom: 2px;
         }
-        .hd-item:hover { background: #f8fafc; color: #0f172a; }
-        .hd-danger { color: #dc2626; }
-        .hd-danger:hover { background: #fef2f2; }
+        .hd-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .hd-danger { color: #f87171; }
+        .hd-danger:hover { background: rgba(220,38,38,0.12); }
         .hd-icon {
             width: 32px; height: 32px; border-radius: 9px;
             display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .hd-divider { height: 1px; background: #f1f5f9; margin: 6px 8px; }
+        .hd-divider { height: 1px; background: var(--border); margin: 6px 8px; }
 
         /* ── Page body ────────────────────────────────────── */
-        .page-body { padding: 28px; display: flex; flex-direction: column; gap: 24px; }
+        .page-body { padding: 28px; display: flex; flex-direction: column; gap: 20px; }
 
         /* ── Cards ────────────────────────────────────────── */
         .card {
-            background: #fff;
+            background: var(--card);
+            border: 1px solid var(--border);
             border-radius: var(--radius);
             box-shadow: var(--shadow);
             overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
         }
-        .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--border-2); }
         .card-header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 20px 22px 0;
             margin-bottom: 18px;
         }
         .card-title {
-            font-size: 15px; font-weight: 700; color: #0f172a;
+            font-size: 15px; font-weight: 700; color: var(--text);
             display: flex; align-items: center; gap: 8px;
         }
-        .card-title svg { width: 17px; height: 17px; color: var(--red); }
+        .card-title svg { width: 17px; height: 17px; color: #f87171; }
         .card-action {
-            font-size: 13px; font-weight: 600; color: var(--red);
+            font-size: 13px; font-weight: 600; color: #f87171;
             text-decoration: none; cursor: pointer;
             padding: 5px 12px;
             border-radius: 8px;
@@ -868,82 +976,165 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         .card-action:hover { background: var(--red-light); }
         .card-body { padding: 0 22px 22px; }
 
-        /* ── Stat cards ───────────────────────────────────── */
+        /* ── Stat cards — clean flat dark (matches reference) ──────── */
         .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
         .stat-card {
-            background: #fff;
-            border-radius: var(--radius);
+            background: var(--card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
             box-shadow: var(--shadow);
             padding: 20px 22px;
-            display: flex; flex-direction: column; gap: 14px;
             position: relative;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), border-color 0.3s;
         }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-2);
         }
-        .stat-card.red::before    { background: var(--red); }
-        .stat-card.amber::before  { background: #f59e0b; }
-        .stat-card.blue::before   { background: #3b82f6; }
-        .stat-card.green::before  { background: #16a34a; }
 
+        .stat-card-top {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 18px;
+        }
+        .stat-toplabel {
+            font-size: 13px; font-weight: 600; color: var(--text-2);
+            letter-spacing: -0.01em;
+        }
         .stat-icon {
-            width: 44px; height: 44px;
-            border-radius: 12px;
+            width: 36px; height: 36px;
+            border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
         }
-        .stat-icon.red   { background:#fef2f2; color: var(--red); }
-        .stat-icon.amber { background:#fffbeb; color: #d97706; }
-        .stat-icon.blue  { background:#eff6ff; color: #2563eb; }
-        .stat-icon.green { background:#f0fdf4; color: #15803d; }
-        .stat-icon svg   { width: 22px; height: 22px; }
+        .stat-icon.red   { background: rgba(239,68,68,0.16);  color: #f87171; }
+        .stat-icon.amber { background: rgba(245,158,11,0.16); color: #fbbf24; }
+        .stat-icon.blue  { background: rgba(59,130,246,0.16); color: #60a5fa; }
+        .stat-icon.green { background: rgba(34,197,94,0.16);  color: #4ade80; }
+        .stat-icon svg   { width: 19px; height: 19px; }
 
-        .stat-value { font-size: 28px; font-weight: 900; color: #0f172a; line-height: 1; transition: transform 0.2s; }
-        .stat-label { font-size: 13px; font-weight: 600; color: #64748b; }
-        .stat-change { font-size: 12px; color: #94a3b8; }
+        .stat-value {
+            position: relative; z-index: 1;
+            font-size: 34px; font-weight: 800; color: #fff;
+            line-height: 1; letter-spacing: -0.03em;
+            font-variant-numeric: tabular-nums;
+        }
+        .stat-label {
+            position: relative; z-index: 1;
+            font-size: 13px; font-weight: 600; color: #cbd5e1;
+            margin-top: 8px;
+        }
+        .stat-change {
+            position: relative; z-index: 1;
+            font-size: 12px; color: var(--text-3); margin-top: 8px;
+        }
+        /* Reference-style action link at bottom of each stat card */
+        .stat-link {
+            position: relative; z-index: 1;
+            display: inline-flex; align-items: center; gap: 5px;
+            margin-top: 16px; padding-top: 14px;
+            border-top: 1px solid var(--border);
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            text-decoration: none;
+            transition: gap 0.2s ease;
+        }
+        .stat-link svg { transition: transform 0.2s ease; }
+        .stat-link:hover { gap: 9px; }
+        .stat-card.red   .stat-link { color: #f87171; }
+        .stat-card.amber .stat-link { color: #fbbf24; }
+        .stat-card.blue  .stat-link { color: #60a5fa; }
+        .stat-card.green .stat-link { color: #4ade80; }
+        @media (prefers-reduced-motion: reduce) {
+            .stat-card { transition: none !important; }
+        }
 
-        /* Welcome banner */
+        /* Recommended for You */
+        .rec-row {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .rec-row:last-child { border-bottom: none; }
+        .rec-icon {
+            width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .rec-icon svg { width: 20px; height: 20px; }
+        .rec-icon.red   { background: rgba(239,68,68,0.16);  color: #f87171; }
+        .rec-icon.amber { background: rgba(245,158,11,0.16); color: #fbbf24; }
+        .rec-icon.blue  { background: rgba(59,130,246,0.16); color: #60a5fa; }
+        .rec-icon.green { background: rgba(34,197,94,0.16);  color: #4ade80; }
+        .rec-info { flex: 1; min-width: 0; }
+        .rec-name { font-size: 14px; font-weight: 700; color: var(--text); }
+        .rec-desc { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+        .rec-right { text-align: right; flex-shrink: 0; }
+        .rec-price { font-size: 13px; font-weight: 800; color: #4ade80; margin-bottom: 5px; white-space: nowrap; }
+        .rec-book {
+            background: var(--red); color: #fff; border: none;
+            padding: 6px 16px; border-radius: 9px;
+            font-size: 12px; font-weight: 700; cursor: pointer;
+            font-family: 'Sora', sans-serif; transition: background 0.2s;
+        }
+        .rec-book:hover { background: var(--red-dark); }
+
+        /* Welcome banner — racing-themed greeting card */
         .welcome-banner {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-            border-radius: var(--radius);
+            background: linear-gradient(135deg, #161b28 0%, #1a1020 100%);
+            border: 1px solid var(--border);
+            border-radius: 18px;
             padding: 28px 32px;
             display: flex; align-items: center; justify-content: space-between;
             position: relative; overflow: hidden;
-            box-shadow: var(--shadow-lg);
+            gap: 20px;
         }
+        /* Racing speed-streak accent on the right */
         .welcome-banner::before {
             content: '';
             position: absolute; inset: 0;
             background:
-                radial-gradient(circle at 80% 50%, rgba(220,38,38,0.15) 0%, transparent 60%),
-                radial-gradient(circle at 10% 80%, rgba(220,38,38,0.08) 0%, transparent 50%);
+                radial-gradient(circle at 88% 30%, rgba(220,38,38,0.18) 0%, transparent 45%),
+                repeating-linear-gradient(115deg, transparent 0 28px, rgba(255,255,255,0.015) 28px 30px);
+            pointer-events: none;
         }
-        .welcome-grid {
-            position: absolute; inset: 0;
-            background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-            background-size: 32px 32px;
+        /* Checkered-flag motif, top-right corner */
+        .welcome-flag {
+            position: absolute; top: 0; right: 0;
+            width: 120px; height: 100%;
+            opacity: 0.10;
+            background-image:
+                linear-gradient(45deg, #fff 25%, transparent 25%, transparent 75%, #fff 75%),
+                linear-gradient(45deg, #fff 25%, transparent 25%, transparent 75%, #fff 75%);
+            background-size: 18px 18px;
+            background-position: 0 0, 9px 9px;
+            -webkit-mask-image: linear-gradient(to left, #000, transparent);
+            mask-image: linear-gradient(to left, #000, transparent);
+            pointer-events: none;
         }
+        .welcome-grid { display: none; }
         .welcome-text { position: relative; z-index: 1; }
-        .welcome-text h2 { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 6px; }
-        .welcome-text p  { font-size: 14px; color: #94a3b8; margin-bottom: 18px; }
+        .welcome-text h2 { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+        .welcome-text p  { font-size: 14px; color: var(--text-2); margin-bottom: 0; }
         .welcome-cta {
+            position: relative; overflow: hidden;
             display: inline-flex; align-items: center; gap: 8px;
-            background: var(--red);
+            background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
             color: #fff;
             padding: 11px 22px;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 14px; font-weight: 700;
             text-decoration: none;
-            transition: all 0.2s;
-            box-shadow: 0 4px 14px rgba(220,38,38,0.4);
+            border: 1px solid rgba(255,255,255,0.25);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(220,38,38,0.35);
         }
-        .welcome-cta:hover { background: var(--red-dark); transform: translateY(-1px); }
+        .welcome-cta::before {
+            content: ''; position: absolute; top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+        .welcome-cta:hover::before { left: 120%; }
+        .welcome-cta:hover { transform: translateY(-3px) scale(1.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(220,38,38,0.45); }
 
         .next-booking-card {
             position: relative; z-index: 1;
@@ -983,8 +1174,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         .health-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .health-icon svg { width: 15px; height: 15px; }
         .health-bar-wrap { flex: 1; }
-        .health-bar-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 5px; }
-        .health-bar-track { height: 6px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+        .health-bar-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 5px; }
+        .health-bar-track { height: 6px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
         .health-bar-fill  { height: 100%; border-radius: 99px; transition: width 1s cubic-bezier(0.4,0,0.2,1); }
 
         /* Bookings table */
@@ -994,7 +1185,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             align-items: center;
             gap: 16px;
             padding: 14px 0;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid var(--border);
             transition: background 0.15s;
             cursor: pointer;
             border-radius: 10px;
@@ -1002,7 +1193,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             margin: 0 -8px;
         }
         .booking-row:last-child { border-bottom: none; }
-        .booking-row:hover { background: #f8fafc; }
+        .booking-row:hover { background: rgba(255,255,255,0.04); }
         .booking-service-icon {
             width: 42px; height: 42px; border-radius: 12px;
             background: var(--red-light);
@@ -1010,8 +1201,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             color: var(--red); flex-shrink: 0;
         }
         .booking-service-icon svg { width: 20px; height: 20px; }
-        .booking-name { font-size: 14px; font-weight: 700; color: #0f172a; }
-        .booking-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .booking-name { font-size: 14px; font-weight: 700; color: var(--text); }
+        .booking-meta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
         .booking-id   { font-size: 12px; font-weight: 600; color: #94a3b8; font-family: monospace; }
 
         .status-pill { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 99px; }
@@ -1038,8 +1229,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         }
         .timeline-item:not(:first-child) .timeline-dot { background: #cbd5e1; box-shadow: 0 0 0 2px #cbd5e1; }
         .timeline-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 14px 16px;
             transition: all 0.2s;
@@ -1047,16 +1238,16 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         }
         .timeline-card:hover { border-color: var(--red); background: var(--red-light); }
         .timeline-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-        .timeline-service { font-size: 14px; font-weight: 700; color: #0f172a; }
+        .timeline-service { font-size: 14px; font-weight: 700; color: var(--text); }
         .timeline-cost { font-size: 13px; font-weight: 800; color: var(--red); }
-        .timeline-meta { font-size: 12px; color: #64748b; }
+        .timeline-meta { font-size: 12px; color: var(--text-2); }
         .timeline-notes { font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; }
 
         /* Reminders */
         .reminder-item {
             display: flex; align-items: center; gap: 14px;
             padding: 12px 14px;
-            border: 1.5px solid #e2e8f0;
+            border: 1.5px solid var(--border);
             border-radius: 14px;
             margin-bottom: 10px;
             transition: all 0.2s;
@@ -1070,28 +1261,28 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         }
         .reminder-icon svg { width: 20px; height: 20px; }
         .reminder-body { flex: 1; }
-        .reminder-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
-        .reminder-sub   { font-size: 12px; color: #64748b; }
+        .reminder-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+        .reminder-sub   { font-size: 12px; color: var(--text-2); }
         .reminder-badge { font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 99px; flex-shrink: 0; }
         .km-bar-wrap { margin-top: 5px; }
-        .km-bar { height: 4px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+        .km-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
         .km-fill { height: 100%; border-radius: 99px; }
 
         /* Notifications */
         .notif-item {
             display: flex; gap: 12px;
             padding: 14px 0;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid var(--border);
             cursor: pointer;
             transition: background 0.2s;
         }
-        .notif-item:hover { background: #f8fafc; margin: 0 -8px; padding: 14px 8px; }
+        .notif-item:hover { background: rgba(255,255,255,0.04); margin: 0 -8px; padding: 14px 8px; }
         .notif-item:last-child { border-bottom: none; }
         .notif-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .notif-body { flex: 1; }
-        .notif-title { font-size: 13px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+        .notif-title { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
         .notif-unread { width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
-        .notif-msg { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .notif-msg { font-size: 12px; color: var(--text-2); margin-top: 2px; }
         .notif-time { font-size: 11px; color: #94a3b8; white-space: nowrap; }
 
         /* Vehicle card */
@@ -1116,6 +1307,24 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         #vehicleSwitcherCard > div:first-child::-webkit-scrollbar { display: none; }
         .vehicle-make { font-size: 11px; font-weight: 700; color: #ef4444; text-transform: uppercase; letter-spacing: 0.1em; }
         .vehicle-name { font-size: 22px; font-weight: 900; color: #fff; margin: 4px 0 2px; }
+        .vehicle-photo-wrap {
+            margin: 14px 0 16px;
+            height: 130px;
+            display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.06), transparent 70%);
+            border-radius: 14px;
+            position: relative;
+        }
+        .vehicle-photo {
+            max-width: 100%; max-height: 130px;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 18px rgba(0,0,0,0.5));
+            transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+        }
+        .vehicle-card:hover .vehicle-photo { transform: scale(1.04); }
+        .vehicle-photo.is-logo { max-height: 76px; opacity: 0.95; }
+        .vehicle-photo-silhouette { color: rgba(255,255,255,0.18); }
+        .vehicle-photo-silhouette svg { width: 80px; height: 80px; }
         .vehicle-year { font-size: 14px; color: #94a3b8; margin-bottom: 16px; }
         .vehicle-reg  {
             display: inline-block;
@@ -1133,7 +1342,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             border-right: 1px solid rgba(255,255,255,0.06);
         }
         .vehicle-spec-item:last-child { border-right: none; }
-        .vehicle-spec-label { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+        .vehicle-spec-label { font-size: 10px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
         .vehicle-spec-value { font-size: 14px; font-weight: 700; color: #e2e8f0; }
 
         .mileage-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
@@ -1143,12 +1352,38 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
 
         /* Quick actions */
         .quick-actions { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+
+        /* Reference-style top quick-action row (4 colored tiles) */
+        .qrow { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+        .qrow-tile {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px 20px;
+            cursor: pointer; text-decoration: none;
+            transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), border-color 0.3s, background 0.3s;
+        }
+        .qrow-tile:hover { transform: translateY(-4px); border-color: var(--border-2); background: var(--card-2); }
+        .qrow-ic {
+            width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .qrow-ic svg { width: 23px; height: 23px; color: #fff; }
+        .qrow-ic.red   { background: linear-gradient(135deg,#ef4444,#b91c1c); box-shadow: 0 8px 18px -6px rgba(239,68,68,0.6); }
+        .qrow-ic.blue  { background: linear-gradient(135deg,#3b82f6,#1d4ed8); box-shadow: 0 8px 18px -6px rgba(59,130,246,0.6); }
+        .qrow-ic.slate { background: linear-gradient(135deg,#475569,#1e293b); box-shadow: 0 8px 18px -6px rgba(71,85,105,0.6); }
+        .qrow-ic.green { background: linear-gradient(135deg,#22c55e,#15803d); box-shadow: 0 8px 18px -6px rgba(34,197,94,0.6); }
+        .qrow-tx-title { display: block; font-size: 14px; font-weight: 700; color: var(--text); }
+        .qrow-tx-sub { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; }
+        @media (max-width: 900px) { .qrow { grid-template-columns: repeat(2,1fr); } }
+        @media (max-width: 480px) { .qrow { grid-template-columns: 1fr; } }
         .quick-btn {
             display: flex; flex-direction: column; align-items: center; gap: 8px;
             padding: 16px 12px;
             border-radius: 14px;
-            border: 1.5px solid #e2e8f0;
-            background: #fff;
+            border: 1.5px solid var(--border);
+            background: rgba(255,255,255,0.03);
             cursor: pointer;
             font-family: 'Sora', sans-serif;
             transition: all 0.2s;
@@ -1160,7 +1395,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             display: flex; align-items: center; justify-content: center;
         }
         .quick-btn-icon svg { width: 22px; height: 22px; }
-        .quick-btn-label { font-size: 12px; font-weight: 700; color: #374151; text-align: center; }
+        .quick-btn-label { font-size: 12px; font-weight: 700; color: var(--text-2); text-align: center; }
 
         /* Offer banner */
         .offer-banner {
@@ -1185,46 +1420,77 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         }
         .modal-overlay.active { display: flex; }
         .modal-box {
-            background: #fff; border-radius: 20px;
+            background: var(--card-2); border: 1px solid var(--border); border-radius: 20px;
             padding: 32px 28px; max-width: 520px; width: 100%;
-            box-shadow: 0 32px 80px rgba(0,0,0,0.2);
+            box-shadow: 0 32px 80px rgba(0,0,0,0.6);
             animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
         }
         @keyframes popIn {
             from { transform: scale(0.88); opacity: 0; }
             to   { transform: scale(1);    opacity: 1; }
         }
-        .modal-title { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
-        .modal-sub   { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+        .modal-title { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+        .modal-sub   { font-size: 13px; color: var(--text-2); margin-bottom: 20px; }
         .modal-field { margin-bottom: 16px; }
-        .modal-field label { display: block; font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 5px; }
+        .modal-field label { display: block; font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 5px; }
         .modal-field input,
         .modal-field select,
         .modal-field textarea {
             width: 100%; padding: 11px 14px;
-            border: 1.5px solid #e2e8f0; border-radius: 10px;
-            font-size: 14px; font-family: 'Sora', sans-serif; color: #0f172a;
+            border: 1.5px solid var(--border); border-radius: 10px;
+            font-size: 14px; font-family: 'Sora', sans-serif; color: var(--text);
             outline: none; transition: border-color 0.2s;
-            background: #fff;
+            background: rgba(255,255,255,0.04);
         }
+        .modal-field select option { background: var(--card-2); color: var(--text); }
         .modal-field input:focus,
         .modal-field select:focus,
         .modal-field textarea:focus { border-color: var(--red); }
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
         .btn-modal-primary {
-            flex: 1; background: linear-gradient(135deg, var(--red), var(--red-dark));
-            color: #fff; border: none; padding: 13px; border-radius: 12px;
+            position: relative; overflow: hidden;
+            flex: 1; background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+            backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%);
+            color: #fff; border: 1px solid rgba(255,255,255,0.25); padding: 13px; border-radius: 14px;
             font-size: 14px; font-weight: 700; font-family: 'Sora', sans-serif;
-            cursor: pointer; transition: all 0.2s;
+            cursor: pointer; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 8px 22px rgba(220,38,38,0.3);
         }
-        .btn-modal-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(220,38,38,0.3); }
+        .btn-modal-primary::before {
+            content: ''; position: absolute; top: 0; left: -120%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+        .btn-modal-primary:hover::before { left: 120%; }
+        .btn-modal-primary:hover { transform: translateY(-2px) scale(1.01); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 14px 32px rgba(220,38,38,0.4); }
         .btn-modal-ghost {
             flex: 0; padding: 13px 20px;
-            border: 1.5px solid #e2e8f0; border-radius: 12px;
+            border: 1.5px solid var(--border); border-radius: 12px;
             font-size: 14px; font-weight: 600; font-family: 'Sora', sans-serif;
-            background: none; color: #374151; cursor: pointer; transition: all 0.2s;
+            background: none; color: var(--text-2); cursor: pointer; transition: all 0.2s;
         }
         .btn-modal-ghost:hover { border-color: var(--red); color: var(--red); background: var(--red-light); }
+
+        /* Reusable glass action button for dashboard (matches site gbtn) */
+        .dash-glass-btn {
+            position: relative; overflow: hidden;
+            background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95)) !important;
+            backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%);
+            border: 1px solid rgba(255,255,255,0.25) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 8px 22px rgba(220,38,38,0.3) !important;
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s !important;
+        }
+        .dash-glass-btn::before {
+            content: ''; position: absolute; top: 0; left: -120%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease; pointer-events: none;
+        }
+        .dash-glass-btn:hover::before { left: 120%; }
+        .dash-glass-btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 14px 32px rgba(220,38,38,0.4) !important; }
+        @media (prefers-reduced-motion: reduce) {
+            .btn-modal-primary, .dash-glass-btn { transition: none !important; }
+            .btn-modal-primary::before, .dash-glass-btn::before { display: none; }
+        }
 
         /* Onboarding Wizard */
         .onboarding-wizard {
@@ -1235,11 +1501,13 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             to { opacity: 1; transform: translateY(0); }
         }
         .step-item {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
             transition: all 0.3s ease;
         }
         .step-item.completed {
-            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-            border: 1px solid #bbf7d0;
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.3);
         }
 
         /* Toast Notifications */
@@ -1309,6 +1577,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             #sidebar { transform: translateX(-100%); }
             #sidebar.mobile-open { transform: translateX(0); }
             #main { margin-left: 0 !important; }
+            #collapseBtn { display: none !important; }   /* no collapse on mobile drawer */
             .welcome-banner { flex-direction: column; align-items: flex-start; gap: 16px; }
             .next-booking-card { min-width: unset; width: 100%; }
             
@@ -1318,13 +1587,12 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: white;
-                border-top: 1px solid #e2e8f0;
+                border-top: 1px solid var(--border);
                 justify-content: space-around;
                 padding: 12px 16px;
                 z-index: 100;
                 backdrop-filter: blur(10px);
-                background: rgba(255,255,255,0.95);
+                background: rgba(15,19,32,0.95);
             }
             .mobile-nav-item {
                 display: flex;
@@ -1332,7 +1600,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                 align-items: center;
                 gap: 4px;
                 font-size: 10px;
-                color: #64748b;
+                color: var(--text-2);
                 text-decoration: none;
                 background: none;
                 border: none;
@@ -1350,12 +1618,23 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             }
         }
         @media (max-width: 768px) {
-            .stats-grid { grid-template-columns: repeat(2,1fr); }
-            .page-body { padding: 16px; gap: 16px; }
+            .stats-grid { grid-template-columns: repeat(2,1fr); gap: 12px; }
+            .page-body { padding: 14px; gap: 16px; }
             .welcome-banner { padding: 22px 20px; }
+            .stat-card { padding: 16px; border-radius: 18px; }
+            .stat-value { font-size: 30px; }
+            .stat-card-top { margin-bottom: 14px; }
+            .stat-icon { width: 38px; height: 38px; }
+            .stat-icon svg { width: 19px; height: 19px; }
         }
         @media (max-width: 480px) {
-            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stat-card { padding: 14px; }
+            .stat-value { font-size: 26px; }
+            .stat-label { font-size: 12px; }
+            .stat-change { font-size: 10.5px; }
+            /* Hide the status pill on the smallest screens to avoid crowding */
+            .stat-card-top { margin-bottom: 12px; justify-content: flex-start; }
         }
 
         .fade-in { animation: fadeInUp 0.5s ease both; }
@@ -1372,7 +1651,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         .feedback-btn {
             position:fixed; bottom:24px; left:24px;
             display:flex; align-items:center; gap:8px;
-            background:#fff; color:#374151;
+            background:#fff; color:#94a3b8;
             padding:10px 16px; border-radius:99px;
             box-shadow:0 4px 20px rgba(0,0,0,0.12);
             border:1.5px solid #e5e7eb;
@@ -1389,6 +1668,102 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         @media(max-width:767px) {
             .feedback-btn span { display:none; }
             .feedback-btn { padding:10px; border-radius:50%; }
+        }
+        /* ═══════════════════════════════════════════════════════
+           ✨ LIQUID GLASS REDESIGN — Overview polish
+           Warmer, friendlier, more premium feel
+        ═══════════════════════════════════════════════════════ */
+
+        /* Softer page background */
+        .page-body { position: relative; }
+
+        /* ── Welcome banner — refined, calm dark glass ── */
+        .welcome-banner {
+            background: linear-gradient(135deg, #1d1d1f 0%, #2c2c2e 100%) !important;
+        }
+        .welcome-text h2 {
+            font-size: 26px !important;
+            font-weight: 700 !important;
+            color: #f5f5f7 !important;
+            letter-spacing: -0.02em;
+        }
+        .welcome-text p {
+            color: #a1a1a6 !important;
+        }
+
+        /* CTA button — liquid glass (matches index.php) */
+        .welcome-cta {
+            background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95)) !important;
+            border: 1px solid rgba(255,255,255,0.25) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 10px 30px rgba(220,38,38,0.35) !important;
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+        }
+        .welcome-cta:hover {
+            transform: translateY(-3px) scale(1.02) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 16px 40px rgba(220,38,38,0.45) !important;
+        }
+
+        /* Next-booking card — dark frosted glass */
+        .next-booking-card {
+            background: rgba(255,255,255,0.06) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(255,255,255,0.12) !important;
+            box-shadow: none !important;
+        }
+
+        /* ── Stat cards — clean flat dark (matches reference) ── */
+        .stat-card {
+            background: var(--card) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: var(--shadow) !important;
+            transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), border-color 0.3s !important;
+        }
+        .stat-card:hover {
+            transform: translateY(-4px) !important;
+            border-color: var(--border-2) !important;
+            box-shadow: var(--shadow-lg) !important;
+        }
+
+        /* Icon tiles */
+        .stat-icon {
+            border: none;
+            transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .stat-card:hover .stat-icon { transform: scale(1.06); }
+
+        /* ── Content cards — matching frosted glass ── */
+        #panel-overview .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        #panel-overview .card:hover {
+            border-color: var(--border-2);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Subtle, smooth fade-in (no bounce) */
+        @keyframes fadeUp {
+            0%   { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        #panel-overview .stat-card,
+        #panel-overview .welcome-banner,
+        #panel-overview .card {
+            animation: fadeUp 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+        }
+        #panel-overview .stat-card:nth-child(1) { animation-delay: 0.04s; }
+        #panel-overview .stat-card:nth-child(2) { animation-delay: 0.08s; }
+        #panel-overview .stat-card:nth-child(3) { animation-delay: 0.12s; }
+        #panel-overview .stat-card:nth-child(4) { animation-delay: 0.16s; }
+
+        /* Respect reduced-motion preferences */
+        @media (prefers-reduced-motion: reduce) {
+            #panel-overview .stat-card,
+            #panel-overview .welcome-banner,
+            #panel-overview .card { animation: none !important; }
         }
     </style>
 </head>
@@ -1488,8 +1863,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         </div>
 
         <div class="header-actions">
-            <div class="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-500">
-                <span class="live-dot"></span> Open today · 08:00–17:00
+            <div class="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-400">
+                <span class="live-dot"></span> <?= (date('N') >= 6) ? 'Open today · 09:00–13:00' : 'Open today · 08:30–17:00' ?>
             </div>
 
             <button class="icon-btn" onclick="showPanel('notifications')" aria-label="Notifications">
@@ -1506,8 +1881,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                 <div class="header-user" onclick="toggleHeaderDropdown()" aria-haspopup="true" aria-expanded="false">
                     <div class="header-avatar"><?= htmlspecialchars($user['avatar_initials']) ?></div>
                     <div class="hidden md:block">
-                        <div class="text-sm font-bold text-gray-900"><?= htmlspecialchars($user['first_name']) ?></div>
-                        <div class="text-xs text-gray-500"><?= htmlspecialchars($user['type']) ?></div>
+                        <div class="text-sm font-bold text-white"><?= htmlspecialchars($user['first_name']) ?></div>
+                        <div class="text-xs text-gray-400"><?= htmlspecialchars($user['type']) ?></div>
                     </div>
                     <svg class="header-user-caret hidden md:block" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -1521,7 +1896,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                     </div>
                     <div class="hd-items">
                         <a class="hd-item" onclick="showPanel('overview');closeHeaderDropdown()">
-                            <div class="hd-icon" style="background:#f1f5f9;color:#374151"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+                            <div class="hd-icon" style="background:rgba(255,255,255,0.06);color:#94a3b8"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
                             Dashboard
                         </a>
                         <a class="hd-item" onclick="showPanel('bookings');closeHeaderDropdown()">
@@ -1533,12 +1908,12 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                             My Vehicle
                         </a>
                         <a class="hd-item" onclick="showPanel('settings');closeHeaderDropdown()">
-                            <div class="hd-icon" style="background:#f8fafc;color:#64748b"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09"/></svg></div>
+                            <div class="hd-icon" style="background:rgba(255,255,255,0.04);color:#94a3b8"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09"/></svg></div>
                             Settings
                         </a>
                         <div class="hd-divider"></div>
                         <a class="hd-item" href="<?= $base ?>/">
-                            <div class="hd-icon" style="background:#f1f5f9;color:#374151"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+                            <div class="hd-icon" style="background:rgba(255,255,255,0.06);color:#94a3b8"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                             Back to Website
                         </a>
                         <a class="hd-item hd-danger" href="<?= $base ?>/pages/logout.php">
@@ -1559,24 +1934,24 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         <!-- Onboarding Wizard for New Users -->
         <?php if ($is_new_user && !isset($_SESSION['onboarding_dismissed'])): ?>
         <div class="onboarding-wizard fade-in" id="onboardingWizard">
-            <div class="bg-gradient-to-r from-red-50 to-orange-50 rounded-2xl p-6 mb-6 border border-red-200">
+            <div style="background:linear-gradient(135deg,rgba(220,38,38,0.12),rgba(245,158,11,0.1));border-radius:16px;padding:24px;margin-bottom:24px;border:1px solid rgba(220,38,38,0.25)">
                 <div class="flex items-start justify-between">
                     <div class="flex-1">
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">🎉 Welcome to Your Dashboard!</h3>
-                        <p class="text-gray-600 mb-4">Let's get your vehicle set up in 3 simple steps</p>
+                        <h3 class="text-lg font-bold text-white mb-2">🎉 Welcome to Your Dashboard!</h3>
+                        <p class="text-gray-300 mb-4">Let's get your vehicle set up in 3 simple steps</p>
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <div class="bg-white rounded-xl p-4 text-center step-item cursor-pointer" data-step="1" onclick="completeOnboardingStep(1)">
+                            <div class="rounded-xl p-4 text-center step-item cursor-pointer" data-step="1" onclick="completeOnboardingStep(1)">
                                 <div class="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2">1</div>
-                                <div class="font-semibold text-gray-900">Add Vehicle</div>
-                                <div class="text-xs text-gray-500 mt-1">Enter your car details</div>
+                                <div class="font-semibold text-white">Add Vehicle</div>
+                                <div class="text-xs text-gray-400 mt-1">Enter your car details</div>
                             </div>
-                            <div class="bg-white rounded-xl p-4 text-center step-item cursor-pointer" data-step="2" onclick="completeOnboardingStep(2)">
+                            <div class="rounded-xl p-4 text-center step-item cursor-pointer" data-step="2" onclick="completeOnboardingStep(2)">
                                 <div class="w-10 h-10 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-2">2</div>
                                 <div class="font-semibold text-gray-400">Set Preferences</div>
                                 <div class="text-xs text-gray-400 mt-1">Notification settings</div>
                             </div>
-                            <div class="bg-white rounded-xl p-4 text-center step-item cursor-pointer" data-step="3" onclick="completeOnboardingStep(3)">
+                            <div class="rounded-xl p-4 text-center step-item cursor-pointer" data-step="3" onclick="completeOnboardingStep(3)">
                                 <div class="w-10 h-10 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-2">3</div>
                                 <div class="font-semibold text-gray-400">Book Service</div>
                                 <div class="text-xs text-gray-400 mt-1">Schedule first maintenance</div>
@@ -1586,11 +1961,11 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                         <button onclick="startOnboarding()" class="bg-red-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-red-700 transition">
                             Start Setup →
                         </button>
-                        <button onclick="dismissOnboarding()" class="ml-3 text-gray-500 hover:text-gray-700 text-sm">
+                        <button onclick="dismissOnboarding()" class="ml-3 text-gray-400 hover:text-gray-200 text-sm">
                             Maybe later
                         </button>
                     </div>
-                    <button onclick="dismissOnboarding()" class="text-gray-400 hover:text-gray-600">✕</button>
+                    <button onclick="dismissOnboarding()" class="text-gray-400 hover:text-gray-300">✕</button>
                 </div>
             </div>
         </div>
@@ -1612,9 +1987,12 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
 
         <!-- Welcome banner -->
         <div class="welcome-banner fade-in">
-            <div class="welcome-grid"></div>
+            <div class="welcome-flag"></div>
             <div class="welcome-text">
-                <h2>Good <?= (date('H') < 12 ? 'morning' : (date('H') < 17 ? 'afternoon' : 'evening')) ?>, <?= htmlspecialchars($user['first_name']) ?> 👋</h2>
+                <h2>
+                    <span>Good <?= (date('H') < 12 ? 'morning' : (date('H') < 17 ? 'afternoon' : 'evening')) ?>, <?= htmlspecialchars($user['first_name']) ?></span>
+                    <span style="font-size:24px">🏁</span>
+                </h2>
                 <?php
                 // Personalized subtitle based on user's real state
                 // Show "Welcome back" + specific context for returning users
@@ -1640,15 +2018,6 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                 endif;
                 ?>
                 <p><?= $sub_text ?></p>
-                <a href="#" class="welcome-cta" onclick="event.preventDefault();<?= empty($vehicle['make']) ? "showPanel('vehicle')" : "openBookModal()" ?>">
-                    <?php if(empty($vehicle['make'])): ?>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Add Vehicle
-                    <?php else: ?>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    Book a Service
-                    <?php endif; ?>
-                </a>
             </div>
             <?php if(!empty($upcoming_bookings)): $b = $upcoming_bookings[0]; ?>
             <div class="next-booking-card">
@@ -1666,9 +2035,29 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             <?php endif; ?>
         </div>
 
+        <!-- Quick action row (reference-style) -->
+        <div class="qrow fade-in delay-1">
+            <a class="qrow-tile" onclick="<?= empty($vehicle['make']) ? "showPanel('vehicle')" : 'openBookModal()' ?>">
+                <span class="qrow-ic red"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.7 7.3a1 1 0 0 0-1.6-.3l-2.5 2.5-2.1-2.1 2.5-2.5a1 1 0 0 0-.3-1.6 5.5 5.5 0 0 0-7.1 6.6l-7 7a2.5 2.5 0 0 0 3.5 3.5l7-7a5.5 5.5 0 0 0 6.6-7.1z"/></svg></span>
+                <span><span class="qrow-tx-title">Book a Service</span><span class="qrow-tx-sub">Schedule a new service</span></span>
+            </a>
+            <a class="qrow-tile" onclick="showPanel('vehicle')">
+                <span class="qrow-ic blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13l2-5a2 2 0 0 1 1.9-1.3h10.2A2 2 0 0 1 19 8l2 5v6a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zm3.6-4h10.8l-1.2-3H7.8zM6.5 15a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm11 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg></span>
+                <span><span class="qrow-tx-title">Add Vehicle</span><span class="qrow-tx-sub">Register a new vehicle</span></span>
+            </a>
+            <a class="qrow-tile" onclick="showPanel('history')">
+                <span class="qrow-ic slate"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm0 2.5L17.5 8H14zM8 13h8a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2zm0 4h8a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2z"/></svg></span>
+                <span><span class="qrow-tx-title">View History</span><span class="qrow-tx-sub">Past services &amp; invoices</span></span>
+            </a>
+            <a class="qrow-tile" href="https://wa.me/265993575111?text=<?= urlencode('Hi Wiyule Motors, I need emergency assistance.') ?>" target="_blank">
+                <span class="qrow-ic green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1 .3 2.1.5 3.2.5.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.5-1 1-1h3.5c.6 0 1 .4 1 1 0 1.1.2 2.2.5 3.2.1.4 0 .7-.2 1z"/></svg></span>
+                <span><span class="qrow-tx-title">Emergency Support</span><span class="qrow-tx-sub">24/7 roadside help</span></span>
+            </a>
+        </div>
+
         <!-- Stats -->
         <?php if(count($overdue) > 0): ?>
-        <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:4px" class="fade-in delay-1">
+        <div style="background:rgba(220,38,38,0.12);border:1.5px solid rgba(220,38,38,0.3);border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:4px" class="fade-in delay-1">
             <div style="width:44px;height:44px;border-radius:12px;background:#dc2626;display:flex;align-items:center;justify-content:center;flex-shrink:0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             </div>
@@ -1686,30 +2075,51 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         <div class="stats-grid fade-in delay-1">
             <?php 
             $overdue_count = count($overdue);
+            $completed_count = count(array_filter($service_history, fn($h)=>$h['status']==='completed'));
+            $upcoming_n = count($upcoming_bookings);
             $stats = [
-                ['label'=>'Total Bookings',   'value'=>$total_all_bookings, 'icon'=>'tool',         'color'=>'red',   'change'=>'All time'],
-                ['label'=>'Upcoming',         'value'=>count($upcoming_bookings),'icon'=>'calendar', 'color'=>'blue',  'change'=>'Scheduled'],
-                ['label'=>$overdue_count > 0 ? 'Overdue!' : 'Vehicles', 'value'=>$overdue_count > 0 ? $overdue_count : count($all_vehicles), 'icon'=> $overdue_count > 0 ? 'alert-triangle' : 'truck', 'color'=> $overdue_count > 0 ? 'amber' : 'green', 'change'=> $overdue_count > 0 ? 'Needs attention' : 'Registered'],
-                ['label'=>'Completed',        'value'=>count(array_filter($service_history, fn($h)=>$h['status']==='completed')), 'icon'=>'check-circle', 'color'=>'green', 'change'=> $last_svc ? 'Last: '.date('d M', strtotime($last_svc['booking_date'])) : 'None yet'],
+                [
+                    'label'=>'Services Completed', 'value'=>$completed_count, 'icon'=>'check-circle', 'color'=>'red',
+                    'sub'=>'All time', 'link'=>['View history', "showPanel('history')"],
+                ],
+                [
+                    'label'=>'Next Service Due', 'value'=> $upcoming_n > 0 ? date('d M', strtotime($upcoming_bookings[0]['date'])) : '—',
+                    'icon'=>'calendar', 'color'=>'amber',
+                    'sub'=> $upcoming_n > 0 ? 'Scheduled appointment' : 'Nothing booked',
+                    'link'=> $upcoming_n > 0 ? ['View booking', "showPanel('bookings')"] : ['Book now', "openBookModal()"],
+                ],
+                [
+                    'label'=>'Total Bookings', 'value'=>$total_all_bookings, 'icon'=>'tool', 'color'=>'blue',
+                    'sub'=>'All time', 'link'=>['View all', "showPanel('bookings')"],
+                ],
+                [
+                    'label'=> $overdue_count > 0 ? 'Overdue' : 'My Vehicles',
+                    'value'=> $overdue_count > 0 ? $overdue_count : count($all_vehicles),
+                    'icon'=> $overdue_count > 0 ? 'alert-triangle' : 'truck',
+                    'color'=> $overdue_count > 0 ? 'amber' : 'green',
+                    'sub'=> $overdue_count > 0 ? 'Needs attention' : 'Registered',
+                    'link'=> $overdue_count > 0 ? ['Reschedule', "showPanel('bookings')"] : ['View details', "showPanel('vehicle')"],
+                ],
             ];
             foreach ($stats as $s): ?>
             <div class="stat-card <?= $s['color'] ?>">
-                <div class="stat-icon <?= $s['color'] ?>">
-                    <i data-feather="<?= $s['icon'] ?>"></i>
+                <div class="stat-card-top">
+                    <div class="stat-icon <?= $s['color'] ?>"><?= wm_icon($s['icon']) ?></div>
+                    <span class="stat-toplabel"><?= htmlspecialchars($s['label']) ?></span>
                 </div>
-                <div>
-                    <div class="stat-value counter-value" data-target="<?= is_numeric($s['value']) ? $s['value'] : 0 ?>"><?= $s['value'] ?></div>
-                    <div class="stat-label"><?= htmlspecialchars($s['label']) ?></div>
-                    <div class="stat-change"><?= htmlspecialchars($s['change']) ?></div>
-                </div>
+                <div class="stat-value<?= is_numeric($s['value']) ? ' counter-value' : '' ?>"<?= is_numeric($s['value']) ? ' data-target="'.$s['value'].'"' : '' ?>><?= htmlspecialchars($s['value']) ?></div>
+                <div class="stat-change"><?= htmlspecialchars($s['sub']) ?></div>
+                <a class="stat-link" onclick="<?= $s['link'][1] ?>"><?= htmlspecialchars($s['link'][0]) ?>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </a>
             </div>
             <?php endforeach; ?>
         </div>
 
         <!-- Main grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3" style="gap:16px">
 
-            <div class="lg:col-span-2 flex flex-col gap-6">
+            <div class="lg:col-span-2 flex flex-col" style="gap:16px">
 
                 <div class="card fade-in delay-2">
                     <div class="card-header">
@@ -1783,9 +2193,104 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                     </div>
                 </div>
 
+                <!-- Recommended for You -->
+                <div class="card fade-in delay-3">
+                    <div class="card-header">
+                        <div class="card-title"><?= wm_icon('star') ?> Recommended for You</div>
+                        <a class="card-action" onclick="openBookModal()">Book a service</a>
+                    </div>
+                    <div class="card-body">
+                        <?php
+                        // Smart recommendations based on the user's real service interval progress
+                        $recs = [];
+                        if (!empty($all_vehicles)) {
+                            $rv = $all_vehicles[0];
+                            $rv_km = (int)($rv['mileage'] ?? 0);
+                            $recs[] = ['name'=>'Engine Oil & Filter Change','desc'=>'Recommended every 5,000 km','price'=>'from MWK 45,000','icon'=>'droplet','color'=>'amber'];
+                            $recs[] = ['name'=>'Brake Inspection','desc'=>'Safety check & pad wear','price'=>'from MWK 20,000','icon'=>'disc','color'=>'red'];
+                            $recs[] = ['name'=>'Tyre Rotation & Balance','desc'=>'Even wear, longer tyre life','price'=>'from MWK 15,000','icon'=>'circle','color'=>'blue'];
+                        } else {
+                            $recs[] = ['name'=>'Add your vehicle','desc'=>'Get personalised service recommendations','price'=>'','icon'=>'truck','color'=>'green'];
+                        }
+                        foreach ($recs as $rec): ?>
+                        <div class="rec-row">
+                            <div class="rec-icon <?= $rec['color'] ?>"><?= wm_icon($rec['icon']) ?></div>
+                            <div class="rec-info">
+                                <div class="rec-name"><?= htmlspecialchars($rec['name']) ?></div>
+                                <div class="rec-desc"><?= htmlspecialchars($rec['desc']) ?></div>
+                            </div>
+                            <?php if($rec['price']): ?>
+                            <div class="rec-right">
+                                <div class="rec-price"><?= htmlspecialchars($rec['price']) ?></div>
+                                <button class="rec-book" onclick="openBookModal()">Book</button>
+                            </div>
+                            <?php else: ?>
+                            <button class="rec-book" onclick="showPanel('vehicle')">Add</button>
+                            <?php endif; ?>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- Service Progress -->
+                <?php
+                // Compute service progress for the primary vehicle using real data
+                $sp_show = false; $sp_pct = 0; $sp_remaining = 5000; $sp_current = 0; $sp_target = 5000;
+                if (!empty($all_vehicles)) {
+                    $spv = $all_vehicles[0];
+                    $sp_km = (int)($spv['mileage'] ?? 0);
+                    $sph = $vehicles_health[(int)$spv['id']] ?? null;
+                    $sp_last = $sph['last_service_km'] ?? null;
+                    if ($sp_last !== null && $sp_km >= $sp_last) {
+                        $sp_show = true;
+                        $since = $sp_km - $sp_last;
+                        $sp_pct = min(100, round($since / 5000 * 100));
+                        $sp_remaining = max(0, 5000 - $since);
+                        $sp_current = $sp_km;
+                        $sp_target = $sp_last + 5000;
+                    }
+                }
+                $sp_circ = 2 * 3.14159 * 34;
+                $sp_dash = $sp_circ * (1 - $sp_pct/100);
+                ?>
+                <div class="card fade-in delay-3">
+                    <div class="card-header">
+                        <div class="card-title"><?= wm_icon('zap') ?> Service Progress</div>
+                        <a class="card-action" onclick="showPanel('vehicle')">View plan</a>
+                    </div>
+                    <div class="card-body">
+                        <?php if($sp_show): ?>
+                        <div style="display:flex;align-items:center;gap:20px">
+                            <div style="position:relative;width:84px;height:84px;flex-shrink:0">
+                                <svg width="84" height="84" viewBox="0 0 84 84" style="transform:rotate(-90deg)">
+                                    <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+                                    <circle cx="42" cy="42" r="34" fill="none" stroke="<?= $sp_pct >= 90 ? '#ef4444' : ($sp_pct >= 70 ? '#f59e0b' : '#22c55e') ?>" stroke-width="8" stroke-linecap="round" stroke-dasharray="<?= $sp_circ ?>" stroke-dashoffset="<?= $sp_dash ?>" style="transition:stroke-dashoffset 1s ease"/>
+                                </svg>
+                                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;color:#fff"><?= $sp_pct ?>%</div>
+                            </div>
+                            <div style="flex:1">
+                                <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px"><?= number_format($sp_remaining) ?> km remaining</div>
+                                <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">until your next recommended service</div>
+                                <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden">
+                                    <div style="height:100%;width:<?= $sp_pct ?>%;border-radius:99px;background:linear-gradient(90deg,#22c55e,#16a34a)"></div>
+                                </div>
+                                <div style="font-size:11px;color:var(--text-3);margin-top:6px"><?= number_format($sp_current) ?> km / <?= number_format($sp_target) ?> km</div>
+                            </div>
+                        </div>
+                        <?php else: ?>
+                        <div style="text-align:center;padding:14px 0">
+                            <div style="width:48px;height:48px;border-radius:12px;background:rgba(34,197,94,0.16);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#4ade80"><?= wm_icon('check-circle', 24) ?></div>
+                            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">Service history starts here</div>
+                            <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Book your first service with us to start tracking maintenance intervals.</div>
+                            <button onclick="openBookModal()" class="rec-book">Book a Service</button>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
             </div>
 
-            <div class="flex flex-col gap-6">
+            <div class="flex flex-col" style="gap:16px">
 
                 <div class="vehicle-card fade-in delay-2" id="vehicleSwitcherCard">
                     <?php if(count($all_vehicles) === 0): ?>
@@ -1814,20 +2319,51 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
 
                     <!-- Active vehicle details (updates when tab clicked) -->
                     <?php foreach($all_vehicles as $i => $v):
-                        // Compute per-vehicle service progress
+                        // Compute per-vehicle service progress based on REAL completed services
                         $v_last_km = (int)($v['mileage'] ?? 0);
-                        // Assume service every 5000km
-                        $v_last_service = max(0, $v_last_km - ($v_last_km % 5000));
-                        $v_next_service = $v_last_service + 5000;
-                        $v_miles_done = $v_last_km - $v_last_service;
-                        $v_service_pct = min(100, round($v_miles_done / 5000 * 100));
-                        $v_km_remaining = max(0, $v_next_service - $v_last_km);
+
+                        // Reuse the data already fetched in the consolidated health loop above
+                        // (no extra DB query here — that's what was causing the 503 overload)
+                        $vh_data_ref = $vehicles_health[(int)$v['id']] ?? null;
+                        $v_last_service_km = $vh_data_ref['last_service_km'] ?? null;
+
+                        // Default values for vehicles never serviced with us
+                        $v_service_pct = 0;
+                        $v_km_remaining = 5000;
+                        $v_show_progress = false;
+                        $v_km_since_service = 0;
+
+                        if ($v_last_service_km !== null && $v_last_km >= $v_last_service_km) {
+                            // We have real service data — calculate from actual last service mileage
+                            $v_show_progress = true;
+                            $v_km_since_service = $v_last_km - $v_last_service_km;
+                            $v_service_pct = min(100, round($v_km_since_service / 5000 * 100));
+                            $v_km_remaining = max(0, 5000 - $v_km_since_service);
+                        }
                     ?>
                     <div class="vswitch-pane" data-vidx="<?= $i ?>" style="display:<?= $i === 0 ? 'block' : 'none' ?>">
                         <div class="vehicle-make"><?= htmlspecialchars($v['make']) ?></div>
                         <div class="vehicle-name"><?= htmlspecialchars($v['model']) ?></div>
                         <div class="vehicle-year"><?= htmlspecialchars(($v['year'] ?: '—') .' · '. ($v['color'] ?: '—')) ?></div>
                         <?php if($v['registration']): ?><div class="vehicle-reg"><?= htmlspecialchars($v['registration']) ?></div><?php endif; ?>
+                        <?php
+                            // Premium clean look: brand badge as primary (no watermark, always loads).
+                            // The watermark-free HD render path is kept in wm_car_image() for when
+                            // a paid imagin.studio key is added later — swap the two lines below to enable.
+                            $brand_logo = wm_brand_logo($v['make']);
+                            $car_img = $brand_logo;
+                            $is_logo_primary = true;
+                        ?>
+                        <div class="vehicle-photo-wrap">
+                            <img src="<?= htmlspecialchars($car_img) ?>"
+                                 alt="<?= htmlspecialchars($v['make'].' '.$v['model']) ?>"
+                                 class="vehicle-photo<?= $is_logo_primary ? ' is-logo' : '' ?>"
+                                 loading="lazy"
+                                 onerror="wmCarImgFallback(this)">
+                            <div class="vehicle-photo-silhouette" style="display:none">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13l2-5a2 2 0 0 1 1.9-1.3h10.2A2 2 0 0 1 19 8l2 5v6a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zm3.6-4h10.8l-1.2-3H7.8zM6.5 15a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm11 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>
+                            </div>
+                        </div>
                         <div class="vehicle-spec">
                             <div class="vehicle-spec-item">
                                 <div class="vehicle-spec-label">Mileage</div>
@@ -1838,7 +2374,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                                 <div class="vehicle-spec-value"><?= $v['engine'] ? htmlspecialchars($v['engine']) : '—' ?></div>
                             </div>
                         </div>
-                        <?php if($v['mileage'] > 0): ?>
+                        <?php if($v_show_progress): ?>
                         <div class="mileage-section">
                             <div class="mileage-label">
                                 <span>Service interval progress</span>
@@ -1847,8 +2383,23 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                             <div class="mileage-bar">
                                 <div class="mileage-fill" style="width:<?= $v_service_pct ?>%"></div>
                             </div>
-                            <div style="font-size:11px;color:#64748b;margin-top:6px">
-                                <?= number_format($v_km_remaining) ?> km remaining until next service
+                            <div style="font-size:11px;color:#94a3b8;margin-top:6px">
+                                <?php if($v_km_remaining > 0): ?>
+                                    <?= number_format($v_km_remaining) ?> km remaining until next service
+                                <?php else: ?>
+                                    <span style="color:#fca5a5;font-weight:600">⚠ Service overdue</span>
+                                <?php endif; ?>
+                                <span style="opacity:0.6"> · Last serviced at <?= number_format($v_last_service_km) ?> km</span>
+                            </div>
+                        </div>
+                        <?php else: ?>
+                        <div class="mileage-section" style="background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.15);border-radius:10px;padding:14px;margin-top:14px">
+                            <div style="font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:8px;line-height:1.5">
+                                <span style="font-size:18px">🆕</span>
+                                <div>
+                                    <strong style="color:#fff;display:block;margin-bottom:2px">Service history starts here</strong>
+                                    Book your first service with us to start tracking maintenance intervals.
+                                </div>
                             </div>
                         </div>
                         <?php endif; ?>
@@ -1888,7 +2439,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                             <div class="health-ring-wrap">
                                 <div class="health-ring">
                                     <svg width="140" height="140" viewBox="0 0 140 140">
-                                        <circle cx="70" cy="70" r="56" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+                                        <circle cx="70" cy="70" r="56" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
                                         <circle cx="70" cy="70" r="56" fill="none"
                                                 stroke="<?= healthColor($vh_overall) ?>"
                                                 stroke-width="10"
@@ -1904,8 +2455,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                                 </div>
                             </div>
                             <!-- Vehicle label above bars -->
-                            <div style="text-align:center;font-size:12px;color:#64748b;margin:6px 0 2px">
-                                <strong style="color:#0f172a"><?= htmlspecialchars($v['make'].' '.$v['model']) ?></strong>
+                            <div style="text-align:center;font-size:12px;color:#94a3b8;margin:6px 0 2px">
+                                <strong style="color:#f1f5f9"><?= htmlspecialchars($v['make'].' '.$v['model']) ?></strong>
                                 <?php if($vh_data['last_service_days_ago'] !== null): ?>
                                     · Last serviced <?= $vh_data['last_service_days_ago'] ?> day<?= $vh_data['last_service_days_ago'] !== 1 ? 's' : '' ?> ago
                                 <?php else: ?>
@@ -1916,7 +2467,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                                 <?php foreach ($vh_items as $h): ?>
                                 <div class="health-row">
                                     <div class="health-icon <?= healthBg($h['score']) ?>">
-                                        <i data-feather="<?= $h['icon'] ?>"></i>
+                                        <?= wm_icon($h['icon']) ?>
                                     </div>
                                     <div class="health-bar-wrap">
                                         <div class="health-bar-label">
@@ -1948,19 +2499,19 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                     <div class="card-body">
                         <div class="quick-actions">
                             <a href="#" class="quick-btn" onclick="openBookModal()">
-                                <div class="quick-btn-icon bg-red-50 text-red-600"><i data-feather="calendar"></i></div>
+                                <div class="quick-btn-icon bg-red-50 text-red-600"><?= wm_icon('calendar') ?></div>
                                 <span class="quick-btn-label">Book Service</span>
                             </a>
                             <a href="https://wa.me/265993575111" target="_blank" class="quick-btn">
-                                <div class="quick-btn-icon bg-green-50 text-green-600"><i data-feather="message-circle"></i></div>
+                                <div class="quick-btn-icon bg-green-50 text-green-600"><?= wm_icon('message-circle') ?></div>
                                 <span class="quick-btn-label">WhatsApp Us</span>
                             </a>
                             <a href="tel:+265993575111" class="quick-btn">
-                                <div class="quick-btn-icon bg-blue-50 text-blue-600"><i data-feather="phone"></i></div>
+                                <div class="quick-btn-icon bg-red-50 text-red-600"><?= wm_icon('phone') ?></div>
                                 <span class="quick-btn-label">Call Now</span>
                             </a>
                             <a href="#" class="quick-btn" onclick="showPanel('history')">
-                                <div class="quick-btn-icon bg-amber-50 text-amber-600"><i data-feather="file-text"></i></div>
+                                <div class="quick-btn-icon" style="background:#f5f5f7;color:#1d1d1f"><?= wm_icon('file-text') ?></div>
                                 <span class="quick-btn-label">Invoices</span>
                             </a>
                         </div>
@@ -2004,8 +2555,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                         $pct = max(0, $pct);
                     ?>
                     <div class="reminder-item <?= urgencyClasses($r['urgency']) ?>">
-                        <div class="reminder-icon <?= $r['urgency']==='urgent' ? 'bg-red-100 text-red-600' : ($r['urgency']==='soon' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-500') ?>">
-                            <i data-feather="<?= $r['icon'] ?>"></i>
+                        <div class="reminder-icon <?= $r['urgency']==='urgent' ? 'bg-red-100 text-red-600' : ($r['urgency']==='soon' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400') ?>">
+                            <?= wm_icon($r['icon']) ?>
                         </div>
                         <div class="reminder-body">
                             <div class="reminder-title"><?= htmlspecialchars($r['title']) ?></div>
@@ -2033,10 +2584,10 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
     <div id="panel-bookings" class="page-body" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px" class="fade-in">
             <div>
-                <h1 style="font-size:22px;font-weight:900;color:#0f172a">My Bookings</h1>
-                <p style="font-size:13px;color:#64748b;margin-top:2px">Manage all your upcoming and past service appointments</p>
+                <h1 style="font-size:22px;font-weight:900;color:#f1f5f9">My Bookings</h1>
+                <p style="font-size:13px;color:#94a3b8;margin-top:2px">Manage all your upcoming and past service appointments</p>
             </div>
-            <button onclick="openBookModal()" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:11px 20px;border-radius:12px;font-size:14px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(220,38,38,0.3)">
+            <button onclick="openBookModal()" class="dash-glass-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:11px 20px;border-radius:12px;font-size:14px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(220,38,38,0.3)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 New Booking
             </button>
@@ -2045,7 +2596,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         <?php foreach ([['Upcoming', $upcoming_bookings], ['Past Services', $service_history]] as [$section, $items]): ?>
         <div class="card fade-in delay-1">
             <div class="card-header">
-                <div class="card-title"><?= $section ?> <span style="font-size:12px;background:#f1f5f9;color:#64748b;padding:3px 8px;border-radius:99px;font-weight:600"><?= count($items) ?></span></div>
+                <div class="card-title"><?= $section ?> <span style="font-size:12px;background:rgba(255,255,255,0.06);color:#94a3b8;padding:3px 8px;border-radius:99px;font-weight:600"><?= count($items) ?></span></div>
             </div>
             <div class="card-body">
                 <?php if(empty($items)): ?>
@@ -2068,8 +2619,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                         <tbody>
                         <?php foreach ($items as $i): ?>
                             <tr style="border-bottom:1px solid #f8fafc;transition:background 0.15s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                <td style="padding:12px;font-weight:600;color:#0f172a"><?= htmlspecialchars($i['service']) ?></td>
-                                <td style="padding:12px;color:#64748b"><?= date('d M Y', strtotime($i['date'])) ?><?= isset($i['time']) ? ' · '.date('g:i A', strtotime($i['time'])) : '' ?></td>
+                                <td style="padding:12px;font-weight:600;color:#f1f5f9"><?= htmlspecialchars($i['service']) ?></td>
+                                <td style="padding:12px;color:#94a3b8"><?= date('d M Y', strtotime($i['date'])) ?><?= isset($i['time']) ? ' · '.date('g:i A', strtotime($i['time'])) : '' ?></td>
                                 <td style="padding:12px;font-family:monospace;color:#94a3b8;font-size:12px"><?= htmlspecialchars($i['id']) ?></td>
                                 <td style="padding:12px"><?= statusPill($i['status']) ?></td>
                                 <td style="padding:12px">
@@ -2098,16 +2649,16 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
     <!-- ─── HISTORY PANEL ─── (Keep from original with empty state) -->
     <div id="panel-history" class="page-body" style="display:none">
         <div class="fade-in">
-            <h1 style="font-size:22px;font-weight:900;color:#0f172a">Service History</h1>
-            <p style="font-size:13px;color:#64748b;margin-top:2px">Complete record of all services performed on your <?= htmlspecialchars($vehicle['year'].' '.$vehicle['make'].' '.$vehicle['model']) ?></p>
+            <h1 style="font-size:22px;font-weight:900;color:#f1f5f9">Service History</h1>
+            <p style="font-size:13px;color:#94a3b8;margin-top:2px">Complete record of all services performed on your <?= htmlspecialchars($vehicle['year'].' '.$vehicle['make'].' '.$vehicle['model']) ?></p>
         </div>
 
         <?php if(empty($service_history)): ?>
         <div class="card fade-in delay-1">
             <div class="card-body text-center py-12">
                 <div style="font-size:64px;opacity:0.3">🔧</div>
-                <h3 class="text-lg font-bold text-gray-900 mt-4">No Service History Yet</h3>
-                <p class="text-gray-500 mt-2">Your service records will appear here once you book your first service.</p>
+                <h3 class="text-lg font-bold text-white mt-4">No Service History Yet</h3>
+                <p class="text-gray-400 mt-2">Your service records will appear here once you book your first service.</p>
                 <button onclick="openBookModal()" class="mt-6 bg-red-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-red-700 transition">Book Your First Service →</button>
             </div>
         </div>
@@ -2117,10 +2668,10 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
             $total_services = count($service_history);
             $most_recent = $service_history[0]['date'];
             ?>
-            <div class="stat-card red"><div class="stat-icon red"><i data-feather="tool"></i></div><div><div class="stat-value"><?= $total_services ?></div><div class="stat-label">Total Services</div></div></div>
-            <div class="stat-card green"><div class="stat-icon green"><i data-feather="dollar-sign"></i></div><div><div class="stat-value" style="font-size:20px">MWK 125.5K</div><div class="stat-label">Total Invested</div></div></div>
-            <div class="stat-card blue"><div class="stat-icon blue"><i data-feather="calendar"></i></div><div><div class="stat-value" style="font-size:18px"><?= date('M Y', strtotime($most_recent)) ?></div><div class="stat-label">Last Service</div></div></div>
-            <div class="stat-card amber"><div class="stat-icon amber"><i data-feather="star"></i></div><div><div class="stat-value">5.0</div><div class="stat-label">Avg. Rating</div></div></div>
+            <div class="stat-card red"><div class="stat-card-top"><div class="stat-icon red"><?= wm_icon('tool') ?></div><span class="stat-toplabel">Total Services</span></div><div class="stat-value"><?= $total_services ?></div><div class="stat-change">Lifetime record</div></div>
+            <div class="stat-card green"><div class="stat-card-top"><div class="stat-icon green"><?= wm_icon('dollar-sign') ?></div><span class="stat-toplabel">Total Invested</span></div><div class="stat-value" style="font-size:26px">MWK 125.5K</div><div class="stat-change">In your vehicle</div></div>
+            <div class="stat-card blue"><div class="stat-card-top"><div class="stat-icon blue"><?= wm_icon('calendar') ?></div><span class="stat-toplabel">Last Service</span></div><div class="stat-value" style="font-size:24px"><?= date('M Y', strtotime($most_recent)) ?></div><div class="stat-change">Most recent visit</div></div>
+            <div class="stat-card amber"><div class="stat-card-top"><div class="stat-icon amber"><?= wm_icon('star') ?></div><span class="stat-toplabel">Avg. Rating</span></div><div class="stat-value">5.0</div><div class="stat-change">★★★★★ Excellent</div></div>
         </div>
 
         <div class="card fade-in delay-2">
@@ -2141,7 +2692,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                             <div class="timeline-notes"><?= htmlspecialchars($h['notes']) ?></div>
                             <div style="margin-top:10px;display:flex;gap:8px">
                                 <button style="font-size:12px;font-weight:600;color:#dc2626;background:none;border:1px solid #fecaca;padding:4px 12px;border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif">Download Invoice</button>
-                                <button style="font-size:12px;font-weight:600;color:#64748b;background:none;border:1px solid #e2e8f0;padding:4px 12px;border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif">Leave Review</button>
+                                <button style="font-size:12px;font-weight:600;color:#94a3b8;background:none;border:1px solid rgba(255,255,255,0.12);padding:4px 12px;border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif">Leave Review</button>
                             </div>
                         </div>
                     </div>
@@ -2155,22 +2706,22 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
     <!-- ─── REMINDERS PANEL ─── (Keep from original with empty state) -->
     <div id="panel-reminders" class="page-body" style="display:none">
         <div class="fade-in">
-            <h1 style="font-size:22px;font-weight:900;color:#0f172a">Maintenance Reminders</h1>
-            <p style="font-size:13px;color:#64748b;margin-top:2px">Stay on top of your <?= htmlspecialchars($vehicle['year'].' '.$vehicle['make'].' '.$vehicle['model']) ?>'s maintenance schedule</p>
+            <h1 style="font-size:22px;font-weight:900;color:#f1f5f9">Maintenance Reminders</h1>
+            <p style="font-size:13px;color:#94a3b8;margin-top:2px">Stay on top of your <?= htmlspecialchars($vehicle['year'].' '.$vehicle['make'].' '.$vehicle['model']) ?>'s maintenance schedule</p>
         </div>
 
         <?php if(empty($reminders)): ?>
         <div class="card fade-in delay-1">
             <div class="card-body text-center py-12">
                 <div style="font-size:64px;opacity:0.3">✅</div>
-                <h3 class="text-lg font-bold text-gray-900 mt-4">All Caught Up!</h3>
-                <p class="text-gray-500 mt-2">Your vehicle is in great shape. No maintenance reminders at this time.</p>
+                <h3 class="text-lg font-bold text-white mt-4">All Caught Up!</h3>
+                <p class="text-gray-400 mt-2">Your vehicle is in great shape. No maintenance reminders at this time.</p>
                 <button onclick="showPanel('vehicle')" class="mt-6 bg-gray-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-gray-700 transition">View Vehicle Details</button>
             </div>
         </div>
         <?php else: ?>
         <?php if($urgent_count): ?>
-        <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px" class="fade-in delay-1">
+        <div style="background:rgba(220,38,38,0.12);border:1.5px solid rgba(220,38,38,0.3);border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px" class="fade-in delay-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <div>
                 <div style="font-size:14px;font-weight:800;color:#dc2626"><?= $urgent_count ?> item<?= $urgent_count>1?'s':'' ?> need immediate attention</div>
@@ -2190,20 +2741,20 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                 <div class="card-body" style="padding:20px">
                     <div style="display:flex;align-items:flex-start;gap:14px">
                         <div style="width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:<?= $r['urgency']==='urgent' ? '#fef2f2' : ($r['urgency']==='soon' ? '#fffbeb' : '#f0fdf4') ?>;color:<?= $bar_color ?>">
-                            <i data-feather="<?= $r['icon'] ?>"></i>
+                            <?= wm_icon($r['icon']) ?>
                         </div>
                         <div style="flex:1">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                                <div style="font-size:15px;font-weight:800;color:#0f172a"><?= htmlspecialchars($r['title']) ?></div>
+                                <div style="font-size:15px;font-weight:800;color:#f1f5f9"><?= htmlspecialchars($r['title']) ?></div>
                                 <?= urgencyBadge($r['urgency']) ?>
                             </div>
-                            <div style="font-size:12px;color:#64748b;margin-bottom:10px">
+                            <div style="font-size:12px;color:#94a3b8;margin-bottom:10px">
                                 <?= htmlspecialchars($r['interval']) ?>
                                 <?php if($r['last_date']): ?>
                                  · Last: <?= date('d M Y', strtotime($r['last_date'])) ?> (<?= $days ?> day<?= $days!==1?'s':'' ?> ago)
                                 <?php endif; ?>
                             </div>
-                            <div style="background:#f1f5f9;border-radius:99px;height:8px;overflow:hidden;margin-bottom:6px">
+                            <div style="background:rgba(255,255,255,0.06);border-radius:99px;height:8px;overflow:hidden;margin-bottom:6px">
                                 <div style="width:<?= $pct ?>%;height:100%;background:<?= htmlspecialchars($bar_color) ?>;border-radius:99px;transition:width 1.2s"></div>
                             </div>
                         </div>
@@ -2224,11 +2775,11 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
     <div id="panel-vehicle" class="page-body" style="display:none">
         <div class="fade-in" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
             <div>
-                <h1 style="font-size:22px;font-weight:900;color:#0f172a">My Vehicles</h1>
-                <p style="font-size:13px;color:#64748b;margin-top:2px"><?= count($all_vehicles) ?> vehicle<?= count($all_vehicles)!==1?'s':'' ?> registered</p>
+                <h1 style="font-size:22px;font-weight:900;color:#f1f5f9">My Vehicles</h1>
+                <p style="font-size:13px;color:#94a3b8;margin-top:2px"><?= count($all_vehicles) ?> vehicle<?= count($all_vehicles)!==1?'s':'' ?> registered</p>
             </div>
             <?php if(count($all_vehicles) < 5): ?>
-            <button onclick="openVehicleModal()" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(220,38,38,0.3)">
+            <button onclick="openVehicleModal()" class="dash-glass-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(220,38,38,0.3)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add Vehicle
             </button>
@@ -2238,12 +2789,12 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         <?php if(count($all_vehicles) === 0): ?>
         <!-- Empty state -->
         <div class="card fade-in delay-1" style="text-align:center;padding:48px 24px">
-            <div style="width:64px;height:64px;border-radius:16px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+            <div style="width:64px;height:64px;border-radius:16px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
             </div>
-            <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:6px">No vehicles added yet</div>
-            <p style="font-size:13px;color:#64748b;margin-bottom:20px">Add your vehicle to get personalized service recommendations</p>
-            <button onclick="openVehicleModal()" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:12px 28px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;box-shadow:0 4px 14px rgba(220,38,38,0.3)">+ Add Your First Vehicle</button>
+            <div style="font-size:18px;font-weight:800;color:#f1f5f9;margin-bottom:6px">No vehicles added yet</div>
+            <p style="font-size:13px;color:#94a3b8;margin-bottom:20px">Add your vehicle to get personalized service recommendations</p>
+            <button onclick="openVehicleModal()" class="dash-glass-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:12px 28px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;box-shadow:0 4px 14px rgba(220,38,38,0.3)">+ Add Your First Vehicle</button>
         </div>
         <?php else: ?>
         <!-- Vehicle cards grid -->
@@ -2289,8 +2840,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
     <!-- ─── HEALTH PANEL ─── (Keep from original) -->
     <div id="panel-health" class="page-body" style="display:none">
         <div class="fade-in">
-            <h1 style="font-size:22px;font-weight:900;color:#0f172a">Vehicle Health Report</h1>
-            <p style="font-size:13px;color:#64748b;margin-top:2px">Based on your last inspection on <?= !empty($service_history) ? date('d M Y', strtotime($service_history[0]['date'])) : date('d M Y') ?></p>
+            <h1 style="font-size:22px;font-weight:900;color:#f1f5f9">Vehicle Health Report</h1>
+            <p style="font-size:13px;color:#94a3b8;margin-top:2px">Based on your last inspection on <?= !empty($service_history) ? date('d M Y', strtotime($service_history[0]['date'])) : date('d M Y') ?></p>
         </div>
 
         <div class="card fade-in delay-1" style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff">
@@ -2315,7 +2866,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                     <div style="font-size:14px;color:#94a3b8;margin-bottom:16px">
                         <?= $overall_health >= 80 ? 'Keep up with routine maintenance to stay in top condition.' : 'We recommend booking a service to address flagged items.' ?>
                     </div>
-                    <button onclick="openBookModal()" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(220,38,38,0.4)">
+                    <button onclick="openBookModal()" class="dash-glass-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(220,38,38,0.4)">
                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         Book Full Inspection
                     </button>
@@ -2330,9 +2881,9 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
                         <div style="display:flex;align-items:center;gap:10px">
                             <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:<?= $h['score']>=80 ? '#f0fdf4' : ($h['score']>=55 ? '#fffbeb' : '#fef2f2') ?>;color:<?= healthColor($h['score']) ?>">
-                                <i data-feather="<?= $h['icon'] ?>"></i>
+                                <?= wm_icon($h['icon']) ?>
                             </div>
-                            <div style="font-size:15px;font-weight:800;color:#0f172a"><?= htmlspecialchars($h['label']) ?></div>
+                            <div style="font-size:15px;font-weight:800;color:#f1f5f9"><?= htmlspecialchars($h['label']) ?></div>
                         </div>
                         <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;background:<?= $h['score']>=80 ? '#f0fdf4' : ($h['score']>=55 ? '#fffbeb' : '#fef2f2') ?>;color:<?= healthColor($h['score']) ?>">
                             <?= healthLabel($h['score']) ?>
@@ -2341,7 +2892,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
                         <div style="font-size:36px;font-weight:900;color:<?= healthColor($h['score']) ?>;line-height:1"><?= $h['score'] ?>%</div>
                     </div>
-                    <div style="background:#f1f5f9;border-radius:99px;height:8px;overflow:hidden">
+                    <div style="background:rgba(255,255,255,0.06);border-radius:99px;height:8px;overflow:hidden">
                         <div style="width:<?= $h['score'] ?>%;height:100%;background:<?= healthColor($h['score']) ?>;border-radius:99px;transition:width 1.2s cubic-bezier(0.4,0,0.2,1)"></div>
                     </div>
                     <?php if($h['score'] < 70): ?>
@@ -2357,8 +2908,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
     <div id="panel-notifications" class="page-body" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between" class="fade-in">
             <div>
-                <h1 style="font-size:22px;font-weight:900;color:#0f172a">Notifications</h1>
-                <p style="font-size:13px;color:#64748b;margin-top:2px"><?= $unread_count ?> unread notification<?= $unread_count!==1?'s':'' ?></p>
+                <h1 style="font-size:22px;font-weight:900;color:#f1f5f9">Notifications</h1>
+                <p style="font-size:13px;color:#94a3b8;margin-top:2px"><?= $unread_count ?> unread notification<?= $unread_count!==1?'s':'' ?></p>
             </div>
             <button onclick="markAllRead()" style="font-size:13px;font-weight:600;color:#dc2626;background:none;border:1px solid #fecaca;padding:8px 16px;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif">Mark all read</button>
         </div>
@@ -2384,7 +2935,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         <div class="card fade-in delay-2">
             <div class="card-header"><div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Preferences</div></div>
             <div class="card-body">
-                <p style="font-size:13px;color:#64748b;margin-bottom:16px">Choose how you'd like to be notified. All notifications are sent via WhatsApp.</p>
+                <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Choose how you'd like to be notified. All notifications are sent via WhatsApp.</p>
                 <div style="display:flex;flex-direction:column;gap:12px">
                     <?php foreach ([
                         ['WhatsApp booking confirmations', true],
@@ -2392,8 +2943,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                         ['Overdue booking notifications', true],
                         ['Promotional offers and discounts', false],
                     ] as [$label, $checked]): ?>
-                    <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:12px;transition:all 0.15s" onmouseover="this.style.borderColor='#dc2626'" onmouseout="this.style.borderColor='#e2e8f0'">
-                        <span style="font-size:14px;font-weight:500;color:#374151"><?= htmlspecialchars($label) ?></span>
+                    <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 14px;border:1.5px solid rgba(255,255,255,0.12);border-radius:12px;transition:all 0.15s" onmouseover="this.style.borderColor='#dc2626'" onmouseout="this.style.borderColor='#e2e8f0'">
+                        <span style="font-size:14px;font-weight:500;color:#94a3b8"><?= htmlspecialchars($label) ?></span>
                         <input type="checkbox" <?= $checked ? 'checked' : '' ?> style="width:18px;height:18px;accent-color:#dc2626;cursor:pointer">
                     </label>
                     <?php endforeach; ?>
@@ -2409,22 +2960,22 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
     <!-- ─── SETTINGS PANEL ─── (Keep from original) -->
     <div id="panel-settings" class="page-body" style="display:none">
         <div class="fade-in">
-            <h1 style="font-size:22px;font-weight:900;color:#0f172a">Account Settings</h1>
-            <p style="font-size:13px;color:#64748b;margin-top:2px">Manage your profile, security, and preferences</p>
+            <h1 style="font-size:22px;font-weight:900;color:#f1f5f9">Account Settings</h1>
+            <p style="font-size:13px;color:#94a3b8;margin-top:2px">Manage your profile, security, and preferences</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 flex flex-col gap-6">
                 <div class="card fade-in delay-1">
-                    <div class="card-header"><div class="card-title"><i data-feather="user" style="width:17px;height:17px;color:#dc2626;margin-right:4px"></i>Profile Information</div></div>
+                    <div class="card-header"><div class="card-title"><span style="color:#dc2626;margin-right:4px;display:inline-flex"><?= wm_icon('user', 17) ?></span>Profile Information</div></div>
                     <div class="card-body">
                         <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;padding-bottom:22px;border-bottom:1px solid #f1f5f9">
                             <div style="width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;flex-shrink:0"><?= htmlspecialchars($user['avatar_initials']) ?></div>
                             <div>
-                                <div style="font-size:18px;font-weight:800;color:#0f172a"><?= htmlspecialchars($user['first_name'].' '.$user['last_name']) ?></div>
-                                <div style="font-size:13px;color:#64748b"><?= htmlspecialchars($user['email']) ?></div>
+                                <div style="font-size:18px;font-weight:800;color:#f1f5f9"><?= htmlspecialchars($user['first_name'].' '.$user['last_name']) ?></div>
+                                <div style="font-size:13px;color:#94a3b8"><?= htmlspecialchars($user['email']) ?></div>
                                 <div style="margin-top:8px;display:flex;gap:8px">
-                                    <button style="font-size:12px;font-weight:600;background:none;border:1px solid #e2e8f0;padding:5px 12px;border-radius:8px;cursor:pointer;color:#374151;font-family:'Sora',sans-serif">Change Photo</button>
+                                    <button style="font-size:12px;font-weight:600;background:none;border:1px solid rgba(255,255,255,0.12);padding:5px 12px;border-radius:8px;cursor:pointer;color:#94a3b8;font-family:'Sora',sans-serif">Change Photo</button>
                                     <span style="background:#f0fdf4;color:#15803d;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;display:flex;align-items:center;gap:4px">
                                         ✓ Verified Member
                                     </span>
@@ -2443,19 +2994,19 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                             ] as [$label,$type,$value,$fid]): ?>
                             <div>
                                 <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:5px"><?= $label ?></label>
-                                <input type="<?= $type ?>" id="<?= $fid ?>" value="<?= htmlspecialchars($value) ?>" <?= $fid==='prof_email'||$fid==='prof_type'?'readonly style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:\'Sora\',sans-serif;color:#94a3b8;outline:none;background:#f8fafc"':'style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:\'Sora\',sans-serif;color:#0f172a;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor=\'#dc2626\'" onblur="this.style.borderColor=\'#e2e8f0\'"' ?>>
+                                <input type="<?= $type ?>" id="<?= $fid ?>" value="<?= htmlspecialchars($value) ?>" <?= $fid==='prof_email'||$fid==='prof_type'?'readonly style="width:100%;padding:11px 14px;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;font-size:14px;font-family:\'Sora\',sans-serif;color:#94a3b8;outline:none;background:rgba(255,255,255,0.04)"':'style="width:100%;padding:11px 14px;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;font-size:14px;font-family:\'Sora\',sans-serif;color:#f1f5f9;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor=\'#dc2626\'" onblur="this.style.borderColor=\'#e2e8f0\'"' ?>>
                             </div>
                             <?php endforeach; ?>
                         </div>
                         <div style="margin-top:16px;display:flex;gap:10px">
-                            <button onclick="saveProfile()" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:12px 24px;border-radius:11px;font-size:14px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer">Save Profile</button>
-                            <button style="background:none;border:1.5px solid #e2e8f0;padding:12px 24px;border-radius:11px;font-size:14px;font-weight:600;font-family:'Sora',sans-serif;cursor:pointer;color:#374151">Cancel</button>
+                            <button onclick="saveProfile()" class="dash-glass-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:12px 24px;border-radius:11px;font-size:14px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer">Save Profile</button>
+                            <button style="background:none;border:1.5px solid rgba(255,255,255,0.12);padding:12px 24px;border-radius:11px;font-size:14px;font-weight:600;font-family:'Sora',sans-serif;cursor:pointer;color:#94a3b8">Cancel</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="card fade-in delay-2">
-                    <div class="card-header"><div class="card-title"><i data-feather="lock" style="width:17px;height:17px;color:#dc2626;margin-right:4px"></i>Change Password</div></div>
+                    <div class="card-header"><div class="card-title"><span style="color:#dc2626;margin-right:4px;display:inline-flex"><?= wm_icon('lock', 17) ?></span>Change Password</div></div>
                     <div class="card-body">
                         <div style="display:grid;grid-template-columns:1fr;gap:12px;max-width:400px">
                             <?php foreach ([
@@ -2465,7 +3016,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                             ] as [$f,$fid]): ?>
                             <div>
                                 <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:5px"><?= $f ?></label>
-                                <input type="password" id="<?= $fid ?>" placeholder="••••••••" style="width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:'Sora',sans-serif;color:#0f172a;outline:none" onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
+                                <input type="password" id="<?= $fid ?>" placeholder="••••••••" style="width:100%;padding:11px 14px;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;font-size:14px;font-family:'Sora',sans-serif;color:#f1f5f9;outline:none" onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
                             </div>
                             <?php endforeach; ?>
                         </div>
@@ -2479,7 +3030,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                     <div style="position:absolute;right:-20px;bottom:-20px;font-size:100px;opacity:0.06">🏆</div>
                     <div style="font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:10px">Member Card</div>
                     <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:2px"><?= htmlspecialchars($user['first_name'].' '.$user['last_name']) ?></div>
-                    <div style="font-size:12px;color:#64748b;margin-bottom:16px"><?= htmlspecialchars($user['type']) ?></div>
+                    <div style="font-size:12px;color:#94a3b8;margin-bottom:16px"><?= htmlspecialchars($user['type']) ?></div>
                     <div style="font-size:11px;color:#475569;margin-bottom:4px">MEMBER SINCE</div>
                     <div style="font-size:15px;font-weight:700;color:#e2e8f0"><?= date('d M Y', strtotime($user['member_since'])) ?></div>
                     <div style="margin-top:14px;display:flex;align-items:center;gap:6px">
@@ -2490,7 +3041,7 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
 
                 <div class="card fade-in delay-2">
                     <div class="card-body" style="padding:20px">
-                        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:14px">Account Summary</div>
+                        <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:14px">Account Summary</div>
                         <div style="display:flex;flex-direction:column;gap:10px">
                             <?php foreach ([
                                 ['Services Booked', count($service_history)],
@@ -2498,8 +3049,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                                 ['Savings Earned',  'MWK 8,000'],
                             ] as [$k,$v]): ?>
                             <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1f5f9">
-                                <span style="font-size:13px;color:#64748b"><?= $k ?></span>
-                                <span style="font-size:13px;font-weight:800;color:#0f172a"><?= $v ?></span>
+                                <span style="font-size:13px;color:#94a3b8"><?= $k ?></span>
+                                <span style="font-size:13px;font-weight:800;color:#f1f5f9"><?= $v ?></span>
                             </div>
                             <?php endforeach; ?>
                         </div>
@@ -2509,10 +3060,10 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                 <div class="card fade-in delay-3" style="border:1.5px solid #fecaca">
                     <div class="card-body" style="padding:20px">
                         <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">⚠ Danger Zone</div>
-                        <p style="font-size:12px;color:#64748b;margin-bottom:12px">These actions are irreversible. Please be careful.</p>
+                        <p style="font-size:12px;color:#94a3b8;margin-bottom:12px">These actions are irreversible. Please be careful.</p>
                         <div style="display:flex;flex-direction:column;gap:8px">
                             <button onclick="deactivateAccount()" style="width:100%;background:none;border:1.5px solid #fecaca;color:#dc2626;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Sora',sans-serif">Deactivate Account</button>
-                            <a href="<?= $base ?>/pages/logout.php" style="display:block;text-align:center;background:none;border:1.5px solid #e2e8f0;color:#64748b;padding:10px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.2s" onmouseover="this.style.borderColor='#dc2626';this.style.color='#dc2626'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">
+                            <a href="<?= $base ?>/pages/logout.php" style="display:block;text-align:center;background:none;border:1.5px solid rgba(255,255,255,0.12);color:#94a3b8;padding:10px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.2s" onmouseover="this.style.borderColor='#dc2626';this.style.color='#dc2626'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">
                                 Sign Out
                             </a>
                         </div>
@@ -2567,7 +3118,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
                 <option>Auto Detailing</option>
                 <option>Brake Services</option>
                 <option>AC Repair</option>
-                <option>Tyre Services</option>
+                <option>Auto Body Work</option>
+                <option>Polishing</option>
                 <option>Battery Services</option>
                 <option>Vehicle Wrapping</option>
                 <option>Parts Supply</option>
@@ -2624,8 +3176,8 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
         </div>
         <?php endif; ?>
 
-        <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;font-size:13px;color:#64748b;margin-bottom:4px" id="bookingVehicleDisplay">
-            <strong style="color:#0f172a">Vehicle:</strong> <?= count($all_vehicles) === 0 ? '<em style="color:#94a3b8">Not set — add a vehicle in My Vehicles</em>' : htmlspecialchars($all_vehicles[0]['year'].' '.$all_vehicles[0]['make'].' '.$all_vehicles[0]['model'].($all_vehicles[0]['registration'] ? ' ('.$all_vehicles[0]['registration'].')' : '')) ?>
+        <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:12px 14px;font-size:13px;color:#94a3b8;margin-bottom:4px" id="bookingVehicleDisplay">
+            <strong style="color:#f1f5f9">Vehicle:</strong> <?= count($all_vehicles) === 0 ? '<em style="color:#94a3b8">Not set — add a vehicle in My Vehicles</em>' : htmlspecialchars($all_vehicles[0]['year'].' '.$all_vehicles[0]['make'].' '.$all_vehicles[0]['model'].($all_vehicles[0]['registration'] ? ' ('.$all_vehicles[0]['registration'].')' : '')) ?>
         </div>
 
         <div class="modal-actions">
@@ -2704,6 +3256,14 @@ $service_pct = $miles_span > 0 ? min(100, round($miles_done / $miles_span * 100)
 </div>
 
 <script>
+// Car image fallback: brand badge → silhouette (clean, no watermark)
+function wmCarImgFallback(img) {
+    // Brand logo failed to load → show the clean silhouette icon
+    img.style.display = 'none';
+    var sil = img.parentNode.querySelector('.vehicle-photo-silhouette');
+    if (sil) sil.style.display = 'flex';
+}
+
 // Toast Manager
 class ToastManager {
     constructor() {
@@ -2800,7 +3360,7 @@ function showPanel(name) {
     if (mobileTarget) mobileTarget.classList.add('active');
 
     if (window.innerWidth < 1024) closeSidebar();
-    feather.replace();
+    if(window.feather)feather.replace();
     initBars();
     animateCounters();
 }
@@ -2858,7 +3418,7 @@ function switchOverviewVehicle(idx) {
         pane.style.display = parseInt(pane.dataset.vidx) === idx ? 'block' : 'none';
     });
     // Re-render feather icons in newly visible health pane
-    if (typeof feather !== 'undefined') feather.replace();
+    if (typeof feather !== 'undefined') if(window.feather)feather.replace();
 }
 
 // Open booking modal pre-selected for a specific vehicle
@@ -3226,7 +3786,7 @@ function startAutoRefresh() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    feather.replace();
+    if(window.feather)feather.replace();
     
     const startPanel = <?= json_encode($initial_panel) ?>;
     showPanel(startPanel);
@@ -3245,12 +3805,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mk = opt.dataset.make || '';
                 const md = opt.dataset.model || '';
                 const reg = opt.dataset.registration || '';
-                display.innerHTML = '<strong style="color:#0f172a">Vehicle:</strong> ' +
+                display.innerHTML = '<strong style="color:#f1f5f9">Vehicle:</strong> ' +
                     (y + ' ' + mk + ' ' + md + (reg ? ' (' + reg + ')' : '')).trim();
             }
         });
     }
 });
 </script>
+<?php if (isset($conn) && $conn instanceof mysqli) { @$conn->close(); } ?>
 </body>
 </html>

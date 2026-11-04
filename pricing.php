@@ -6,6 +6,7 @@ $is_logged_in = isset($_SESSION['user_id']);
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php include __DIR__ . '/includes/analytics.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Service Pricing — Wiyule Motors</title>
@@ -148,21 +149,22 @@ $is_logged_in = isset($_SESSION['user_id']);
             </div>
         </div>
 
-        <!-- Tyres & Wheels -->
+        <!-- Auto Body Work & Polishing -->
         <div class="bg-white rounded-3xl shadow-lg p-8 mb-8">
             <div class="flex items-center gap-3 mb-6 service-category pb-4">
                 <div style="width:44px;height:44px;background:#fef2f2;border-radius:12px;display:flex;align-items:center;justify-content:center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                 </div>
-                <h2 class="text-2xl font-bold text-gray-900">Tyres & Wheels</h2>
+                <h2 class="text-2xl font-bold text-gray-900">Auto Body Work & Polishing</h2>
             </div>
             <div class="space-y-2">
                 <?php foreach ([
-                    ['Tyre Rotation', '4 wheels', 'MWK 8,000 – 15,000'],
-                    ['Wheel Balancing', 'Per wheel', 'MWK 5,000 – 10,000'],
-                    ['Wheel Alignment', 'Computer alignment', 'MWK 25,000 – 50,000'],
-                    ['Puncture Repair', 'Single tyre', 'MWK 3,000 – 8,000'],
-                    ['New Tyre Fitting', 'Per tyre (price varies by size)', 'MWK 80,000 – 350,000'],
+                    ['Minor Dent Removal', 'Per panel', 'MWK 25,000 – 60,000'],
+                    ['Panel Beating & Repair', 'Per panel, varies by damage', 'MWK 50,000 – 200,000'],
+                    ['Spray Painting', 'Per panel', 'MWK 40,000 – 120,000'],
+                    ['Full Body Respray', 'Complete vehicle', 'MWK 400,000 – 1,200,000'],
+                    ['Machine Polishing', 'Full vehicle, paint correction', 'MWK 30,000 – 80,000'],
+                    ['Scratch & Swirl Removal', 'Per affected area', 'MWK 15,000 – 50,000'],
                 ] as $row): ?>
                 <div class="price-row flex items-center justify-between py-3 px-4 rounded-xl transition">
                     <div class="flex-1">

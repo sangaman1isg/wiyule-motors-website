@@ -1,0 +1,18 @@
+RewriteEngine On
+
+# ── Redirect non-www → www (your SSL certificate covers the www version) ──
+# This sends everyone to https://www.wiyulemotors.co.mw which is secure.
+RewriteCond %{HTTP_HOST} !^www\. [NC]
+RewriteRule ^(.*)$ https://www.%{HTTP_HOST}/$1 [L,R=301]
+
+# ── Force HTTPS for the www version too (covers proxy setups) ──
+RewriteCond %{HTTPS} off [OR]
+RewriteCond %{HTTP:X-Forwarded-Proto} =http
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# ── Tell browsers to always use HTTPS (prevents the insecure flash) ──
+<IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>
+
+ErrorDocument 404 /404.php
