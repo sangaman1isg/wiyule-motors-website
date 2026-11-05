@@ -396,6 +396,12 @@ if ($vm) {
         .filter-btn:hover { border-color:var(--red); color:var(--red); }
         .filter-btn.active { background:var(--red); color:#fff; border-color:var(--red); }
 
+        /* Recent-bookings quick filter chips */
+        .rb-filter { display:flex; gap:5px; flex-wrap:wrap; }
+        .rb-chip { padding:5px 11px; border-radius:99px; font-size:12px; font-weight:600; font-family:'Sora',sans-serif; cursor:pointer; border:1px solid #e2e8f0; background:#fff; color:#64748b; transition:all 0.12s; }
+        .rb-chip:hover { border-color:#cbd5e1; color:#0f172a; }
+        .rb-chip.active { background:#0f172a; color:#fff; border-color:#0f172a; }
+
         /* Source pills — smaller/lighter, secondary filter row */
         .source-pill {
             padding:4px 10px; border-radius:999px;
@@ -528,18 +534,19 @@ if ($vm) {
                 box-shadow:0 1px 3px rgba(15,23,42,0.05);
             }
             .cards-mobile tbody tr:hover td { background:transparent; }
+            /* Label on top, value below — handles multi-line cells (name/phone/email,
+               vehicle make+model/year) without them flowing sideways and overlapping. */
             .cards-mobile td {
-                display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
-                padding:9px 0; border:none; border-bottom:1px solid #f4f6f9; text-align:right; min-width:0;
+                display:block; padding:8px 0; border:none; border-bottom:1px solid #f4f6f9;
+                text-align:left; min-width:0; overflow-wrap:anywhere;
             }
             .cards-mobile td:last-child { border-bottom:none; }
             .cards-mobile td::before {
-                content:attr(data-label); flex-shrink:0; text-align:left;
+                content:attr(data-label); display:block; margin-bottom:3px;
                 font-size:10.5px; font-weight:700; letter-spacing:0.04em;
                 text-transform:uppercase; color:#94a3b8;
             }
-            .cards-mobile td > * { min-width:0; }
-            .cards-mobile td[data-label="Service"] { text-align:right; }
+            .cards-mobile td[data-label=""]::before { display:none; }
             /* Actions row: full-width buttons */
             .cards-mobile td.cell-actions { padding-top:12px; border-bottom:none; }
             .cards-mobile td.cell-actions::before { display:none; }
@@ -690,6 +697,57 @@ if ($vm) {
                     <div style="font-size:32px;font-weight:800;color:#2563eb"><?= $stats['customers'] ?></div>
                     <div style="font-size:12px;color:#94a3b8;margin-top:4px">Registered users</div>
                 </div>
+            </div>
+
+            <!-- ═══ RECENT BOOKINGS (with quick filter) ═══ -->
+            <div class="table-card" style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:24px">
+                <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <div style="font-size:15px;font-weight:700;color:#0f172a">Recent Bookings</div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        <div class="rb-filter">
+                            <button class="rb-chip active" onclick="filterRecent('all',this)">All</button>
+                            <button class="rb-chip" onclick="filterRecent('pending',this)">Pending</button>
+                            <button class="rb-chip" onclick="filterRecent('confirmed',this)">Confirmed</button>
+                            <button class="rb-chip" onclick="filterRecent('completed',this)">Completed</button>
+                        </div>
+                        <a onclick="showTab('bookings')" style="font-size:13px;font-weight:600;color:var(--red);cursor:pointer;white-space:nowrap">View all →</a>
+                    </div>
+                </div>
+                <div style="overflow-x:auto" class="table-scroll">
+                    <table class="data-table cards-mobile">
+                        <thead><tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="recentBody">
+                            <?php foreach(array_slice($bookings, 0, 10) as $b): ?>
+                            <tr data-status="<?= $b['status'] ?>">
+                                <td data-label="Customer">
+                                    <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['full_name']) ?></div>
+                                    <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['phone']) ?></div>
+                                    <?php if($b['email']): ?><div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['email']) ?></div><?php endif; ?>
+                                </td>
+                                <td data-label="Service"><?= htmlspecialchars($b['services']) ?></td>
+                                <td data-label="Date" style="white-space:nowrap"><?= date('d M Y', strtotime($b['booking_date'])) ?><br><span style="font-size:12px;color:#94a3b8"><?= $b['booking_time'] ?></span></td>
+                                <td data-label="Status"><span class="status-pill status-<?= $b['status'] ?>"><?= ucfirst($b['status']) ?></span></td>
+                                <td data-label="" class="cell-actions">
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                        <button class="action-btn" onclick="viewBooking(<?= $b['id'] ?>)">View</button>
+                                        <?php if($b['status']==='pending'): ?>
+                                            <button class="action-btn confirm" onclick="updateStatus(<?= $b['id'] ?>,'confirmed')">Confirm</button>
+                                        <?php elseif($b['status']==='confirmed'): ?>
+                                            <button class="action-btn complete" onclick="updateStatus(<?= $b['id'] ?>,'completed')">Complete</button>
+                                        <?php elseif($b['status']==='completed'): ?>
+                                            <a class="action-btn invoice-btn" href="<?= $base ?>/admin/invoices/edit.php?booking_id=<?= $b['id'] ?>" title="Create invoice">🧾 Invoice</a>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php if(empty($bookings)): ?>
+                            <tr><td colspan="5" style="text-align:center;padding:40px;color:#94a3b8">No bookings yet</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="recentEmpty" style="display:none;text-align:center;padding:30px;color:#94a3b8;font-size:13px">No bookings with this status.</div>
             </div>
 
             <!-- ═══ BOOKING SOURCES — current month ═══ -->
@@ -947,25 +1005,40 @@ if ($vm) {
                     <?php if ($cust_search!==''): ?><a href="<?= $base ?>/admin/?tab=customers" class="action-btn" style="padding:10px 14px;text-decoration:none">Clear</a><?php endif; ?>
                 </form>
             </div>
-            <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden">
+            <div class="table-card" style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden">
                 <div style="overflow-x:auto" class="table-scroll">
                     <table class="data-table cards-mobile">
                         <thead>
-                            <tr><th>Name</th><th>Email</th><th>Phone</th><th>Bookings</th><th>Last Booking</th><th>Joined</th></tr>
+                            <tr><th>Name</th><th>Email</th><th>Phone</th><th>Bookings</th><th>Last Booking</th><th>Joined</th><th style="text-align:right">Actions</th></tr>
                         </thead>
                         <tbody>
-                            <?php foreach($customers as $c): ?>
+                            <?php foreach($customers as $c):
+                                $cphone = preg_replace('/\D/', '', $c['phone'] ?? '');
+                                if ($cphone !== '' && substr($cphone,0,3) !== '265') $cphone = '265' . ltrim($cphone, '0');
+                                $verified = !empty($c['email_verified']);
+                                $cname_js = htmlspecialchars(addslashes($c['full_name']), ENT_QUOTES);
+                            ?>
                             <tr onclick="viewCustomer(<?= (int)$c['id'] ?>)" style="cursor:pointer">
-                                <td data-label="Name" style="font-weight:600;color:#0f172a"><?= htmlspecialchars($c['full_name']) ?></td>
+                                <td data-label="Name" style="font-weight:600;color:#0f172a">
+                                    <?= htmlspecialchars($c['full_name']) ?>
+                                    <?php if($verified): ?><span title="Email verified" style="color:#16a34a">✓</span><?php else: ?><span title="Email not verified" style="color:#f59e0b;font-size:11px">●</span><?php endif; ?>
+                                </td>
                                 <td data-label="Email" style="color:#64748b"><?= htmlspecialchars($c['email']) ?></td>
                                 <td data-label="Phone" style="color:#64748b"><?= htmlspecialchars($c['phone'] ?: '—') ?></td>
                                 <td data-label="Bookings"><span style="background:#f1f5f9;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700"><?= $c['booking_count'] ?></span></td>
                                 <td data-label="Last booking" style="color:#64748b;font-size:12px"><?= $c['last_booking'] ? date('d M Y', strtotime($c['last_booking'])) : '—' ?></td>
                                 <td data-label="Joined" style="color:#94a3b8;font-size:12px"><?= date('d M Y', strtotime($c['created_at'])) ?></td>
+                                <td data-label="" class="cell-actions" onclick="event.stopPropagation()">
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+                                        <button class="action-btn" onclick="viewCustomer(<?= (int)$c['id'] ?>)">View</button>
+                                        <?php if($cphone !== ''): ?><a class="action-btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/<?= $cphone ?>">WhatsApp</a><?php endif; ?>
+                                        <button class="action-btn cancel" onclick="deleteCustomer(<?= (int)$c['id'] ?>, '<?= $cname_js ?>')">Delete</button>
+                                    </div>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                             <?php if(empty($customers)): ?>
-                            <tr><td colspan="6" style="text-align:center;padding:48px;color:#94a3b8">No customers yet</td></tr>
+                            <tr><td colspan="7" style="text-align:center;padding:48px;color:#94a3b8">No customers yet</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -1126,6 +1199,31 @@ function viewCustomer(id) {
 }
 function closeCustomer() {
     document.getElementById('customerModal').classList.remove('open');
+}
+
+async function deleteCustomer(id, name) {
+    if (!confirm('Delete customer "' + name + '"?\n\nThis permanently removes their account and saved vehicles. Their past bookings are kept (just unlinked). This cannot be undone.')) return;
+    const fd = new FormData(); fd.append('id', id);
+    try {
+        const r = await fetch(<?= json_encode($base . '/admin/api/delete-customer.php') ?>, { method:'POST', body:fd, credentials:'same-origin' });
+        const j = await r.json();
+        showToast(j.message || (j.success ? 'Deleted' : 'Failed'), j.success ? 'success' : 'error');
+        if (j.success) setTimeout(() => location.reload(), 700);
+    } catch (e) { showToast('Network error — try again', 'error'); }
+}
+
+function filterRecent(status, btn) {
+    document.querySelectorAll('.rb-filter .rb-chip').forEach(function(c){ c.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    var shown = 0;
+    document.querySelectorAll('#recentBody tr').forEach(function(tr){
+        var s = tr.getAttribute('data-status');
+        if (!s) return; // skip the "no bookings" placeholder row
+        if (status === 'all' || s === status) { tr.style.display = ''; shown++; }
+        else tr.style.display = 'none';
+    });
+    var empty = document.getElementById('recentEmpty');
+    if (empty) empty.style.display = (shown === 0) ? 'block' : 'none';
 }
 
 function showTab(name) {

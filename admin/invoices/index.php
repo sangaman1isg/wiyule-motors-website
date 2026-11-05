@@ -257,8 +257,10 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
                     <td class="num" data-label="Invoice #"><?= htmlspecialchars($inv['invoice_number']) ?></td>
                     <td data-label="Type"><span class="pill" style="background:<?= $tcol ?>"><?= $tlabel ?></span></td>
                     <td data-label="Customer">
-                        <div style="font-weight:600"><?= htmlspecialchars($inv['customer_name']) ?></div>
-                        <div style="font-size:11px;color:#94a3b8"><?= htmlspecialchars($inv['customer_phone']) ?></div>
+                        <div style="min-width:0">
+                            <div style="font-weight:600"><?= htmlspecialchars($inv['customer_name']) ?></div>
+                            <div style="font-size:11px;color:#94a3b8"><?= htmlspecialchars($inv['customer_phone']) ?></div>
+                        </div>
                     </td>
                     <td data-label="Date" style="color:#64748b"><?= date('d M Y', strtotime($inv['issued_at'])) ?></td>
                     <td class="amount" data-label="Total"><?= wm_invoice_format_mwk($inv['total']) ?></td>
