@@ -152,65 +152,61 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
     /* ─── HEADER LETTERHEAD ──────────────────────────────── */
     .letterhead {
         display:grid;
-        /* Logo | Dealers (widest fixed) | Address | Phones | Truck */
-        grid-template-columns:60px 195px 160px 1fr 64px;
-        gap:14px;
-        align-items:start;
-        padding-bottom:10px;
-        border-bottom:2.5px solid #dc2626;
-        margin-bottom:18px;
+        /* Logo (bigger) | Dealers | Address | Phones  (QR moved to footer) */
+        grid-template-columns:104px minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);
+        gap:18px;
+        align-items:center;
+        padding-bottom:14px;
+        border-bottom:3px solid #dc2626;
+        margin-bottom:20px;
     }
+    .paper.is-quote .letterhead { border-bottom-color:#2563eb; }
     @media (max-width: 680px) {
-        .letterhead { grid-template-columns:auto 1fr; gap:10px; }
-        .letterhead .lh-truck { display:none; }
+        /* Stack cleanly on small screens so nothing overflows or overlaps */
+        .letterhead { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
     }
-    .lh-logo { display:flex; align-items:flex-start; }
-    .lh-logo img { width:58px; height:auto; object-fit:contain; }
+    .lh-logo { display:flex; align-items:center; }
+    .lh-logo img { width:100px; height:auto; object-fit:contain; }
     .lh-deal {
         font-size:9.5px; line-height:1.55;
-        color:#334155;
-        min-width:0;          /* allow shrinking, prevent grid overflow */
-        overflow:hidden;       /* belt-and-braces against any stray width */
+        color:#334155; min-width:0; overflow:hidden;
     }
-    .lh-deal-title {
-        font-weight:700; color:#0f172a;
-        margin-bottom:4px;
-        font-size:10px;
-        letter-spacing:0.01em;
-    }
-    .lh-deal .services {
-        /* Services are stacked via <br>. Let normal text-wrap handle any safety fallback. */
-        white-space:normal;
-    }
-    .lh-block {
-        font-size:9.5px; line-height:1.55;
-        color:#334155;
-        min-width:0;
-        white-space:nowrap;   /* "Jackson Road" / "P.O. Box 31727" stay whole */
-    }
+    .lh-deal-title { font-weight:700; color:#0f172a; margin-bottom:4px; font-size:10px; letter-spacing:0.01em; }
+    .lh-deal .services { white-space:normal; }
+    .lh-block { font-size:9.5px; line-height:1.6; color:#334155; min-width:0; white-space:nowrap; }
     .lh-block strong { color:#0f172a; }
-    .lh-truck {
-        display:flex; flex-direction:column;
-        justify-content:flex-start; align-items:center;
-        gap:2px;
-    }
-    .lh-qr {
-        width:62px; height:62px;
-        display:block;
-        object-fit:contain;
-    }
-    .lh-qr-caption {
-        font-size:7.5px; font-weight:700;
-        color:#64748b;
-        text-transform:uppercase;
-        letter-spacing:0.05em;
-        text-align:center;
-        line-height:1;
-    }
     @media (max-width: 680px) {
-        .lh-deal, .lh-block { font-size:9px; white-space:normal; }
-        .lh-logo img { width:54px; }
+        .lh-deal, .lh-block { font-size:11px; }
+        /* flex-column letterhead is full-width here, so let contact lines wrap if ever needed */
+        .lh-block { white-space:normal; }
+        .lh-logo img { width:84px; }
     }
+
+    /* ─── DOCUMENT FOOTER: QR (bottom-left, larger) + thank-you ─── */
+    .doc-footer {
+        display:flex; align-items:flex-end; justify-content:space-between;
+        gap:24px; margin-top:28px; padding-top:18px; border-top:2px solid #e2e8f0;
+    }
+    .doc-footer-qr { display:flex; align-items:center; gap:14px; }
+    .doc-footer-qr img { width:108px; height:108px; object-fit:contain; display:block; border:1px solid #eef2f7; border-radius:8px; padding:4px; }
+    .doc-footer-qr .cap { font-size:11.5px; font-weight:700; color:#334155; max-width:130px; line-height:1.45; }
+    .doc-footer-qr .cap span { color:#dc2626; }
+    .doc-footer-thanks { text-align:right; font-size:12px; color:#64748b; line-height:1.5; }
+    .doc-footer-thanks .big { font-size:15px; font-weight:800; color:#0f172a; margin-bottom:3px; }
+    @media (max-width: 560px) {
+        .doc-footer { flex-direction:column; align-items:center; text-align:center; gap:18px; }
+        .doc-footer-thanks { text-align:center; }
+    }
+
+    /* ─── Status stamp (creative, subtle) ─── */
+    .stamp {
+        position:absolute; top:150px; right:46px; z-index:3; pointer-events:none;
+        font-size:44px; font-weight:900; letter-spacing:3px; text-transform:uppercase;
+        padding:6px 22px; border-radius:12px; transform:rotate(-14deg);
+    }
+    .stamp.paid { color:rgba(22,163,74,0.20); border:5px solid rgba(22,163,74,0.20); }
+    .stamp.void { color:rgba(100,116,139,0.22); border:5px solid rgba(100,116,139,0.22); }
+    @media (max-width: 560px) { .stamp { font-size:30px; top:120px; right:20px; } }
 
     /* ─── BIG TITLE ── */
     .doc-title-main {
@@ -496,9 +492,10 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         }
         .lh-deal, .lh-block { font-size:8.5px; line-height:1.4; }
         .lh-deal-title { font-size:9px; margin-bottom:3px; }
-        .lh-logo img { width:50px; }
-        .lh-qr { width:55px; height:55px; }
-        .lh-qr-caption { font-size:6.5px; }
+        .lh-logo img { width:88px; }
+        .doc-footer { margin-top:18px; padding-top:12px; }
+        .doc-footer-qr img { width:92px; height:92px; }
+        .stamp { position:absolute; }
 
         /* Title — significantly smaller */
         .doc-title-main {
@@ -585,9 +582,13 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
 </div>
 
 <!-- Paper -->
-<div class="paper">
+<div class="paper <?= $is_quote ? 'is-quote' : 'is-invoice' ?>">
 
-    <?php /* watermark removed for cleaner print output */ ?>
+    <?php if (!$is_quote && $invoice['payment_status'] === 'paid'): ?>
+        <div class="stamp paid">Paid</div>
+    <?php elseif ($invoice['payment_status'] === 'void'): ?>
+        <div class="stamp void">Void</div>
+    <?php endif; ?>
 
     <div class="paper-inner">
 
@@ -616,15 +617,8 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
             <div class="lh-block">
                 +265 996 834 038<br>
                 +265 993 575 111<br>
-                <span style="color:#dc2626;font-weight:600">info@wiyulemotors.co.mw</span><br>
+                <span style="color:#dc2626;font-weight:600">wiyulemotors@gmail.com</span><br>
                 <span style="color:#dc2626;font-weight:600">wiyulemotors.co.mw</span>
-            </div>
-            <div class="lh-truck">
-                <!-- QR code linking to wiyulemotors.co.mw — scan to visit website -->
-                <img src="<?= $base ?>/assets/images/wiyule_qr.png"
-                     alt="Scan to visit wiyulemotors.co.mw"
-                     class="lh-qr">
-                <div class="lh-qr-caption">Scan to visit</div>
             </div>
         </div>
 
@@ -848,6 +842,19 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
                     <li>A storage fee of <strong>MWK 15,000 per day</strong> applies after the 7-day free storage period.</li>
                 </ul>
             <?php endif; ?>
+        </div>
+
+        <!-- ─── FOOTER: QR (bottom-left, larger) + thank-you ─── -->
+        <div class="doc-footer">
+            <div class="doc-footer-qr">
+                <img src="<?= $base ?>/assets/images/wiyule_qr.png" alt="Scan to visit wiyulemotors.co.mw">
+                <div class="cap">Scan to visit <span>wiyulemotors.co.mw</span> &amp; book online</div>
+            </div>
+            <div class="doc-footer-thanks">
+                <div class="big"><?= $is_quote ? 'We look forward to serving you.' : 'Thank you for your business!' ?></div>
+                Wiyule &amp; F A Motors · Blantyre, Malawi<br>
+                +265 993 575 111 · wiyulemotors@gmail.com
+            </div>
         </div>
 
     </div>

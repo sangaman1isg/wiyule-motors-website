@@ -164,7 +164,7 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
             </div>
             <h3>Email</h3>
             <p class="detail">For quotes, parts enquiries,<br>or formal bookings.</p>
-            <a href="mailto:info@wiyulemotors.co.mw" class="action gray">Send email</a>
+            <a href="mailto:wiyulemotors@gmail.com" class="action gray">Send email</a>
         </div>
 
     </div>

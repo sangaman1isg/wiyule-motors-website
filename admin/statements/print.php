@@ -549,7 +549,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         <div class="lh-block">
             +265 996 834 038<br>
             +265 993 575 111<br>
-            <strong style="color:#dc2626">info@wiyulemotors.co.mw</strong><br>
+            <strong style="color:#dc2626">wiyulemotors@gmail.com</strong><br>
             <strong style="color:#dc2626">wiyulemotors.co.mw</strong>
         </div>
         <div class="lh-truck">
@@ -707,7 +707,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         <strong>Kindly settle the outstanding balance of <?= $fmt($totals['outstanding']) ?> at your earliest convenience.</strong>
         Our standard payment terms are 21 days from the date of invoice; a 5% late fee may apply to amounts unpaid beyond this period.
         Please use the invoice numbers above as your payment reference. We are happy to discuss any queries you may have on
-        +265 993 575 111 or info@wiyulemotors.co.mw.
+        +265 993 575 111 or wiyulemotors@gmail.com.
     </div>
     <?php else: ?>
     <div class="chaser-block" style="background:#dcfce7;border-left-color:#16a34a;color:#166534">
