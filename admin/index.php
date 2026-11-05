@@ -177,6 +177,11 @@ if ($search) {
     $params = array_merge($params, [$like, $like, $like, $like, $like]);
     $types .= 'sssss';
 }
+// Date-range filter (booking_date)
+$date_from = trim($_GET['from'] ?? '');
+$date_to   = trim($_GET['to']   ?? '');
+if ($date_from !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from)) { $conditions[] = "booking_date >= ?"; $params[] = $date_from; $types .= 's'; }
+if ($date_to   !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to))   { $conditions[] = "booking_date <= ?"; $params[] = $date_to;   $types .= 's'; }
 if ($conditions) $sql .= " WHERE " . implode(' AND ', $conditions);
 $sql .= " ORDER BY created_at DESC";
 
@@ -921,20 +926,26 @@ if ($vm) {
                     <h1 style="font-size:22px;font-weight:800;color:#0f172a">All Bookings</h1>
                     <p style="font-size:13px;color:#64748b;margin-top:4px"><?= count($bookings) ?> booking<?= count($bookings)!==1?'s':'' ?> found</p>
                 </div>
-                <form method="GET" style="display:flex;gap:8px;align-items:center">
+                <form method="GET" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                     <input type="hidden" name="tab" value="bookings">
+                    <input type="hidden" name="status" value="<?= htmlspecialchars($filter) ?>">
+                    <input type="hidden" name="source" value="<?= htmlspecialchars($source_filter) ?>">
                     <div class="search-box">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search name, phone, service...">
                     </div>
-                    <button type="submit" class="action-btn" style="padding:10px 16px">Search</button>
+                    <input type="date" name="from" value="<?= htmlspecialchars($date_from) ?>" title="From date" style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#334155">
+                    <input type="date" name="to" value="<?= htmlspecialchars($date_to) ?>" title="To date" style="padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#334155">
+                    <button type="submit" class="action-btn" style="padding:10px 16px">Apply</button>
+                    <?php if($search!==''||$date_from!==''||$date_to!==''): ?><a href="?tab=bookings&status=<?= urlencode($filter) ?>&source=<?= urlencode($source_filter) ?>" class="action-btn" style="padding:10px 14px;text-decoration:none">Clear</a><?php endif; ?>
+                    <a href="<?= $base ?>/admin/api/export.php?type=bookings&status=<?= urlencode($filter) ?>&source=<?= urlencode($source_filter) ?>&search=<?= urlencode($search) ?>&from=<?= urlencode($date_from) ?>&to=<?= urlencode($date_to) ?>" class="action-btn" style="padding:10px 14px;text-decoration:none" title="Export these bookings to CSV">⬇ CSV</a>
                 </form>
             </div>
 
             <!-- Filters: status pills (preserves source filter) -->
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
                 <?php foreach(['all'=>'All ('.($stats['total']-$stats['cancelled']).')','pending'=>'Pending ('.$stats['pending'].')','confirmed'=>'Confirmed ('.$stats['confirmed'].')','completed'=>'Completed ('.$stats['completed'].')','cancelled'=>'Cancelled ('.$stats['cancelled'].')'] as $key=>$label): ?>
-                <a href="?tab=bookings&status=<?= $key ?>&source=<?= urlencode($source_filter) ?>&search=<?= urlencode($search) ?>" class="filter-btn <?= $filter===$key?'active':'' ?>"><?= $label ?></a>
+                <a href="?tab=bookings&status=<?= $key ?>&source=<?= urlencode($source_filter) ?>&search=<?= urlencode($search) ?>&from=<?= urlencode($date_from) ?>&to=<?= urlencode($date_to) ?>" class="filter-btn <?= $filter===$key?'active':'' ?>"><?= $label ?></a>
                 <?php endforeach; ?>
             </div>
 
@@ -948,12 +959,12 @@ if ($vm) {
             ?>
             <div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;align-items:center;font-size:12px;color:#94a3b8">
                 <span style="font-weight:600;margin-right:2px">Source:</span>
-                <a href="?tab=bookings&status=<?= urlencode($filter) ?>&source=all&search=<?= urlencode($search) ?>"
+                <a href="?tab=bookings&status=<?= urlencode($filter) ?>&source=all&search=<?= urlencode($search) ?>&from=<?= urlencode($date_from) ?>&to=<?= urlencode($date_to) ?>"
                    class="source-pill <?= $source_filter==='all'?'active':'' ?>">All</a>
                 <?php foreach ($sources_with_data as $src_key => $src_count):
                     $label = ($src_key === 'unknown') ? 'Not asked' : $src_key;
                 ?>
-                <a href="?tab=bookings&status=<?= urlencode($filter) ?>&source=<?= urlencode($src_key) ?>&search=<?= urlencode($search) ?>"
+                <a href="?tab=bookings&status=<?= urlencode($filter) ?>&source=<?= urlencode($src_key) ?>&search=<?= urlencode($search) ?>&from=<?= urlencode($date_from) ?>&to=<?= urlencode($date_to) ?>"
                    class="source-pill <?= $source_filter===$src_key?'active':'' ?>"><?= htmlspecialchars($label) ?> (<?= $src_count ?>)</a>
                 <?php endforeach; ?>
             </div>
@@ -962,9 +973,9 @@ if ($vm) {
             <!-- Table -->
             <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden" class="table-card">
                 <div style="overflow-x:auto" class="table-scroll">
-                    <table class="data-table cards-mobile">
+                    <table class="data-table cards-mobile sortable">
                         <thead>
-                            <tr><th>#</th><th>Customer</th><th>Vehicle</th><th>Service</th><th>Date & Time</th><th>Status</th><th>Actions</th></tr>
+                            <tr><th data-nosort>#</th><th>Customer</th><th>Vehicle</th><th>Service</th><th>Date &amp; Time</th><th>Status</th><th data-nosort>Actions</th></tr>
                         </thead>
                         <tbody>
                             <?php foreach($bookings as $b): ?>
@@ -1030,13 +1041,14 @@ if ($vm) {
                     </div>
                     <button type="submit" class="action-btn" style="padding:10px 16px">Search</button>
                     <?php if ($cust_search!==''): ?><a href="<?= $base ?>/admin/?tab=customers" class="action-btn" style="padding:10px 14px;text-decoration:none">Clear</a><?php endif; ?>
+                    <a href="<?= $base ?>/admin/api/export.php?type=customers&csearch=<?= urlencode($cust_search) ?>" class="action-btn" style="padding:10px 14px;text-decoration:none" title="Export customers to CSV">⬇ CSV</a>
                 </form>
             </div>
             <div class="table-card" style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden">
                 <div style="overflow-x:auto" class="table-scroll">
-                    <table class="data-table cards-mobile">
+                    <table class="data-table cards-mobile sortable">
                         <thead>
-                            <tr><th>Name</th><th>Email</th><th>Phone</th><th>Bookings</th><th>Last Booking</th><th>Joined</th><th style="text-align:right">Actions</th></tr>
+                            <tr><th>Name</th><th>Email</th><th>Phone</th><th>Bookings</th><th>Last Booking</th><th>Joined</th><th style="text-align:right" data-nosort>Actions</th></tr>
                         </thead>
                         <tbody>
                             <?php foreach($customers as $c):
@@ -1487,6 +1499,36 @@ function msgBtn(label, text, phone) {
 function closeDetail(){document.getElementById('detailModal').classList.remove('open');}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDetail()});
+
+// ── Click-to-sort tables (table.sortable) ──
+(function(){
+    document.querySelectorAll('table.sortable thead th').forEach(function(th){
+        if (th.hasAttribute('data-nosort')) return;
+        th.style.cursor = 'pointer';
+        th.title = 'Click to sort';
+        th.addEventListener('click', function(){
+            var table = th.closest('table');
+            var ths = Array.prototype.slice.call(th.parentNode.children);
+            var idx = ths.indexOf(th);
+            var tbody = table.querySelector('tbody');
+            var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr')).filter(function(r){ return r.querySelectorAll('td').length > idx; });
+            var asc = th.getAttribute('data-dir') !== 'asc';
+            ths.forEach(function(h){ h.removeAttribute('data-dir'); });
+            th.setAttribute('data-dir', asc ? 'asc' : 'desc');
+            rows.sort(function(a,b){
+                var av = (a.children[idx] ? a.children[idx].innerText : '').trim();
+                var bv = (b.children[idx] ? b.children[idx].innerText : '').trim();
+                var pureNum = function(s){ return s !== '' && s.replace(/[0-9.,\-\s]/g,'') === ''; };
+                if (pureNum(av) && pureNum(bv)) {
+                    return asc ? (parseFloat(av.replace(/[^0-9.\-]/g,''))||0) - (parseFloat(bv.replace(/[^0-9.\-]/g,''))||0)
+                               : (parseFloat(bv.replace(/[^0-9.\-]/g,''))||0) - (parseFloat(av.replace(/[^0-9.\-]/g,''))||0);
+                }
+                return asc ? av.toLowerCase().localeCompare(bv.toLowerCase()) : bv.toLowerCase().localeCompare(av.toLowerCase());
+            });
+            rows.forEach(function(r){ tbody.appendChild(r); });
+        });
+    });
+})();
 
 // ── Live dashboard heartbeat: poll for new bookings / updated counts ──
 (function(){
