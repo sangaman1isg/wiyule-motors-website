@@ -77,8 +77,9 @@ if ($is_new && !$invoice) {
     $pf_name  = trim((string)($_GET['cust_name']  ?? ''));
     $pf_phone = trim((string)($_GET['cust_phone'] ?? ''));
     $pf_email = trim((string)($_GET['cust_email'] ?? ''));
+    $pf_type  = (($_GET['type'] ?? '') === 'quotation') ? 'quotation' : 'invoice';
     $invoice = [
-        'id' => 0, 'invoice_number' => '(will be generated on save)', 'type' => 'invoice',
+        'id' => 0, 'invoice_number' => '(will be generated on save)', 'type' => $pf_type,
         'booking_id' => null, 'user_id' => null,
         'recipient_name' => '', 'claim_reference' => '', 'insurance_company_id' => null,
         'customer_name' => $pf_name, 'customer_phone' => $pf_phone, 'customer_email' => $pf_email, 'vehicle_info' => '',

@@ -55,6 +55,19 @@ $r = $conn->query("SELECT COALESCE(SUM(amount_paid), 0) c FROM invoices WHERE ty
 if ($r) $totals['paid_this_month'] = (float)$r->fetch_assoc()['c'];
 $r = $conn->query("SELECT COUNT(*) c FROM invoices WHERE type='invoice' AND archived_at IS NULL");
 if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
+$r = $conn->query("SELECT COUNT(*) c FROM invoices WHERE type='quotation' AND archived_at IS NULL");
+if ($r) $totals['quote_count'] = (int)$r->fetch_assoc()['c'];
+$r = $conn->query("SELECT COALESCE(SUM(total),0) c FROM invoices WHERE type='quotation' AND archived_at IS NULL");
+if ($r) $totals['quote_value'] = (float)$r->fetch_assoc()['c'];
+
+// Which view: invoices-only, quotations-only, or all. Drives the toggle + stat cards.
+$view = in_array($f_type, ['invoice','quotation'], true) ? $f_type : 'all';
+function wm_inv_qs($type, $status, $q, $archived) {
+    $p = ['status'=>$status, 'q'=>$q];
+    if ($type !== 'all') $p['type'] = $type;
+    if ($archived) $p['archived'] = '1';
+    return http_build_query(array_filter($p, fn($v) => $v !== '' && $v !== 'all'));
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -113,6 +126,14 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
     .act-btn.blue  { color:#2563eb; border-color:#bfdbfe; } .act-btn.blue:hover  { background:#eff6ff; }
     .act-btn.red   { color:#dc2626; border-color:#fecaca; } .act-btn.red:hover   { background:#fef2f2; }
     .toggle-link { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#64748b; text-decoration:none; padding:8px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
+    /* Invoices / Quotations segmented toggle */
+    .seg { display:inline-flex; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:12px; padding:4px; gap:4px; margin-bottom:20px; flex-wrap:wrap; }
+    .seg-btn { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:9px; font-size:13.5px; font-weight:700; color:#64748b; text-decoration:none; transition:all 0.12s; }
+    .seg-btn:hover { color:#0f172a; }
+    .seg-btn.active { background:#fff; color:#0f172a; box-shadow:0 1px 3px rgba(15,23,42,0.12); }
+    .seg-btn .seg-c { font-size:11px; font-weight:800; background:#e2e8f0; color:#64748b; padding:1px 8px; border-radius:99px; }
+    .seg-btn.active .seg-c { background:#dc2626; color:#fff; }
+    @media(max-width:640px){ .seg { width:100%; } .seg-btn { flex:1; justify-content:center; } }
     .toggle-link:hover { color:#0f172a; background:#f8fafc; }
     .archived-row { background:#fcfcfd; }
     .archived-row .num, .archived-row td { opacity:0.72; }
@@ -174,14 +195,23 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
 
 <div class="page">
 
+    <?php
+        $head_title = $show_archived ? 'Archived'
+                    : ($view === 'invoice' ? 'Invoices' : ($view === 'quotation' ? 'Quotations' : 'Invoices &amp; Quotations'));
+        $new_is_quote = ($view === 'quotation');
+    ?>
     <div class="page-head">
         <div>
-            <h1><?= $show_archived ? 'Archived' : 'Invoices &amp; Quotations' ?></h1>
+            <h1><?= $head_title ?></h1>
             <p class="sub">
                 <?php if ($show_archived): ?>
                     Archived documents — hidden from the active list but kept on record.
+                <?php elseif ($view === 'quotation'): ?>
+                    <?= $totals['quote_count'] ?> quotation<?= $totals['quote_count']===1?'':'s' ?> on record
+                <?php elseif ($view === 'invoice'): ?>
+                    <?= $totals['total_count'] ?> invoice<?= $totals['total_count']===1?'':'s' ?> on record · VAT 17.5%
                 <?php else: ?>
-                    <?= $totals['total_count'] ?> invoices on record · VAT 17.5%
+                    <?= $totals['total_count'] ?> invoices · <?= $totals['quote_count'] ?> quotations · VAT 17.5%
                 <?php endif; ?>
             </p>
         </div>
@@ -191,36 +221,55 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
             <?php else: ?>
                 <button type="button" id="remindBtn" onclick="sendReminders()" class="toggle-link" title="Email payment reminders for overdue invoices + expiry nudges for ageing quotations">✉ Send reminders</button>
                 <a href="<?= $base ?>/admin/invoices/?archived=1" class="toggle-link">🗄 Archived</a>
-                <a href="<?= $base ?>/admin/invoices/edit.php?new=1" class="new-btn">
+                <a href="<?= $base ?>/admin/invoices/edit.php?new=1<?= $new_is_quote ? '&type=quotation' : '' ?>" class="new-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    New Invoice
+                    New <?= $new_is_quote ? 'Quotation' : 'Invoice' ?>
                 </a>
             <?php endif; ?>
         </div>
     </div>
 
+    <?php if (!$show_archived): ?>
+    <div class="seg">
+        <a href="?<?= wm_inv_qs('all', $f_status, $f_search, false) ?>" class="seg-btn <?= $view==='all'?'active':'' ?>">All <span class="seg-c"><?= $totals['total_count'] + $totals['quote_count'] ?></span></a>
+        <a href="?<?= wm_inv_qs('invoice', $f_status, $f_search, false) ?>" class="seg-btn <?= $view==='invoice'?'active':'' ?>">🧾 Invoices <span class="seg-c"><?= $totals['total_count'] ?></span></a>
+        <a href="?<?= wm_inv_qs('quotation', $f_status, $f_search, false) ?>" class="seg-btn <?= $view==='quotation'?'active':'' ?>">📄 Quotations <span class="seg-c"><?= $totals['quote_count'] ?></span></a>
+    </div>
+    <?php endif; ?>
+
     <div class="stats">
-        <div class="stat-card">
-            <div class="label">Outstanding</div>
-            <div class="value red"><?= wm_invoice_format_mwk($totals['outstanding']) ?></div>
-        </div>
-        <div class="stat-card">
-            <div class="label">Paid This Month</div>
-            <div class="value green"><?= wm_invoice_format_mwk($totals['paid_this_month']) ?></div>
-        </div>
-        <div class="stat-card">
-            <div class="label">Total Invoices</div>
-            <div class="value"><?= $totals['total_count'] ?></div>
-        </div>
+        <?php if ($view === 'quotation'): ?>
+            <div class="stat-card">
+                <div class="label">Quotations</div>
+                <div class="value"><?= $totals['quote_count'] ?></div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total Quoted Value</div>
+                <div class="value"><?= wm_invoice_format_mwk($totals['quote_value']) ?></div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Avg. per Quote</div>
+                <div class="value"><?= wm_invoice_format_mwk($totals['quote_count'] > 0 ? $totals['quote_value'] / $totals['quote_count'] : 0) ?></div>
+            </div>
+        <?php else: ?>
+            <div class="stat-card">
+                <div class="label">Outstanding</div>
+                <div class="value red"><?= wm_invoice_format_mwk($totals['outstanding']) ?></div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Paid This Month</div>
+                <div class="value green"><?= wm_invoice_format_mwk($totals['paid_this_month']) ?></div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total Invoices</div>
+                <div class="value"><?= $totals['total_count'] ?></div>
+            </div>
+        <?php endif; ?>
     </div>
 
     <form method="GET" class="filters">
+        <input type="hidden" name="type" value="<?= $view === 'all' ? '' : htmlspecialchars($view) ?>">
         <input type="text" name="q" value="<?= htmlspecialchars($f_search) ?>" placeholder="Search invoice #, customer name, phone…">
-        <select name="type">
-            <option value="all"       <?= $f_type==='all'?'selected':'' ?>>All types</option>
-            <option value="invoice"   <?= $f_type==='invoice'?'selected':'' ?>>Invoices only</option>
-            <option value="quotation" <?= $f_type==='quotation'?'selected':'' ?>>Quotations only</option>
-        </select>
         <select name="status">
             <option value="all"     <?= $f_status==='all'?'selected':'' ?>>All statuses</option>
             <option value="unpaid"  <?= $f_status==='unpaid'?'selected':'' ?>>Unpaid</option>
