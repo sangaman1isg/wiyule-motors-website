@@ -28,3 +28,6 @@ define('WM_ALLOW_SETUP_TOOLS', false);
 
 // ── Cron key for cron/run-reminders.php (scheduled reminders) ──
 define('WM_CRON_KEY', 'change-me-to-a-long-random-string');
+
+// ── Backup key for cron/db-backup.php (full DB dump; keep separate from the cron key) ──
+define('WM_BACKUP_KEY', 'change-me-to-a-long-random-string');
