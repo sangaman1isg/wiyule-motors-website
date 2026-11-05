@@ -44,7 +44,7 @@ if (($_POST['action'] ?? '') === 'add_insurance_company') {
 // ── Simple record actions (form-encoded POST with ?action=…) ──
 // archive (soft-delete), restore, convert_to_invoice, duplicate, mark_paid.
 $action = $_POST['action'] ?? '';
-if (in_array($action, ['archive', 'restore', 'convert_to_invoice', 'duplicate', 'mark_paid', 'email_invoice'], true)) {
+if (in_array($action, ['archive', 'restore', 'convert_to_invoice', 'duplicate', 'mark_paid', 'mark_unpaid', 'email_invoice'], true)) {
     $iid = (int)($_POST['id'] ?? 0);
     if ($iid <= 0) { echo json_encode(['success' => false, 'message' => 'Missing invoice id']); exit; }
     $cur = wm_invoice_fetch($conn, $iid);
@@ -81,6 +81,14 @@ if (in_array($action, ['archive', 'restore', 'convert_to_invoice', 'duplicate', 
         $s = $conn->prepare("UPDATE invoices SET payment_status='paid', amount_paid=total, payment_date=CURDATE(), payment_method=IF(payment_method='', 'cash', payment_method) WHERE id = ?");
         $s->bind_param('i', $iid); $s->execute(); $s->close();
         echo json_encode(['success' => true, 'message' => 'Marked as paid']); exit;
+    }
+
+    if ($action === 'mark_unpaid') {
+        if ($inv['payment_status'] === 'void') { echo json_encode(['success' => false, 'message' => 'Cannot change a void invoice']); exit; }
+        if ($inv['type'] !== 'invoice')         { echo json_encode(['success' => false, 'message' => 'Only invoices have a payment status']); exit; }
+        $s = $conn->prepare("UPDATE invoices SET payment_status='unpaid', amount_paid=0, payment_date=NULL, payment_method='' WHERE id = ?");
+        $s->bind_param('i', $iid); $s->execute(); $s->close();
+        echo json_encode(['success' => true, 'message' => 'Marked as unpaid']); exit;
     }
 
     if ($action === 'convert_to_invoice') {

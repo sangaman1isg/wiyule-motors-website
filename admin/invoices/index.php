@@ -125,6 +125,7 @@ function wm_inv_qs($type, $status, $q, $archived) {
     .act-btn.green { color:#16a34a; border-color:#bbf7d0; } .act-btn.green:hover { background:#f0fdf4; }
     .act-btn.blue  { color:#2563eb; border-color:#bfdbfe; } .act-btn.blue:hover  { background:#eff6ff; }
     .act-btn.red   { color:#dc2626; border-color:#fecaca; } .act-btn.red:hover   { background:#fef2f2; }
+    .act-btn.amber { color:#b45309; border-color:#fed7aa; } .act-btn.amber:hover { background:#fff7ed; }
     .toggle-link { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#64748b; text-decoration:none; padding:8px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
     /* Invoices / Quotations segmented toggle */
     .seg { display:inline-flex; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:12px; padding:4px; gap:4px; margin-bottom:20px; flex-wrap:wrap; }
@@ -322,6 +323,8 @@ function wm_inv_qs($type, $status, $q, $archived) {
                                 <button class="act-btn blue" onclick="invAction(<?= $iid ?>,'convert_to_invoice','Convert quotation <?= htmlspecialchars($inv['invoice_number']) ?> into an invoice?')">→ Invoice</button>
                             <?php elseif (in_array($inv['payment_status'], ['unpaid','partial'])): ?>
                                 <button class="act-btn green" onclick="invAction(<?= $iid ?>,'mark_paid','Mark <?= htmlspecialchars($inv['invoice_number']) ?> as fully paid?')">✓ Mark paid</button>
+                            <?php elseif ($inv['payment_status'] === 'paid'): ?>
+                                <button class="act-btn amber" onclick="invAction(<?= $iid ?>,'mark_unpaid','Mark <?= htmlspecialchars($inv['invoice_number']) ?> as unpaid?')">↩ Mark unpaid</button>
                             <?php endif; ?>
                             <button class="act-btn red" onclick="invAction(<?= $iid ?>,'archive','Archive <?= htmlspecialchars($inv['invoice_number']) ?>? It will be hidden from the active list but kept on record (recoverable).')">🗄 Archive</button>
                         <?php endif; ?>

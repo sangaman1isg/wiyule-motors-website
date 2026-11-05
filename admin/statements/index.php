@@ -275,6 +275,17 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         font-size: 10px; font-weight: 700;
         letter-spacing: 0.04em;
     }
+    .pay-action { margin-top: 7px; }
+    .pay-btn {
+        font-family: 'Sora', sans-serif; font-size: 11.5px; font-weight: 600;
+        padding: 5px 11px; border-radius: 7px; border: 1.5px solid transparent;
+        cursor: pointer; white-space: nowrap;
+    }
+    .pay-btn.to-paid { background: #16a34a; color: #fff; }
+    .pay-btn.to-paid:hover { background: #15803d; }
+    .pay-btn.to-unpaid { background: #fff; color: #b45309; border-color: #fed7aa; }
+    .pay-btn.to-unpaid:hover { background: #fff7ed; }
+    .pay-btn:disabled { opacity: 0.6; cursor: default; }
     .empty-state {
         padding: 40px 20px; text-align: center; color: #94a3b8;
         font-size: 14px;
@@ -500,6 +511,17 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
                                 <?= htmlspecialchars($inv['payment_status']) ?>
                             </span>
                             <?php if ($is_overdue): ?><span class="overdue-flag">OVERDUE</span><?php endif; ?>
+                            <div class="pay-action">
+                                <?php if ($inv['payment_status'] === 'paid'): ?>
+                                    <button type="button" class="pay-btn to-unpaid"
+                                        data-id="<?= (int)$inv['id'] ?>" data-action="mark_unpaid"
+                                        data-num="<?= htmlspecialchars($inv['invoice_number']) ?>" data-word="unpaid">↩ Mark unpaid</button>
+                                <?php else: ?>
+                                    <button type="button" class="pay-btn to-paid"
+                                        data-id="<?= (int)$inv['id'] ?>" data-action="mark_paid"
+                                        data-num="<?= htmlspecialchars($inv['invoice_number']) ?>" data-word="paid">✓ Mark paid</button>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -593,6 +615,30 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
 <?php endif; ?>
 
 </div>
+
+<script>
+const BASE = <?= json_encode($base) ?>;
+document.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.pay-btn');
+    if (!btn) return;
+    const { id, action, num, word } = btn.dataset;
+    if (!confirm('Mark invoice ' + num + ' as ' + word.toUpperCase() + '?')) return;
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        const r = await fetch(BASE + '/admin/invoices/api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action, id })
+        });
+        const res = await r.json();
+        if (res.success) { location.reload(); }
+        else { alert(res.message || 'Could not update the invoice.'); btn.disabled = false; btn.textContent = orig; }
+    } catch (err) {
+        alert('Network error — please try again.'); btn.disabled = false; btn.textContent = orig;
+    }
+});
+</script>
 
 </body>
 </html>
