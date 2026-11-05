@@ -189,6 +189,7 @@ if ($r) $totals['total_count'] = (int)$r->fetch_assoc()['c'];
             <?php if ($show_archived): ?>
                 <a href="<?= $base ?>/admin/invoices/" class="toggle-link">← Active list</a>
             <?php else: ?>
+                <button type="button" id="remindBtn" onclick="sendReminders()" class="toggle-link" title="Email payment reminders for overdue invoices + expiry nudges for ageing quotations">✉ Send reminders</button>
                 <a href="<?= $base ?>/admin/invoices/?archived=1" class="toggle-link">🗄 Archived</a>
                 <a href="<?= $base ?>/admin/invoices/edit.php?new=1" class="new-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -314,6 +315,19 @@ async function invAction(id, action, confirmMsg) {
     } catch (e) {
         showToast('Network error — try again', 'error');
     }
+}
+
+// Email payment reminders (overdue invoices) + quotation expiry nudges.
+async function sendReminders() {
+    const btn = document.getElementById('remindBtn');
+    if (!confirm('Email reminders now?\n\nSends payment reminders to customers with overdue invoices, and expiry nudges for quotations nearing their 14-day limit. Each customer is reminded at most once a week.')) return;
+    if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+    try {
+        const r = await fetch(BASE + '/admin/api/send-reminders.php', { method:'POST', credentials:'same-origin' });
+        const j = await r.json();
+        showToast(j.message || (j.success ? 'Done' : 'Failed'), j.success ? 'success' : 'error');
+    } catch (e) { showToast('Network error — try again', 'error'); }
+    if (btn){ btn.disabled = false; btn.textContent = '✉ Send reminders'; }
 }
 </script>
 

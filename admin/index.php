@@ -8,7 +8,6 @@ if (!isset($_SESSION['admin_id'])) {
 }
 
 require_once __DIR__ . '/../includes/db_connection.php';
-require_once __DIR__ . '/../includes/invoices.php';
 
 $admin_name = $_SESSION['admin_name'] ?? 'Admin';
 
@@ -22,27 +21,6 @@ $r = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='completed'")
 $r = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='cancelled'"); if($r) $stats['cancelled'] = $r->fetch_assoc()['c'];
 $r = $conn->query("SELECT COUNT(*) as c FROM users WHERE is_admin=0"); if($r) $stats['customers'] = $r->fetch_assoc()['c'];
 $r = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE DATE(created_at)=CURDATE()"); if($r) $stats['today'] = $r->fetch_assoc()['c'];
-
-// ── Invoice / revenue stats (Overview KPIs) ──────────────────
-$inv = ['outstanding_amt'=>0.0,'outstanding_cnt'=>0,'overdue_amt'=>0.0,'overdue_cnt'=>0,'paid_month'=>0.0,'open_quotes'=>0];
-$r = @$conn->query("SELECT COALESCE(SUM(total-amount_paid),0) a, COUNT(*) c FROM invoices WHERE type='invoice' AND payment_status IN ('unpaid','partial') AND archived_at IS NULL");
-if ($r) { $row=$r->fetch_assoc(); $inv['outstanding_amt']=(float)$row['a']; $inv['outstanding_cnt']=(int)$row['c']; }
-$r = @$conn->query("SELECT COALESCE(SUM(total-amount_paid),0) a, COUNT(*) c FROM invoices WHERE type='invoice' AND payment_status IN ('unpaid','partial') AND archived_at IS NULL AND due_date IS NOT NULL AND due_date < CURDATE()");
-if ($r) { $row=$r->fetch_assoc(); $inv['overdue_amt']=(float)$row['a']; $inv['overdue_cnt']=(int)$row['c']; }
-$r = @$conn->query("SELECT COALESCE(SUM(amount_paid),0) a FROM invoices WHERE type='invoice' AND archived_at IS NULL AND DATE_FORMAT(payment_date,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')");
-if ($r) $inv['paid_month']=(float)$r->fetch_assoc()['a'];
-$r = @$conn->query("SELECT COUNT(*) c FROM invoices WHERE type='quotation' AND archived_at IS NULL");
-if ($r) $inv['open_quotes']=(int)$r->fetch_assoc()['c'];
-
-// Overdue invoice list (for the Overview widget) — most overdue first
-$overdue_invoices = [];
-$r = @$conn->query("SELECT id, invoice_number, customer_name, total, amount_paid, due_date,
-                           DATEDIFF(CURDATE(), due_date) AS days_overdue
-                    FROM invoices
-                    WHERE type='invoice' AND payment_status IN ('unpaid','partial') AND archived_at IS NULL
-                      AND due_date IS NOT NULL AND due_date < CURDATE()
-                    ORDER BY due_date ASC LIMIT 20");
-if ($r) $overdue_invoices = $r->fetch_all(MYSQLI_ASSOC);
 
 // ── Source breakdown for the current calendar month (for Overview widget) ──
 // Returns rows like: ['source' => 'Google', 'cnt' => 5]
@@ -144,11 +122,6 @@ if ($sec['signups_week'] >= 20) {
 if ($sec['pending_verify'] >= 10) {
     $alerts[] = ['level'=>'info', 'title'=>'Many unverified accounts',
                  'detail'=>$sec['pending_verify'].' accounts haven\'t verified their email — check Brevo for delivery issues'];
-}
-// Money alerts (shown at the top of the list — prepended so they lead)
-if ($inv['overdue_cnt'] > 0) {
-    array_unshift($alerts, ['level'=>'warn', 'title'=>$inv['overdue_cnt'].' overdue invoice'.($inv['overdue_cnt']===1?'':'s'),
-                 'detail'=>wm_invoice_format_mwk($inv['overdue_amt']).' past its due date — follow up for payment']);
 }
 
 // ── Fetch bookings ───────────────────────────────────────────
@@ -718,37 +691,6 @@ if ($vm) {
                     <div style="font-size:12px;color:#94a3b8;margin-top:4px">Registered users</div>
                 </div>
             </div>
-
-            <!-- ═══ OVERDUE INVOICES ═══ -->
-            <?php if (!empty($overdue_invoices)): ?>
-            <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:24px">
-                <div style="padding:18px 22px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                    <div style="font-size:15px;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:8px">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#dc2626"><path d="M13.7 3.5a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 20.5h16a2 2 0 0 0 1.7-3l-8-14zM12 17a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4zm1-5a1 1 0 0 1-2 0V9a1 1 0 0 1 2 0z"/></svg>
-                        Overdue invoices
-                    </div>
-                    <button id="remindBtn" onclick="sendReminders()" style="background:#dc2626;color:#fff;border:none;padding:8px 14px;border-radius:9px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px">✉ Send reminders</button>
-                </div>
-                <div style="overflow-x:auto" class="table-scroll">
-                    <table class="data-table cards-mobile">
-                        <thead><tr><th>Invoice</th><th>Customer</th><th>Balance</th><th>Overdue</th><th></th></tr></thead>
-                        <tbody>
-                            <?php foreach ($overdue_invoices as $oi):
-                                $bal = (float)$oi['total'] - (float)$oi['amount_paid'];
-                            ?>
-                            <tr>
-                                <td data-label="Invoice" style="font-family:monospace;font-weight:700;color:#0f172a"><?= htmlspecialchars($oi['invoice_number']) ?></td>
-                                <td data-label="Customer"><?= htmlspecialchars($oi['customer_name']) ?></td>
-                                <td data-label="Balance" style="font-weight:700"><?= wm_invoice_format_mwk($bal) ?></td>
-                                <td data-label="Overdue"><span style="display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;color:#fff;background:<?= $oi['days_overdue']>=30?'#dc2626':'#f59e0b' ?>"><?= (int)$oi['days_overdue'] ?> day<?= (int)$oi['days_overdue']===1?'':'s' ?></span></td>
-                                <td data-label="" class="cell-actions"><div style="display:flex;gap:6px;flex-wrap:wrap"><a class="action-btn invoice-btn" href="<?= $base ?>/admin/invoices/edit.php?id=<?= (int)$oi['id'] ?>">Open</a></div></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <?php endif; ?>
 
             <!-- ═══ BOOKING SOURCES — current month ═══ -->
             <div class="source-widget">
@@ -1405,19 +1347,6 @@ function msgBtn(label, text, phone) {
 function closeDetail(){document.getElementById('detailModal').classList.remove('open');}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDetail()});
-
-// ── Send overdue-payment + quote-expiry reminders now (owner-triggered) ──
-async function sendReminders(){
-    const btn = document.getElementById('remindBtn');
-    if (!confirm('Email reminders now?\n\nThis sends payment reminders to customers with overdue invoices, and expiry nudges for quotations nearing their 14-day limit. Each customer is reminded at most once a week.')) return;
-    if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
-    try {
-        const r = await fetch(<?= json_encode($base . '/admin/api/send-reminders.php') ?>, { method:'POST', credentials:'same-origin' });
-        const j = await r.json();
-        showToast(j.message || (j.success ? 'Done' : 'Failed'), j.success ? 'success' : 'error');
-    } catch(e){ showToast('Network error — try again', 'error'); }
-    if (btn){ btn.disabled = false; btn.textContent = '✉ Send reminders'; }
-}
 
 // ── Live dashboard heartbeat: poll for new bookings / updated counts ──
 (function(){
