@@ -165,6 +165,9 @@ if ($filter !== 'all') {
     $conditions[] = "status = ?";
     $params[] = $filter;
     $types .= 's';
+} else {
+    // Default ("All") view hides cancelled bookings — still reachable via the Cancelled filter
+    $conditions[] = "status != 'cancelled'";
 }
 if ($source_filter !== 'all') {
     if ($source_filter === 'unknown') {
@@ -210,8 +213,21 @@ if ($r) {
 
 // ── Fetch customers ──────────────────────────────────────────
 $customers = [];
-$r = $conn->query("SELECT u.*, COUNT(b.id) as booking_count, MAX(b.created_at) as last_booking FROM users u LEFT JOIN bookings b ON u.id = b.user_id WHERE u.is_admin = 0 GROUP BY u.id ORDER BY u.created_at DESC");
-if ($r) $customers = $r->fetch_all(MYSQLI_ASSOC);
+$cust_search = trim($_GET['csearch'] ?? '');
+if ($cust_search !== '') {
+    $cstmt = $conn->prepare("SELECT u.*, COUNT(b.id) as booking_count, MAX(b.created_at) as last_booking
+        FROM users u LEFT JOIN bookings b ON u.id = b.user_id
+        WHERE u.is_admin = 0 AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)
+        GROUP BY u.id ORDER BY u.created_at DESC");
+    $clike = "%$cust_search%";
+    $cstmt->bind_param('sss', $clike, $clike, $clike);
+    $cstmt->execute();
+    $customers = $cstmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $cstmt->close();
+} else {
+    $r = $conn->query("SELECT u.*, COUNT(b.id) as booking_count, MAX(b.created_at) as last_booking FROM users u LEFT JOIN bookings b ON u.id = b.user_id WHERE u.is_admin = 0 GROUP BY u.id ORDER BY u.created_at DESC");
+    if ($r) $customers = $r->fetch_all(MYSQLI_ASSOC);
+}
 
 // ── Compute "Service Due" customers ──────────────────────────
 // A vehicle is "due" if its last completed service was 80+ days ago,
@@ -703,31 +719,6 @@ if ($vm) {
                 </div>
             </div>
 
-            <!-- ═══ REVENUE KPIs ═══ -->
-            <div style="font-size:13px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px">Money</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:28px">
-                <a href="<?= $base ?>/admin/invoices/?status=unpaid" style="text-decoration:none" class="stat-card red">
-                    <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:8px">Outstanding</div>
-                    <div style="font-size:23px;font-weight:800;color:#0f172a"><?= wm_invoice_format_mwk($inv['outstanding_amt']) ?></div>
-                    <div style="font-size:12px;color:#94a3b8;margin-top:4px"><?= $inv['outstanding_cnt'] ?> unpaid invoice<?= $inv['outstanding_cnt']===1?'':'s' ?></div>
-                </a>
-                <a href="<?= $base ?>/admin/invoices/?status=unpaid" style="text-decoration:none" class="stat-card amber">
-                    <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:8px">Overdue</div>
-                    <div style="font-size:23px;font-weight:800;color:<?= $inv['overdue_cnt']>0?'#dc2626':'#0f172a' ?>"><?= wm_invoice_format_mwk($inv['overdue_amt']) ?></div>
-                    <div style="font-size:12px;color:#94a3b8;margin-top:4px"><?= $inv['overdue_cnt'] ?> past due date</div>
-                </a>
-                <a href="<?= $base ?>/admin/invoices/?status=paid" style="text-decoration:none" class="stat-card green">
-                    <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:8px">Paid this month</div>
-                    <div style="font-size:23px;font-weight:800;color:#15803d"><?= wm_invoice_format_mwk($inv['paid_month']) ?></div>
-                    <div style="font-size:12px;color:#94a3b8;margin-top:4px"><?= date('F Y') ?></div>
-                </a>
-                <a href="<?= $base ?>/admin/invoices/?type=quotation" style="text-decoration:none" class="stat-card blue">
-                    <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:8px">Open quotations</div>
-                    <div style="font-size:32px;font-weight:800;color:#2563eb"><?= $inv['open_quotes'] ?></div>
-                    <div style="font-size:12px;color:#94a3b8;margin-top:4px">Awaiting conversion</div>
-                </a>
-            </div>
-
             <!-- ═══ OVERDUE INVOICES ═══ -->
             <?php if (!empty($overdue_invoices)): ?>
             <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:24px">
@@ -892,48 +883,6 @@ if ($vm) {
                 <?php endif; ?>
             </div>
 
-            <!-- Recent Bookings -->
-            <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden">
-                <div style="padding:20px 22px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f1f5f9">
-                    <div style="font-size:15px;font-weight:700;color:#0f172a">Recent Bookings</div>
-                    <a onclick="showTab('bookings')" style="font-size:13px;font-weight:600;color:var(--red);cursor:pointer">View all →</a>
-                </div>
-                <div style="overflow-x:auto" class="table-scroll">
-                    <table class="data-table cards-mobile">
-                        <thead>
-                            <tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th><th>Actions</th></tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach(array_slice($bookings, 0, 8) as $b): ?>
-                            <tr>
-                                <td data-label="Customer">
-                                    <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['full_name']) ?></div>
-                                    <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['phone']) ?></div>
-                                </td>
-                                <td data-label="Service"><?= htmlspecialchars($b['services']) ?></td>
-                                <td data-label="Date" style="white-space:nowrap"><?= date('d M Y', strtotime($b['booking_date'])) ?><br><span style="font-size:12px;color:#94a3b8"><?= $b['booking_time'] ?></span></td>
-                                <td data-label="Status"><span class="status-pill status-<?= $b['status'] ?>"><?= ucfirst($b['status']) ?></span></td>
-                                <td data-label="" class="cell-actions">
-                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                        <button class="action-btn" onclick="viewBooking(<?= $b['id'] ?>)">View</button>
-                                        <?php if($b['status']==='pending'): ?>
-                                            <button class="action-btn confirm" onclick="updateStatus(<?= $b['id'] ?>,'confirmed')">Confirm</button>
-                                        <?php elseif($b['status']==='confirmed'): ?>
-                                            <button class="action-btn complete" onclick="updateStatus(<?= $b['id'] ?>,'completed')">Complete</button>
-                                        <?php elseif($b['status']==='completed'): ?>
-                                            <a class="action-btn invoice-btn" href="<?= $base ?>/admin/invoices/edit.php?booking_id=<?= $b['id'] ?>" title="Create invoice">🧾 Invoice</a>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                            <?php if(empty($bookings)): ?>
-                            <tr><td colspan="5" style="text-align:center;padding:40px;color:#94a3b8">No bookings yet</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -957,7 +906,7 @@ if ($vm) {
 
             <!-- Filters: status pills (preserves source filter) -->
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-                <?php foreach(['all'=>'All ('.$stats['total'].')','pending'=>'Pending ('.$stats['pending'].')','confirmed'=>'Confirmed ('.$stats['confirmed'].')','completed'=>'Completed ('.$stats['completed'].')','cancelled'=>'Cancelled ('.$stats['cancelled'].')'] as $key=>$label): ?>
+                <?php foreach(['all'=>'All ('.($stats['total']-$stats['cancelled']).')','pending'=>'Pending ('.$stats['pending'].')','confirmed'=>'Confirmed ('.$stats['confirmed'].')','completed'=>'Completed ('.$stats['completed'].')','cancelled'=>'Cancelled ('.$stats['cancelled'].')'] as $key=>$label): ?>
                 <a href="?tab=bookings&status=<?= $key ?>&source=<?= urlencode($source_filter) ?>&search=<?= urlencode($search) ?>" class="filter-btn <?= $filter===$key?'active':'' ?>"><?= $label ?></a>
                 <?php endforeach; ?>
             </div>
@@ -1041,9 +990,20 @@ if ($vm) {
     <!-- ═══ CUSTOMERS ═══ -->
     <div class="panel <?= $active_tab==='customers'?'active':'' ?>" id="tab-customers">
         <div class="page-body">
-            <div style="margin-bottom:20px">
-                <h1 style="font-size:22px;font-weight:800;color:#0f172a">Customers</h1>
-                <p style="font-size:13px;color:#64748b;margin-top:4px"><?= count($customers) ?> registered user<?= count($customers)!==1?'s':'' ?> · <span style="color:#dc2626;font-weight:600">click a row to view their vehicles &amp; history</span></p>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+                <div>
+                    <h1 style="font-size:22px;font-weight:800;color:#0f172a">Customers</h1>
+                    <p style="font-size:13px;color:#64748b;margin-top:4px"><?= count($customers) ?> <?= $cust_search!=='' ? 'match'.(count($customers)===1?'':'es') : 'registered user'.(count($customers)!==1?'s':'') ?> · <span style="color:#dc2626;font-weight:600">click a row to view their vehicles &amp; history</span></p>
+                </div>
+                <form method="GET" style="display:flex;gap:8px;align-items:center">
+                    <input type="hidden" name="tab" value="customers">
+                    <div class="search-box">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" name="csearch" value="<?= htmlspecialchars($cust_search) ?>" placeholder="Search name, email, phone...">
+                    </div>
+                    <button type="submit" class="action-btn" style="padding:10px 16px">Search</button>
+                    <?php if ($cust_search!==''): ?><a href="<?= $base ?>/admin/?tab=customers" class="action-btn" style="padding:10px 14px;text-decoration:none">Clear</a><?php endif; ?>
+                </form>
             </div>
             <div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden">
                 <div style="overflow-x:auto" class="table-scroll">
