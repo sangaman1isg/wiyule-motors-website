@@ -72,13 +72,16 @@ if (!$is_new) {
     }
 }
 
-// Default empty shell for brand-new invoice
+// Default empty shell for brand-new invoice (optionally prefilled from a customer)
 if ($is_new && !$invoice) {
+    $pf_name  = trim((string)($_GET['cust_name']  ?? ''));
+    $pf_phone = trim((string)($_GET['cust_phone'] ?? ''));
+    $pf_email = trim((string)($_GET['cust_email'] ?? ''));
     $invoice = [
         'id' => 0, 'invoice_number' => '(will be generated on save)', 'type' => 'invoice',
         'booking_id' => null, 'user_id' => null,
         'recipient_name' => '', 'claim_reference' => '', 'insurance_company_id' => null,
-        'customer_name' => '', 'customer_phone' => '', 'customer_email' => '', 'vehicle_info' => '',
+        'customer_name' => $pf_name, 'customer_phone' => $pf_phone, 'customer_email' => $pf_email, 'vehicle_info' => '',
         'subtotal' => 0, 'discount_type' => 'none', 'discount_value' => 0, 'discount_amount' => 0,
         'vat_enabled' => 1, 'vat_rate' => 17.50, 'vat_amount' => 0, 'less_excess' => 0, 'total' => 0,
         'payment_status' => 'unpaid', 'amount_paid' => 0, 'payment_method' => '',

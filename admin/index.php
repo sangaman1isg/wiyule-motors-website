@@ -11,6 +11,25 @@ require_once __DIR__ . '/../includes/db_connection.php';
 
 $admin_name = $_SESSION['admin_name'] ?? 'Admin';
 
+/**
+ * Render a phone number as a tap-to-call link + a small WhatsApp icon.
+ * stopPropagation so tapping it inside a clickable row doesn't open the row.
+ */
+function wm_contact_links(?string $phone): string {
+    $phone = trim((string)$phone);
+    if ($phone === '') return '<span style="color:#cbd5e1">—</span>';
+    $tel = htmlspecialchars($phone, ENT_QUOTES);
+    $wa  = preg_replace('/\D/', '', $phone);
+    if ($wa !== '' && substr($wa, 0, 3) !== '265') $wa = '265' . ltrim($wa, '0');
+    $out = '<a href="tel:' . $tel . '" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none">' . $tel . '</a>';
+    if ($wa !== '') {
+        $out .= ' <a href="https://wa.me/' . $wa . '" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="WhatsApp" '
+             .  'style="display:inline-flex;vertical-align:middle;color:#22c55e;text-decoration:none">'
+             .  '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2z"/></svg></a>';
+    }
+    return $out;
+}
+
 // ── Fetch stats ──────────────────────────────────────────────
 $stats = ['total'=>0, 'pending'=>0, 'confirmed'=>0, 'completed'=>0, 'cancelled'=>0, 'customers'=>0, 'today'=>0];
 
@@ -303,6 +322,14 @@ foreach ($customers as $c) {
         ];
     }
     $hr->close();
+
+    // Total spent — payments on invoices linked to this account or matching their phone
+    $cphone_raw = $c['phone'] ?? '';
+    $sp = $conn->prepare("SELECT COALESCE(SUM(amount_paid),0) s FROM invoices WHERE archived_at IS NULL AND (user_id = ? OR (customer_phone <> '' AND customer_phone = ?))");
+    $sp->bind_param("is", $uid, $cphone_raw);
+    $sp->execute();
+    $detail['total_spent'] = (float)$sp->get_result()->fetch_assoc()['s'];
+    $sp->close();
 
     $customer_details[$uid] = $detail;
 }
@@ -721,7 +748,7 @@ if ($vm) {
                             <tr data-status="<?= $b['status'] ?>">
                                 <td data-label="Customer">
                                     <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['full_name']) ?></div>
-                                    <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['phone']) ?></div>
+                                    <div style="font-size:12px;color:#94a3b8"><?= wm_contact_links($b['phone']) ?></div>
                                     <?php if($b['email']): ?><div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['email']) ?></div><?php endif; ?>
                                 </td>
                                 <td data-label="Service"><?= htmlspecialchars($b['services']) ?></td>
@@ -945,7 +972,7 @@ if ($vm) {
                                 <td data-label="Ref" style="font-family:monospace;color:#94a3b8;font-size:12px">#<?= $b['id'] ?></td>
                                 <td data-label="Customer">
                                     <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['full_name']) ?></div>
-                                    <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['phone']) ?></div>
+                                    <div style="font-size:12px;color:#94a3b8"><?= wm_contact_links($b['phone']) ?></div>
                                     <?php if($b['email']): ?><div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($b['email']) ?></div><?php endif; ?>
                                 </td>
                                 <td data-label="Vehicle">
@@ -1024,7 +1051,7 @@ if ($vm) {
                                     <?php if($verified): ?><span title="Email verified" style="color:#16a34a">✓</span><?php else: ?><span title="Email not verified" style="color:#f59e0b;font-size:11px">●</span><?php endif; ?>
                                 </td>
                                 <td data-label="Email" style="color:#64748b"><?= htmlspecialchars($c['email']) ?></td>
-                                <td data-label="Phone" style="color:#64748b"><?= htmlspecialchars($c['phone'] ?: '—') ?></td>
+                                <td data-label="Phone" style="color:#64748b"><?= wm_contact_links($c['phone']) ?></td>
                                 <td data-label="Bookings"><span style="background:#f1f5f9;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700"><?= $c['booking_count'] ?></span></td>
                                 <td data-label="Last booking" style="color:#64748b;font-size:12px"><?= $c['last_booking'] ? date('d M Y', strtotime($c['last_booking'])) : '—' ?></td>
                                 <td data-label="Joined" style="color:#94a3b8;font-size:12px"><?= date('d M Y', strtotime($c['created_at'])) ?></td>
@@ -1090,7 +1117,7 @@ if ($vm) {
                             <tr>
                                 <td data-label="Customer">
                                     <div style="font-weight:700;color:#0f172a"><?= htmlspecialchars($dc['full_name']) ?></div>
-                                    <div style="font-size:12px;color:#94a3b8"><?= htmlspecialchars($dc['phone'] ?: 'No phone') ?></div>
+                                    <div style="font-size:12px;color:#94a3b8"><?= $dc['phone'] ? wm_contact_links($dc['phone']) : 'No phone' ?></div>
                                 </td>
                                 <td data-label="Vehicle"><?= htmlspecialchars($veh.$reg) ?></td>
                                 <td data-label="Last service"><?= htmlspecialchars($last_txt) ?></td>
@@ -1139,11 +1166,13 @@ var vehicleMileageByUser = <?= json_encode($vehicle_mileage_by_user) ?>;
 var customerDetails = <?= json_encode($customer_details) ?>;
 var customerNames = <?= json_encode(array_column($customers, 'full_name', 'id')) ?>;
 var customerPhones = <?= json_encode(array_column($customers, 'phone', 'id')) ?>;
+var customerEmails = <?= json_encode(array_column($customers, 'email', 'id')) ?>;
 
 function viewCustomer(id) {
     var d = customerDetails[id];
     var name = customerNames[id] || 'Customer';
     var phone = customerPhones[id] || '';
+    var email = customerEmails[id] || '';
     if (!d) return;
 
     function scoreColor(s) { return s >= 85 ? '#16a34a' : (s >= 70 ? '#f59e0b' : '#dc2626'); }
@@ -1152,7 +1181,16 @@ function viewCustomer(id) {
     var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">';
     html += '<div><div style="font-size:20px;font-weight:800;color:#0f172a">' + name + '</div>';
     html += '<div style="font-size:13px;color:#64748b;margin-top:2px">' + (phone || 'No phone') + '</div></div>';
+    // Total spent chip
+    var spent = (d.total_spent != null) ? d.total_spent : 0;
+    var spentStr = 'MWK ' + Number(spent).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
     html += '<button onclick="closeCustomer()" style="background:#f1f5f9;border:none;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:18px;color:#64748b">&times;</button></div>';
+
+    // Total spent + quick contact/create actions
+    html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px">';
+    html += '<span style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#15803d;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:700">💰 Total spent: ' + spentStr + '</span>';
+    if (phone) { html += '<a href="tel:' + esc(phone) + '" class="action-btn" style="text-decoration:none">📞 Call</a>'; }
+    html += '</div>';
 
     // Vehicles
     html += '<div style="font-size:13px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Vehicles (' + d.vehicles.length + ')</div>';
@@ -1187,12 +1225,16 @@ function viewCustomer(id) {
         });
     }
 
-    // WhatsApp quick action
+    // Quick actions: WhatsApp + create invoice for this customer
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">';
     if (phone) {
         var wp = phone.replace(/[^0-9]/g, '');
         if (wp.substring(0,3) !== '265') wp = '265' + wp.replace(/^0/, '');
-        html += '<a href="https://wa.me/' + wp + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#22c55e;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;margin-top:18px">Message on WhatsApp</a>';
+        html += '<a href="https://wa.me/' + wp + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#22c55e;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">Message on WhatsApp</a>';
     }
+    var invUrl = <?= json_encode($base . '/admin/invoices/edit.php') ?> + '?new=1&cust_name=' + encodeURIComponent(name) + '&cust_phone=' + encodeURIComponent(phone) + '&cust_email=' + encodeURIComponent(email);
+    html += '<a href="' + invUrl + '" style="display:inline-flex;align-items:center;gap:8px;background:#0f172a;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">🧾 New invoice</a>';
+    html += '</div>';
 
     document.getElementById('customerContent').innerHTML = html;
     document.getElementById('customerModal').classList.add('open');
