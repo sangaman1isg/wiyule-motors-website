@@ -41,6 +41,16 @@ $r = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='cancelled'")
 $r = $conn->query("SELECT COUNT(*) as c FROM users WHERE is_admin=0"); if($r) $stats['customers'] = $r->fetch_assoc()['c'];
 $r = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE DATE(created_at)=CURDATE()"); if($r) $stats['today'] = $r->fetch_assoc()['c'];
 
+// Scheduled-work counts (by booking_date, excluding cancelled) for quick filters
+$due_today = 0; $due_week = 0;
+$r = $conn->query("SELECT
+        COALESCE(SUM(booking_date = CURDATE()),0) t,
+        COALESCE(SUM(booking_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)),0) w
+     FROM bookings WHERE status != 'cancelled'");
+if ($r) { $row = $r->fetch_assoc(); $due_today = (int)$row['t']; $due_week = (int)$row['w']; }
+$today_str = date('Y-m-d');
+$week_str  = date('Y-m-d', strtotime('+7 days'));
+
 // ── Source breakdown for the current calendar month (for Overview widget) ──
 // Returns rows like: ['source' => 'Google', 'cnt' => 5]
 // Bookings with no source are bucketed under '__unknown__' for separate display.
@@ -434,6 +444,10 @@ if ($vm) {
         .rb-chip:hover { border-color:#cbd5e1; color:#0f172a; }
         .rb-chip.active { background:#0f172a; color:#fff; border-color:#0f172a; }
 
+        /* Flash newly-arrived bookings gold */
+        @keyframes wmFlash { 0%,12% { background:#fde68a; } 100% { background:transparent; } }
+        tr.wm-flash, tr.wm-flash td { animation: wmFlash 3.5s ease-out; }
+
         /* Source pills — smaller/lighter, secondary filter row */
         .source-pill {
             padding:4px 10px; border-radius:999px;
@@ -750,7 +764,7 @@ if ($vm) {
                         <thead><tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody id="recentBody">
                             <?php foreach(array_slice($bookings, 0, 10) as $b): ?>
-                            <tr data-status="<?= $b['status'] ?>">
+                            <tr data-status="<?= $b['status'] ?>" data-bid="<?= (int)$b['id'] ?>">
                                 <td data-label="Customer">
                                     <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['full_name']) ?></div>
                                     <div style="font-size:12px;color:#94a3b8"><?= wm_contact_links($b['phone']) ?></div>
@@ -942,6 +956,13 @@ if ($vm) {
                 </form>
             </div>
 
+            <!-- Quick scheduled-work filters -->
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:12px;font-weight:700;color:#94a3b8">Scheduled:</span>
+                <a href="?tab=bookings&status=all&source=<?= urlencode($source_filter) ?>&from=<?= $today_str ?>&to=<?= $today_str ?>" class="filter-btn <?= ($date_from===$today_str && $date_to===$today_str)?'active':'' ?>">📅 Today (<?= $due_today ?>)</a>
+                <a href="?tab=bookings&status=all&source=<?= urlencode($source_filter) ?>&from=<?= $today_str ?>&to=<?= $week_str ?>" class="filter-btn <?= ($date_from===$today_str && $date_to===$week_str)?'active':'' ?>">This week (<?= $due_week ?>)</a>
+            </div>
+
             <!-- Filters: status pills (preserves source filter) -->
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
                 <?php foreach(['all'=>'All ('.($stats['total']-$stats['cancelled']).')','pending'=>'Pending ('.$stats['pending'].')','confirmed'=>'Confirmed ('.$stats['confirmed'].')','completed'=>'Completed ('.$stats['completed'].')','cancelled'=>'Cancelled ('.$stats['cancelled'].')'] as $key=>$label): ?>
@@ -979,7 +1000,7 @@ if ($vm) {
                         </thead>
                         <tbody>
                             <?php foreach($bookings as $b): ?>
-                            <tr id="row-<?= $b['id'] ?>">
+                            <tr id="row-<?= $b['id'] ?>" data-bid="<?= (int)$b['id'] ?>">
                                 <td data-label="Ref" style="font-family:monospace;color:#94a3b8;font-size:12px">#<?= $b['id'] ?></td>
                                 <td data-label="Customer">
                                     <div style="font-weight:600;color:#0f172a"><?= htmlspecialchars($b['full_name']) ?></div>
@@ -1499,6 +1520,23 @@ function msgBtn(label, text, phone) {
 function closeDetail(){document.getElementById('detailModal').classList.remove('open');}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDetail()});
+
+// ── Flash bookings that arrived since this browser last viewed the dashboard ──
+(function(){
+    try {
+        var key = 'wm_lastSeenBooking';
+        var seen = parseInt(sessionStorage.getItem(key) || '0', 10) || 0;
+        var maxId = seen;
+        var fresh = [];
+        document.querySelectorAll('tr[data-bid]').forEach(function(tr){
+            var bid = parseInt(tr.getAttribute('data-bid'), 10) || 0;
+            if (bid > maxId) maxId = bid;
+            if (seen > 0 && bid > seen) fresh.push(tr);
+        });
+        fresh.forEach(function(tr){ tr.classList.add('wm-flash'); });
+        sessionStorage.setItem(key, String(maxId));
+    } catch (e) {}
+})();
 
 // ── Click-to-sort tables (table.sortable) ──
 (function(){
