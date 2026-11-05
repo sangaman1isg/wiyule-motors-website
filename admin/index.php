@@ -241,7 +241,7 @@ if ($cust_search !== '') {
 // or it has never been serviced but was registered 80+ days ago.
 $due_customers = [];
 $dq = $conn->query("
-    SELECT v.id AS vehicle_id, v.make, v.model, v.registration, v.mileage,
+    SELECT v.id AS vehicle_id, v.make, v.model, v.registration, v.mileage, v.created_at AS vehicle_created,
            u.id AS user_id, u.full_name, u.phone, u.email,
            (SELECT MAX(b.booking_date) FROM bookings b
               WHERE b.user_id = u.id AND b.status = 'completed') AS last_service
@@ -253,11 +253,19 @@ $dq = $conn->query("
 if ($dq) {
     while ($row = $dq->fetch_assoc()) {
         $last = $row['last_service'];
-        $days_since = $last ? floor((time() - strtotime($last)) / 86400) : null;
-        // Due if 80+ days since last service, or never serviced
-        if ($last === null || $days_since >= 80) {
+        if ($last !== null) {
+            // Serviced before — due if 80+ days since the last completed service
+            $days_since = floor((time() - strtotime($last)) / 86400);
+            if ($days_since < 80) continue;
             $row['days_since'] = $days_since;
-            $row['never'] = ($last === null);
+            $row['never'] = false;
+            $due_customers[] = $row;
+        } else {
+            // Never serviced — only flag once the vehicle has been on record for 80+ days
+            $veh_age = $row['vehicle_created'] ? floor((time() - strtotime($row['vehicle_created'])) / 86400) : 0;
+            if ($veh_age < 80) continue;
+            $row['days_since'] = null;
+            $row['never'] = true;
             $due_customers[] = $row;
         }
     }

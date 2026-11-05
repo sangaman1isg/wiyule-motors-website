@@ -14,8 +14,8 @@ require_once __DIR__ . '/../../includes/reminders.php';   // provides $conn + fu
 
 $dry = isset($_POST['dryrun']) && $_POST['dryrun'] == '1';
 $res = wm_run_reminders($conn, $dry);
-$sent = $res['payments']['sent'] + $res['quotes']['sent'];
-$would = $res['payments']['would_send'] + $res['quotes']['would_send'];
+$sent  = $res['payments']['sent'] + $res['quotes']['sent'] + $res['service_due']['sent'];
+$would = $res['payments']['would_send'] + $res['quotes']['would_send'] + $res['service_due']['would_send'];
 echo json_encode([
     'success' => true,
     'message' => $dry

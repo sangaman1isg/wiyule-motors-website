@@ -266,6 +266,19 @@ function wm_send_quote_expiry_email(array $invoice) {
     return wm_send_email($to, $invoice['customer_name'], 'Your Wiyule Motors quotation expires soon', $html, $text);
 }
 
+/** Service-due reminder to a customer. */
+function wm_send_service_due_email(string $to_email, string $to_name, string $vehicle_label, string $last_text = '') {
+    if ($to_email === '' || !filter_var($to_email, FILTER_VALIDATE_EMAIL)) return ['ok' => false, 'error' => 'no valid email'];
+    $name = htmlspecialchars($to_name ?: 'there', ENT_QUOTES);
+    $veh  = htmlspecialchars($vehicle_label, ENT_QUOTES);
+    $body = '<p style="font-size:14px;color:#334155;margin:0 0 14px;">Hi ' . $name . ', our records show your <strong>' . $veh . '</strong> may be due for a service'
+          . ($last_text !== '' ? ' (' . htmlspecialchars($last_text, ENT_QUOTES) . ')' : '') . '.</p>'
+          . '<p style="font-size:13px;color:#64748b;margin:0 0 4px;">Regular servicing keeps your vehicle safe, reliable, and holding its value. Reply or call us and we\'ll book you a convenient slot.</p>';
+    $html = _wm_email_shell('Time for a service?', 'Service reminder', $body);
+    $text = "Hi $to_name,\n\nOur records show your $vehicle_label may be due for a service" . ($last_text !== '' ? " ($last_text)" : "") . ".\nReply or call us to book a slot.\n\n— Wiyule Motors · +265 993 575 111";
+    return wm_send_email($to_email, $to_name, 'Your ' . $vehicle_label . ' may be due for a service', $html, $text);
+}
+
 /** Notify the owner that a new booking just came in. $b is an associative array of booking fields. */
 function wm_send_new_booking_alert(array $b) {
     $owner = defined('OWNER_EMAIL') ? OWNER_EMAIL : (defined('BREVO_SENDER_EMAIL') ? BREVO_SENDER_EMAIL : '');

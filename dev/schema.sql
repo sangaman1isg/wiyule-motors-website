@@ -150,3 +150,5 @@ SET FOREIGN_KEY_CHECKS=1;
 ALTER TABLE invoices ADD COLUMN archived_at DATETIME NULL DEFAULT NULL AFTER payment_status;
 -- Phase 4: track when we last emailed the customer a reminder/nudge for this invoice
 ALTER TABLE invoices ADD COLUMN last_reminder_at DATETIME NULL DEFAULT NULL AFTER archived_at;
+-- Service-due: track when we last emailed a service-due reminder for this vehicle
+ALTER TABLE vehicles ADD COLUMN last_service_reminder_at DATETIME NULL DEFAULT NULL;

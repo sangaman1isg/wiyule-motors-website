@@ -143,6 +143,15 @@ $c->query("UPDATE invoices SET due_date = DATE_ADD(CURDATE(), INTERVAL 10 DAY) W
 // Age a quotation to 12 days so the expiry-nudge (11–14 day window) has test data
 $c->query("UPDATE invoices SET issued_at = DATE_SUB(NOW(), INTERVAL 12 DAY) WHERE invoice_number='WM-$Y-006'");
 
+// ── Service-due test scenarios ──
+$u1 = (int)$custIds[0]; // last serviced 90 days ago → DUE
+$c->query("UPDATE bookings SET status='completed' WHERE user_id=$u1 ORDER BY id LIMIT 1");
+$c->query("UPDATE bookings SET booking_date=DATE_SUB(CURDATE(), INTERVAL 90 DAY), service_mileage=90000 WHERE user_id=$u1 AND status='completed'");
+$u2 = (int)$custIds[1]; // never serviced, vehicle on record 100 days → DUE
+$c->query("UPDATE bookings SET status='pending' WHERE user_id=$u2 AND status='completed'");
+$c->query("UPDATE vehicles SET created_at=DATE_SUB(NOW(), INTERVAL 100 DAY) WHERE user_id=$u2");
+// everyone else: vehicles created just now, so brand-new never-serviced cars are NOT flagged (the fix)
+
 // report
 $out = [];
 foreach (['users','bookings','vehicles','insurance_companies','invoices','invoice_items'] as $t) {
