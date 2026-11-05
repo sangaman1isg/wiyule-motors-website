@@ -86,6 +86,9 @@ if ($selected_company !== null) {
 // All companies for the "Manage Companies" section
 $all_companies = wm_ins_companies_all($conn, false);
 
+// Count of imported statement lines still awaiting reconciliation (0 if no import)
+$review_open = wm_import_reviews_open_count($conn);
+
 $fmt = function($n) { return wm_invoice_format_mwk($n); };
 ?>
 <!DOCTYPE html>
@@ -311,6 +314,27 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     .manage-item button:hover { color: #dc2626; }
     .manage-item.inactive button:hover { color: #16a34a; }
 
+    /* ─── Reconcile-imports banner ─── */
+    .review-banner {
+        display: flex; align-items: center; gap: 14px;
+        background: #fff7ed; border: 1.5px solid #fed7aa;
+        border-left: 4px solid #ea580c;
+        border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;
+        text-decoration: none; color: inherit;
+        transition: box-shadow .12s;
+    }
+    .review-banner:hover { box-shadow: 0 4px 14px rgba(234,88,12,.12); }
+    .review-banner .rb-icon { font-size: 22px; line-height: 1; }
+    .review-banner .rb-text { flex: 1; }
+    .review-banner .rb-title { font-weight: 700; font-size: 14px; color: #9a3412; }
+    .review-banner .rb-sub { font-size: 12.5px; color: #c2630e; margin-top: 2px; }
+    .review-banner .rb-count {
+        background: #ea580c; color: #fff; font-weight: 800;
+        font-size: 13px; padding: 5px 12px; border-radius: 999px;
+        font-variant-numeric: tabular-nums;
+    }
+    .review-banner .rb-go { font-size: 13px; font-weight: 700; color: #ea580c; white-space: nowrap; }
+
     @media (max-width: 700px) {
         .container { padding: 18px; }
         table.inv-list th:nth-child(3), table.inv-list td:nth-child(3) { display: none; }   /* hide claim ref on narrow */
@@ -501,6 +525,18 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
             </select>
         </form>
     </div>
+
+    <?php if ($review_open > 0): ?>
+        <a class="review-banner" href="<?= $base ?>/admin/statements/review.php">
+            <span class="rb-icon">🧾</span>
+            <span class="rb-text">
+                <span class="rb-title">Imported statements need reconciling</span>
+                <span class="rb-sub">Some lines came in with a missing invoice number, an estimated date, or a part-payment to confirm.</span>
+            </span>
+            <span class="rb-count"><?= (int)$review_open ?></span>
+            <span class="rb-go">Reconcile →</span>
+        </a>
+    <?php endif; ?>
 
     <div class="companies-grid">
         <?php foreach ($summary as $co):

@@ -313,4 +313,17 @@ if (!function_exists('wm_ins_companies_all')) {
             'total'      => ['count' => (int)($row['c_total']    ?? 0), 'amount' => (float)($row['a_total']    ?? 0)],
         ];
     }
+
+    /**
+     * Count unresolved statement-import review items.
+     * Returns 0 if the import_reviews table doesn't exist yet (no import run).
+     */
+    function wm_import_reviews_open_count(mysqli $conn): int {
+        try {
+            $r = $conn->query("SELECT COUNT(*) FROM import_reviews WHERE resolved = 0");
+            return $r ? (int)$r->fetch_row()[0] : 0;
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
 }
