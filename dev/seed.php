@@ -96,13 +96,24 @@ function add_invoice($c,$num,$type,$cust,$phone,$email,$vehicle,$status,$items,$
     $pdate   = $paid>0? date('Y-m-d') : null;
     $issued  = $opts['issued_at'] ?? date('Y-m-d H:i:s', strtotime('-'.rand(1,40).' days'));
     $vrate   = WM_VAT_RATE;
+    // Registration is a separate field now (matches the invoice form). Pull the plate out of the
+    // legacy "Make Model Year (PLATE)" string so vehicle_info holds just the vehicle, reg holds the plate.
+    $vehicle = trim($vehicle);
+    if (isset($opts['registration'])) {
+        $reg = $opts['registration'];
+    } elseif (preg_match('/^(.*?)\s*\(([^)]+)\)\s*$/', $vehicle, $m)) {
+        $vehicle = trim($m[1]);
+        $reg     = trim($m[2]);
+    } else {
+        $reg = '';
+    }
     $s = $c->prepare("INSERT INTO invoices
-      (invoice_number,type,customer_name,customer_phone,customer_email,vehicle_info,insurance_company_id,claim_reference,
+      (invoice_number,type,customer_name,customer_phone,customer_email,vehicle_info,registration,insurance_company_id,claim_reference,
        subtotal,discount_type,discount_value,discount_amount,vat_enabled,vat_rate,vat_amount,less_excess,total,
        payment_status,amount_paid,payment_method,payment_date,issued_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-    $s->bind_param('ssssssisdsddiddddsdsss',
-      $num,$type,$cust,$phone,$email,$vehicle,$insurer,$claim,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    $s->bind_param('sssssssisdsddiddddsdsss',
+      $num,$type,$cust,$phone,$email,$vehicle,$reg,$insurer,$claim,
       $calc['subtotal'],$disc_type,$disc_val,$calc['discount_amount'],$vat_en,$vrate,$calc['vat_amount'],$calc['less_excess'],$calc['total'],
       $status,$paid,$pm,$pdate,$issued);
     $s->execute();

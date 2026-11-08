@@ -493,6 +493,9 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
                         <td>
                             <div style="font-weight:600"><?= htmlspecialchars($inv['customer_name'] ?: '—') ?></div>
                             <div class="inv-meta"><?= htmlspecialchars($inv['vehicle_info'] ?: '') ?></div>
+                            <?php if (!empty($inv['registration'])): ?>
+                                <div class="inv-meta" style="color:#475569;font-weight:600">Reg <?= htmlspecialchars($inv['registration']) ?></div>
+                            <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars($inv['claim_reference'] ?: '—') ?></td>
                         <td>

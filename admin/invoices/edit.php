@@ -40,13 +40,13 @@ if (!$is_new) {
     $stmt->close();
     if ($b) {
         $vehicle_info = trim(($b['vehicle_year'] ? $b['vehicle_year'].' ' : '') . $b['vehicle_make'] . ' ' . $b['vehicle_model']);
-        if ($b['registration']) $vehicle_info .= ' (' . $b['registration'] . ')';
         $invoice = [
             'id' => 0, 'invoice_number' => '(will be generated on save)', 'type' => 'invoice',
             'booking_id' => $booking_id, 'user_id' => $b['user_id'],
             'recipient_name' => '', 'claim_reference' => '', 'insurance_company_id' => null,
             'customer_name' => $b['full_name'], 'customer_phone' => $b['phone'],
             'customer_email' => $b['email'], 'vehicle_info' => $vehicle_info,
+            'registration' => $b['registration'] ?? '',
             'subtotal' => 0, 'discount_type' => $b['first_time_discount'] ? 'percent' : 'none',
             'discount_value' => $b['first_time_discount'] ? 10 : 0, 'discount_amount' => 0,
             'vat_enabled' => 1, 'vat_rate' => 17.50, 'vat_amount' => 0, 'less_excess' => 0, 'total' => 0,
@@ -83,6 +83,7 @@ if ($is_new && !$invoice) {
         'booking_id' => null, 'user_id' => null,
         'recipient_name' => '', 'claim_reference' => '', 'insurance_company_id' => null,
         'customer_name' => $pf_name, 'customer_phone' => $pf_phone, 'customer_email' => $pf_email, 'vehicle_info' => '',
+        'registration' => '',
         'subtotal' => 0, 'discount_type' => 'none', 'discount_value' => 0, 'discount_amount' => 0,
         'vat_enabled' => 1, 'vat_rate' => 17.50, 'vat_amount' => 0, 'less_excess' => 0, 'total' => 0,
         'payment_status' => 'unpaid', 'amount_paid' => 0, 'payment_method' => '',
@@ -304,7 +305,11 @@ $is_locked = ($invoice['payment_status'] === 'void');
                 </div>
                 <div>
                     <label>Vehicle</label>
-                    <input type="text" name="vehicle_info" value="<?= htmlspecialchars($invoice['vehicle_info'] ?? '') ?>" placeholder="e.g. 2018 BMW 320i (BT 1234)">
+                    <input type="text" name="vehicle_info" value="<?= htmlspecialchars($invoice['vehicle_info'] ?? '') ?>" placeholder="e.g. 2018 BMW 320i">
+                </div>
+                <div>
+                    <label>Reg No.</label>
+                    <input type="text" name="registration" value="<?= htmlspecialchars($invoice['registration'] ?? '') ?>" placeholder="e.g. BT 1234">
                 </div>
             </div>
         </div>

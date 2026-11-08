@@ -59,9 +59,11 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Statement — <?= htmlspecialchars($company['name']) ?> — <?= $statement_number ?></title>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { overflow-x: hidden; }   /* no sideways scroll/clip on phones */
     body {
         font-family: 'Sora', -apple-system, system-ui, sans-serif;
         background: #f1f5f9;
@@ -111,23 +113,30 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         margin-top: 16px;
         margin-bottom: 30px;
     }
-    @media (max-width: 680px) { .paper { padding: 22px 22px 28px; } }
+    @media screen and (max-width: 680px) { .paper { padding: 22px 22px 28px; } }
 
     /* ── Letterhead (mirrors invoice print view) ── */
     .letterhead {
         display: grid;
-        grid-template-columns: 60px 195px 160px 1fr 64px;
+        grid-template-columns: 120px 180px 150px 1fr 64px;
         gap: 14px;
-        align-items: start;
+        align-items: center;
         padding-bottom: 10px;
         border-bottom: 2.5px solid #dc2626;
         margin-bottom: 18px;
     }
-    @media (max-width: 680px) {
-        .letterhead { grid-template-columns: auto 1fr; gap: 10px; }
+    @media screen and (max-width: 680px) {
+        /* Horizontal on phones: big logo left, contact details filling the right (logo spans rows) */
+        .letterhead { grid-template-columns: auto minmax(0,1fr); column-gap: 16px; row-gap: 6px; align-items: center; }
         .letterhead .lh-truck { display: none; }
+        .lh-logo { grid-row: 1 / span 3; align-self: center; }
     }
-    .lh-logo img { width: 58px; height: auto; object-fit: contain; }
+    .lh-logo { display: flex; align-items: center; }
+    .lh-logo img { width: 115px; max-width: 100%; height: auto; object-fit: contain; }
+    @media screen and (max-width: 680px) {
+        .lh-logo img { width: 120px; max-width: 34vw; }
+        .lh-deal, .lh-block { font-size: 10px; line-height: 1.5; white-space: normal; }
+    }
     .lh-deal { font-size: 9.5px; line-height: 1.55; color: #334155; min-width: 0; overflow: hidden; }
     .lh-deal-title { font-weight: 700; color: #0f172a; margin-bottom: 4px; font-size: 10px; letter-spacing: 0.01em; }
     .lh-block { font-size: 9.5px; line-height: 1.55; color: #334155; min-width: 0; white-space: nowrap; }
@@ -163,7 +172,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         margin-bottom: 16px;
         font-size: 12px;
     }
-    @media (max-width: 600px) { .meta-row { grid-template-columns: 1fr; } }
+    @media screen and (max-width: 600px) { .meta-row { grid-template-columns: 1fr; } }
     .meta-block { color: #334155; }
     .meta-block strong { color: #0f172a; display: inline-block; min-width: 100px; }
     .meta-block.right { text-align: right; }
@@ -182,7 +191,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         grid-template-columns: repeat(4, 1fr);
         background: #fff;
     }
-    @media (max-width: 600px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media screen and (max-width: 600px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
     .summary-cell {
         padding: 10px 12px;
         border-right: 1px solid #e2e8f0;
@@ -190,7 +199,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     }
     .summary-cell:nth-child(4n) { border-right: none; }
     .summary-cell:nth-last-child(-n+4) { border-bottom: none; }
-    @media (max-width: 600px) {
+    @media screen and (max-width: 600px) {
         .summary-cell:nth-child(2n) { border-right: none; }
         .summary-cell:nth-child(4n) { border-right: 1px solid #e2e8f0; }
         .summary-cell { border-bottom: 1px solid #e2e8f0; }
@@ -292,6 +301,8 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     .inv-num { font-weight: 700; color: #0f172a; font-size: 10.5px; line-height: 1.25; }
     .inv-cust { font-weight: 600; font-size: 11px; }
     .inv-veh  { font-size: 10px; color: #64748b; }
+    .inv-reg  { font-size: 10px; color: #475569; font-weight: 600; letter-spacing: 0.02em; }
+    .inv-reg::before { content: "Reg "; color: #94a3b8; font-weight: 500; }
     .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
     .amt.due { color: #dc2626; font-weight: 700; }
     .amt.paid-cell { color: #16a34a; }
@@ -345,7 +356,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         grid-template-columns: repeat(5, 1fr);
         background: #fff;
     }
-    @media (max-width: 600px) { .aging-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media screen and (max-width: 600px) { .aging-grid { grid-template-columns: repeat(2, 1fr); } }
     .aging-cell {
         padding: 10px 12px;
         border-right: 1px solid #e2e8f0;
@@ -399,13 +410,13 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         grid-template-columns: 1fr 1fr;
         background: #fff;
     }
-    @media (max-width: 560px) { .pay-grid { grid-template-columns: 1fr; } }
+    @media screen and (max-width: 560px) { .pay-grid { grid-template-columns: 1fr; } }
     .pay-method {
         padding: 10px 14px;
         border-right: 1px solid #e2e8f0;
     }
     .pay-method:last-child { border-right: none; }
-    @media (max-width: 560px) {
+    @media screen and (max-width: 560px) {
         .pay-method { border-right: none; border-bottom: 1px solid #e2e8f0; }
         .pay-method:last-child { border-bottom: none; }
     }
@@ -434,23 +445,35 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         font-size: 13px;
     }
 
+    /* ── MOBILE (screen only) — the 6-column statement table is inherently wide,
+       so let it scroll inside its own container rather than clip the figures. ── */
+    @media screen and (max-width: 680px) {
+        body { padding: 0; }
+        .inv-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table.inv-list { table-layout: auto; min-width: 620px; }
+        table.inv-list td { overflow: visible; }   /* auto layout sizes to content; nothing to clip */
+    }
+
     /* ─── PRINT STYLES ─── */
     @media print {
-        body { background: #fff; padding: 0; margin: 0; }
+        /* CRITICAL: pin the print layout to a real A4 width. Otherwise iOS Safari lays the
+           print out at the phone viewport width (~390px), wrapping the letterhead/table tall. */
+        html, body { width: 210mm; background: #fff; padding: 0; margin: 0; }
         .toolbar, .no-print { display: none !important; }
         @page { size: A4 portrait; margin: 0; }
 
         .paper {
             box-shadow: none; border-radius: 0;
             padding: 7mm 9mm 5mm;
-            max-width: none; width: 100%;
-            margin: 0;
+            max-width: none;
+            width: 210mm;              /* A4 width — never % (collapses to phone width on iOS) */
+            margin: 0 auto;
         }
 
         .letterhead { padding-bottom: 4px; margin-bottom: 6px; gap: 8px; }
         .lh-deal, .lh-block { font-size: 8px; line-height: 1.35; }
         .lh-deal-title { font-size: 8.5px; margin-bottom: 2px; }
-        .lh-logo img { width: 44px; }
+        .lh-logo img { width: 95px; }
         .lh-qr { width: 48px; height: 48px; }
         .lh-qr-caption { font-size: 6px; }
 
@@ -481,6 +504,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
         table.inv-list .inv-num     { font-size: 9.5px; }
         table.inv-list .inv-cust    { font-size: 9.5px; }
         table.inv-list .inv-veh     { font-size: 8.5px; }
+        table.inv-list .inv-reg     { font-size: 8.5px; }
         .paid-sub                   { font-size: 8px; margin-top: 1px; }
         .paid-sub-grand             { font-size: 8.5px; margin-top: 1px; }
         .status-tag { font-size: 7px; padding: 1px 4px; margin-top: 1px; }
@@ -527,7 +551,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     <!-- ─── LETTERHEAD ─── -->
     <div class="letterhead">
         <div class="lh-logo">
-            <img src="<?= $base ?>/assets/images/logo.png" alt="Wiyule & F A Motors">
+            <img src="<?= $base ?>/assets/images/logo-letterhead.png" alt="Wiyule & F A Motors">
         </div>
         <div class="lh-deal">
             <div class="lh-deal-title">Dealers in:</div>
@@ -641,6 +665,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     <?php if (empty($invoices)): ?>
         <div class="empty-state">No invoices in this period for the selected filter.</div>
     <?php else: ?>
+        <div class="inv-scroll">
         <table class="inv-list">
             <thead>
                 <tr>
@@ -681,6 +706,9 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
                         <?php if (!empty($inv['vehicle_info'])): ?>
                             <div class="inv-veh"><?= htmlspecialchars($inv['vehicle_info']) ?></div>
                         <?php endif; ?>
+                        <?php if (!empty($inv['registration'])): ?>
+                            <div class="inv-reg"><?= htmlspecialchars($inv['registration']) ?></div>
+                        <?php endif; ?>
                     </td>
                     <td class="amt col-totpaid">
                         <div><?= $fmt($inv['total']) ?></div>
@@ -699,6 +727,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
                 </tr>
             </tbody>
         </table>
+        </div>
     <?php endif; ?>
 
     <!-- ─── CHASER MESSAGE ─── -->

@@ -185,7 +185,7 @@ if (!function_exists('wm_ins_companies_all')) {
         string $status_filter = 'all'
     ): array {
         $sql = "SELECT id, invoice_number, recipient_name, customer_name, claim_reference,
-                       vehicle_info, total, amount_paid, payment_status, issued_at, due_date,
+                       vehicle_info, registration, total, amount_paid, payment_status, issued_at, due_date,
                        DATEDIFF(CURDATE(), issued_at) AS age_days
                 FROM invoices
                 WHERE type = 'invoice' AND payment_status != 'void' AND ";

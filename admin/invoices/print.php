@@ -38,6 +38,7 @@ function build_whatsapp_text(array $invoice, array $items): string {
         $lines[] = 'Customer: ' . $invoice['customer_name'];
     }
     if (!empty($invoice['vehicle_info'])) $lines[] = 'Vehicle: ' . $invoice['vehicle_info'];
+    if (!empty($invoice['registration'])) $lines[] = 'Reg No: ' . $invoice['registration'];
     if (!empty($invoice['claim_reference'])) $lines[] = 'Claim Ref: ' . $invoice['claim_reference'];
     $lines[] = 'Date: ' . date('d M Y', strtotime($invoice['issued_at']));
     $lines[] = '';
@@ -96,11 +97,13 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+    html, body { overflow-x:hidden; }   /* never let the paper scroll/clip sideways on phones */
     body {
         font-family:'Sora',sans-serif;
         background:#eef1f5; color:#0f172a;
         min-height:100vh;
         padding:24px 16px 80px;
+        -webkit-print-color-adjust:exact; print-color-adjust:exact;  /* keep branded colours in print/PDF */
     }
 
     /* ── Toolbar (hidden when printing) ── */
@@ -145,28 +148,34 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         position:relative;
         overflow:hidden;
     }
-    @media (max-width: 680px) { .paper { padding:22px 22px 28px; } }
+    @media screen and (max-width: 680px) { .paper { padding:22px 22px 28px; } }
 
     .paper-inner { position:relative; z-index:2; }
 
     /* ─── HEADER LETTERHEAD ──────────────────────────────── */
     .letterhead {
         display:grid;
-        /* Logo (bigger) | Dealers | Address | Phones  (QR moved to footer) */
-        grid-template-columns:104px minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);
-        gap:18px;
+        /* Logo (bigger, wide) | Dealers | Address | Phones  (QR moved to footer) */
+        grid-template-columns:150px minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);
+        gap:16px;
         align-items:center;
         padding-bottom:14px;
         border-bottom:3px solid #dc2626;
         margin-bottom:20px;
     }
     .paper.is-quote .letterhead { border-bottom-color:#2563eb; }
-    @media (max-width: 680px) {
-        /* Stack cleanly on small screens so nothing overflows or overlaps */
-        .letterhead { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
+    @media screen and (max-width: 680px) {
+        /* Horizontal on phones too: big logo on the left, contact details filling the right.
+           Logo spans all three info rows so nothing sits in dead space under it. */
+        .letterhead {
+            grid-template-columns:auto minmax(0,1fr);
+            column-gap:16px; row-gap:6px;
+            align-items:center;
+        }
+        .lh-logo { grid-row:1 / span 3; align-self:center; }
     }
     .lh-logo { display:flex; align-items:center; }
-    .lh-logo img { width:100px; height:auto; object-fit:contain; }
+    .lh-logo img { width:150px; max-width:100%; height:auto; object-fit:contain; }
     .lh-deal {
         font-size:9.5px; line-height:1.55;
         color:#334155; min-width:0; overflow:hidden;
@@ -175,11 +184,10 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
     .lh-deal .services { white-space:normal; }
     .lh-block { font-size:9.5px; line-height:1.6; color:#334155; min-width:0; white-space:nowrap; }
     .lh-block strong { color:#0f172a; }
-    @media (max-width: 680px) {
-        .lh-deal, .lh-block { font-size:11px; }
-        /* flex-column letterhead is full-width here, so let contact lines wrap if ever needed */
-        .lh-block { white-space:normal; }
-        .lh-logo img { width:84px; }
+    @media screen and (max-width: 680px) {
+        .lh-deal, .lh-block { font-size:10px; line-height:1.5; }
+        .lh-block { white-space:normal; }               /* contact lines wrap if ever needed */
+        .lh-logo img { width:120px; max-width:34vw; }
     }
 
     /* ─── DOCUMENT FOOTER: QR (bottom-left, larger) + thank-you ─── */
@@ -193,7 +201,7 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
     .doc-footer-qr .cap span { color:#dc2626; }
     .doc-footer-thanks { text-align:right; font-size:12px; color:#64748b; line-height:1.5; }
     .doc-footer-thanks .big { font-size:15px; font-weight:800; color:#0f172a; margin-bottom:3px; }
-    @media (max-width: 560px) {
+    @media screen and (max-width: 560px) {
         .doc-footer { flex-direction:column; align-items:center; text-align:center; gap:18px; }
         .doc-footer-thanks { text-align:center; }
     }
@@ -206,7 +214,7 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
     }
     .stamp.paid { color:rgba(22,163,74,0.20); border:5px solid rgba(22,163,74,0.20); }
     .stamp.void { color:rgba(100,116,139,0.22); border:5px solid rgba(100,116,139,0.22); }
-    @media (max-width: 560px) { .stamp { font-size:30px; top:120px; right:20px; } }
+    @media screen and (max-width: 560px) { .stamp { font-size:30px; top:120px; right:20px; } }
 
     /* ─── BIG TITLE ── */
     .doc-title-main {
@@ -218,7 +226,7 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         margin-bottom:18px;
         text-transform:uppercase;
     }
-    @media (max-width: 680px) { .doc-title-main { font-size:22px; margin-bottom:14px; } }
+    @media screen and (max-width: 680px) { .doc-title-main { font-size:22px; margin-bottom:14px; } }
 
     /* ─── DOCUMENT META ROW ─── */
     .meta-row {
@@ -227,7 +235,11 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         gap:24px;
         margin-bottom:16px;
     }
-    @media (max-width: 680px) { .meta-row { grid-template-columns:1fr; } }
+    @media screen and (max-width: 680px) {
+        .meta-row { grid-template-columns:1fr; }
+        /* Once the layout narrows, let the items table scroll rather than ever clip */
+        .items-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    }
 
     .att-block { font-size:12.5px; line-height:1.55; color:#334155; }
     .att-row { display:flex; gap:10px; align-items:flex-start; margin-bottom:5px; }
@@ -388,13 +400,13 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         gap:0;
         background:#fff;
     }
-    @media (max-width:560px) { .pay-grid { grid-template-columns:1fr; } }
+    @media screen and (max-width:560px) { .pay-grid { grid-template-columns:1fr; } }
     .pay-method {
         padding:10px 14px;
         border-right:1px solid #e2e8f0;
     }
     .pay-method:last-child { border-right:none; }
-    @media (max-width:560px) {
+    @media screen and (max-width:560px) {
         .pay-method { border-right:none; border-bottom:1px solid #e2e8f0; }
         .pay-method:last-child { border-bottom:none; }
     }
@@ -471,73 +483,110 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         font-weight:700;
     }
 
+    /* ─── MOBILE (screen only) — keep the whole paper inside the phone's width ─── */
+    @media screen and (max-width: 560px) {
+        body   { padding:14px 6px 56px; }
+        .paper { padding:16px 10px 22px; }
+
+        /* Document meta: left-align so the boxed values can't shoot off the screen */
+        .doc-meta      { min-width:0; text-align:left; }
+        .doc-meta-row  { justify-content:flex-start; flex-wrap:wrap; gap:6px 8px; }
+        .doc-meta-row .val { min-width:0; }
+        .vehicle-line  { text-align:left; }
+
+        /* Items table: auto layout, columns size to content. The numeric columns stay
+           nowrap so figures are NEVER clipped; descriptions wrap. For typical quotes the
+           whole table fits the phone; unusually large figures scroll inside .items-scroll. */
+        .items-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        table.items { table-layout:auto; width:100%; min-width:0; }
+        table.items th { padding:5px 5px; font-size:8.5px; }
+        table.items td { padding:5px 5px; font-size:9.5px; }
+        table.items td:nth-child(2) { word-break:break-word; }   /* description wraps, not the figures */
+        table.items td.item-num, table.items td.qty,
+        table.items td.unit, table.items td.line { width:auto; }
+        table.items td.unit, table.items td.line { font-size:9.5px; }
+        table.items tr.section-header td,
+        table.items tr.section-total td,
+        table.items tr.total-label td { font-size:9.5px; }
+        table.items tr.grand td { font-size:10px; padding:6px 5px; }
+    }
+
     /* ─── PRINT STYLES — aggressively tight to keep typical docs on 1 page ─── */
     @media print {
-        body { background:#fff; padding:0; margin:0; }
+        /* CRITICAL: force the print layout to a real A4 width. iOS Safari otherwise lays the
+           print out at the phone's viewport width (~390px), which wraps the letterhead/table
+           and spills onto a 2nd page. Pinning the width keeps the horizontal, one-page layout. */
+        html, body { width:210mm; background:#fff; padding:0; margin:0; }
         .toolbar, .no-print { display:none !important; }
         @page { size:A4; margin:0; }
 
         .paper {
             box-shadow:none; border-radius:0;
-            padding:8mm 10mm 6mm;     /* much tighter paper margins */
+            padding:5mm 10mm 3mm;     /* tight paper margins; page margin handles the rest */
             max-width:none;
-            width:100%;
+            width:210mm;              /* A4 width — do NOT use % (collapses to phone width on iOS) */
+            margin:0 auto;
         }
 
         /* Letterhead — compact */
         .letterhead {
-            padding-bottom:5px;
-            margin-bottom:8px;
+            padding-bottom:4px;
+            margin-bottom:5px;
             gap:10px;
         }
-        .lh-deal, .lh-block { font-size:8.5px; line-height:1.4; }
-        .lh-deal-title { font-size:9px; margin-bottom:3px; }
-        .lh-logo img { width:88px; }
-        .doc-footer { margin-top:18px; padding-top:12px; }
-        .doc-footer-qr img { width:92px; height:92px; }
+        .lh-deal, .lh-block { font-size:8.5px; line-height:1.32; }
+        .lh-deal-title { font-size:9px; margin-bottom:2px; }
+        .lh-logo img { width:140px; }
+        .doc-footer { margin-top:5px; padding-top:5px; }
+        .doc-footer-qr img { width:72px; height:72px; }
+        .doc-footer-thanks { font-size:10px; }
+        .doc-footer-thanks .big { font-size:12px; margin-bottom:1px; }
         .stamp { position:absolute; }
 
         /* Title — significantly smaller */
         .doc-title-main {
             font-size:18px;
-            margin-bottom:8px;
+            margin-bottom:6px;
             letter-spacing:0;
         }
 
         /* Meta row */
-        .meta-row { margin-bottom:8px; gap:14px; }
-        .att-block { font-size:11px; line-height:1.45; }
-        .att-row { margin-bottom:3px; }
-        .att-row .val { padding:3px 9px; min-height:22px; }
-        .greeting { font-size:10.5px; margin-top:3px; }
-        .doc-meta-row { margin-bottom:4px; font-size:11px; gap:8px; }
+        .meta-row { margin-bottom:4px; gap:14px; }
+        .att-block { font-size:11px; line-height:1.35; }
+        .att-row { margin-bottom:2px; }
+        .att-row .val { padding:2px 9px; min-height:18px; }
+        .greeting { font-size:10.5px; margin-top:2px; }
+        .doc-meta-row { margin-bottom:2px; font-size:11px; gap:8px; }
         .doc-meta-row .val { padding:3px 9px; min-width:120px; }
         .doc-meta { min-width:200px; }
 
         /* Items table */
-        table.items th { padding:4px 7px; font-size:9.5px; }
-        table.items td { padding:3px 7px; font-size:10.5px; }
-        table.items tr.section-header td { padding:4px 7px; font-size:10px; }
-        table.items tr.section-total td { padding:4px 7px; font-size:10.5px; }
-        table.items tr.total-label td { padding:4px 9px; font-size:10.5px; }
-        table.items tr.grand td { padding:6px 9px; font-size:11.5px; }
+        table.items th { padding:3px 7px; font-size:9.5px; }
+        table.items td { padding:1.5px 7px; font-size:10.5px; }
+        table.items tr.section-header td { padding:2px 7px; font-size:10px; }
+        table.items tr.section-total td { padding:2px 7px; font-size:10.5px; }
+        table.items tr.total-label td { padding:2px 9px; font-size:10.5px; }
+        table.items tr.grand td { padding:4px 9px; font-size:11.5px; }
         table.items td.item-num { font-size:10px; }
 
+        /* Status pill (invoices) — compact so invoices get the same one-page headroom */
+        .status-banner { margin:7px 0 0; padding:4px 12px; font-size:10px; letter-spacing:0.04em; }
+
         /* Payment details */
-        .pay-details { margin-top:7px; }
-        .pay-title { padding:4px 11px; font-size:9.5px; }
-        .pay-method { padding:6px 11px; }
-        .pay-method-label { font-size:8.5px; margin-bottom:3px; }
-        .pay-method-body { font-size:10px; line-height:1.4; }
-        .pay-ref { padding:4px 11px; font-size:9.5px; }
+        .pay-details { margin-top:5px; }
+        .pay-title { padding:3px 11px; font-size:9.5px; }
+        .pay-method { padding:3px 11px; }
+        .pay-method-label { font-size:8.5px; margin-bottom:2px; }
+        .pay-method-body { font-size:9.5px; line-height:1.3; }
+        .pay-ref { padding:2px 11px; font-size:9.5px; }
 
         /* Notes */
         .notes-block { margin-top:6px; padding:6px 10px; font-size:10px; }
 
         /* Terms — extra compact since it sits at the bottom */
         .terms-block {
-            margin-top:7px;
-            padding:6px 10px;
+            margin-top:5px;
+            padding:5px 10px;
         }
         .terms-title { font-size:8.5px; margin-bottom:3px; letter-spacing:0.06em; }
         .terms-list li {
@@ -595,7 +644,7 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         <!-- ─── LETTERHEAD ─── -->
         <div class="letterhead">
             <div class="lh-logo">
-                <img src="<?= $base ?>/assets/images/logo.png" alt="Wiyule & F A Motors">
+                <img src="<?= $base ?>/assets/images/logo-letterhead.png" alt="Wiyule & F A Motors">
             </div>
             <div class="lh-deal">
                 <div class="lh-deal-title">Dealers in:</div>
@@ -660,6 +709,12 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
                         <span class="val plain" style="color:#0f172a;font-weight:700"><?= htmlspecialchars($invoice['vehicle_info']) ?></span>
                     </div>
                 <?php endif; ?>
+                <?php if (!empty($invoice['registration'])): ?>
+                    <div class="doc-meta-row"<?= empty($invoice['vehicle_info']) ? ' style="margin-top:8px"' : '' ?>>
+                        <span class="lbl">Reg No:</span>
+                        <span class="val plain" style="color:#0f172a;font-weight:700"><?= htmlspecialchars($invoice['registration']) ?></span>
+                    </div>
+                <?php endif; ?>
                 <?php if (!empty($invoice['claim_reference'])): ?>
                     <div class="vehicle-line">Claim Ref: <?= htmlspecialchars($invoice['claim_reference']) ?></div>
                 <?php endif; ?>
@@ -667,14 +722,15 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         </div>
 
         <!-- ─── ITEMS TABLE (grouped by section) ─── -->
+        <div class="items-scroll">
         <table class="items">
             <thead>
                 <tr>
-                    <th class="text-center" style="width:48px">Item</th>
+                    <th class="text-center col-item">Item</th>
                     <th>Description</th>
-                    <th class="text-right" style="width:80px">Qty</th>
-                    <th class="text-right" style="width:130px">Unit Price</th>
-                    <th class="text-right" style="width:130px">Total</th>
+                    <th class="text-right col-qty">Qty</th>
+                    <th class="text-right col-unit">Unit Price</th>
+                    <th class="text-right col-line">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -746,6 +802,7 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
                 </tr>
             </tbody>
         </table>
+        </div>
 
         <!-- ─── Status (invoices only, not quotations) ─── -->
         <?php if (!$is_quote): ?>
@@ -832,6 +889,7 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
             <?php if ($is_quote): ?>
                 <ul class="terms-list">
                     <li>This quotation is valid for <strong>14 days</strong> from the date of issue.</li>
+                    <li>A <strong>50% deposit</strong> is required upfront before commencement of the job.</li>
                     <li>Additional damage identified post stripping will be quoted separately.</li>
                 </ul>
             <?php else: ?>
@@ -847,8 +905,8 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
         <!-- ─── FOOTER: QR (bottom-left, larger) + thank-you ─── -->
         <div class="doc-footer">
             <div class="doc-footer-qr">
-                <img src="<?= $base ?>/assets/images/wiyule_qr.png" alt="Scan to visit wiyulemotors.co.mw">
-                <div class="cap">Scan to visit <span>wiyulemotors.co.mw</span> &amp; book online</div>
+                <img src="<?= $base ?>/assets/images/wiyule_qr.png" alt="Scan to book online">
+                <div class="cap">Scan to <span>book online</span></div>
             </div>
             <div class="doc-footer-thanks">
                 <div class="big"><?= $is_quote ? 'We look forward to serving you.' : 'Thank you for your business!' ?></div>

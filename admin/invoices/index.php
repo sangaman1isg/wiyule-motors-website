@@ -30,10 +30,10 @@ if ($f_type !== 'all' && in_array($f_type, ['quotation','invoice'])) {
     $where[] = 'type = ?'; $params[] = $f_type; $types .= 's';
 }
 if ($f_search !== '') {
-    $where[] = '(invoice_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)';
+    $where[] = '(invoice_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ? OR registration LIKE ?)';
     $like = '%' . $f_search . '%';
-    $params[] = $like; $params[] = $like; $params[] = $like;
-    $types .= 'sss';
+    $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
+    $types .= 'ssss';
 }
 
 $sql = "SELECT * FROM invoices";
@@ -291,6 +291,7 @@ function wm_inv_qs($type, $status, $q, $archived) {
                     <th>Invoice #</th>
                     <th>Type</th>
                     <th>Customer</th>
+                    <th>Reg No</th>
                     <th>Date</th>
                     <th>Total</th>
                     <th>Status</th>
@@ -312,6 +313,7 @@ function wm_inv_qs($type, $status, $q, $archived) {
                             <div style="font-size:11px;color:#94a3b8"><?= htmlspecialchars($inv['customer_phone']) ?></div>
                         </div>
                     </td>
+                    <td data-label="Reg No"><?php if (!empty($inv['registration'])): ?><span style="font-weight:600"><?= htmlspecialchars($inv['registration']) ?></span><?php else: ?><span style="color:#cbd5e1">—</span><?php endif; ?></td>
                     <td data-label="Date" style="color:#64748b"><?= date('d M Y', strtotime($inv['issued_at'])) ?></td>
                     <td class="amount" data-label="Total"><?= wm_invoice_format_mwk($inv['total']) ?></td>
                     <td data-label="Status"><span class="pill" style="background:<?= $scol ?>"><?= $slabel ?></span></td>
@@ -332,7 +334,7 @@ function wm_inv_qs($type, $status, $q, $archived) {
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($invoices)): ?>
-                <tr><td colspan="7" class="empty"><?= $show_archived ? 'Nothing archived.' : 'No invoices found.' ?> <?php if(!$show_archived): ?><a href="<?= $base ?>/admin/invoices/edit.php?new=1" style="color:#dc2626;font-weight:700">Create the first one →</a><?php endif; ?></td></tr>
+                <tr><td colspan="8" class="empty"><?= $show_archived ? 'Nothing archived.' : 'No invoices found.' ?> <?php if(!$show_archived): ?><a href="<?= $base ?>/admin/invoices/edit.php?new=1" style="color:#dc2626;font-weight:700">Create the first one →</a><?php endif; ?></td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

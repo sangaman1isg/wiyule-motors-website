@@ -150,6 +150,9 @@ function wm_send_invoice_email(array $invoice, array $items) {
     $cust     = htmlspecialchars($invoice['customer_name'], ENT_QUOTES);
     $date     = date('d M Y', strtotime($invoice['issued_at']));
     $vehicle  = htmlspecialchars($invoice['vehicle_info'] ?? '', ENT_QUOTES);
+    $reg      = htmlspecialchars($invoice['registration'] ?? '', ENT_QUOTES);
+    // Combined vehicle label for the intro line (e.g. "Toyota Axio — BT 1234")
+    $veh_label = $reg ? ($vehicle ? $vehicle . ' — ' . $reg : $reg) : $vehicle;
     $site     = defined('SITE_URL') ? SITE_URL : 'https://www.wiyulemotors.co.mw';
 
     // Line-item rows grouped by section
@@ -194,7 +197,7 @@ function wm_send_invoice_email(array $invoice, array $items) {
     </div>
     <div style="padding:26px 28px;">
       <p style="font-size:15px;color:#334155;margin:0 0 4px;">Hi ' . $cust . ',</p>
-      <p style="font-size:14px;color:#64748b;margin:0 0 20px;">Here is your ' . strtolower($doc_word) . ' <strong style="color:#0f172a;">' . $num . '</strong> dated ' . $date . ($vehicle ? ' for <strong style="color:#0f172a;">' . $vehicle . '</strong>' : '') . '.</p>
+      <p style="font-size:14px;color:#64748b;margin:0 0 20px;">Here is your ' . strtolower($doc_word) . ' <strong style="color:#0f172a;">' . $num . '</strong> dated ' . $date . ($veh_label ? ' for <strong style="color:#0f172a;">' . $veh_label . '</strong>' : '') . '.</p>
       <table style="width:100%;border-collapse:collapse;">' . $rows_html . '</table>
       <table style="width:100%;border-collapse:collapse;margin-top:14px;border-top:2px solid #e2e8f0;">' . $totals_html . '
         <tr><td style="padding:12px 0 0;font-size:17px;font-weight:800;color:#0f172a;">' . $total_label . '</td>

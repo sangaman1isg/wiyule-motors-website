@@ -108,11 +108,11 @@ if (in_array($action, ['archive', 'restore', 'convert_to_invoice', 'duplicate', 
             $s = $conn->prepare("
                 INSERT INTO invoices
                   (invoice_number, type, booking_id, user_id, recipient_name, customer_name, customer_phone,
-                   customer_email, vehicle_info, claim_reference, insurance_company_id, subtotal, discount_type,
+                   customer_email, vehicle_info, registration, claim_reference, insurance_company_id, subtotal, discount_type,
                    discount_value, discount_amount, vat_enabled, vat_rate, vat_amount, less_excess, total,
                    payment_status, amount_paid, payment_method, payment_date, payment_notes, notes, issued_at, due_date, created_by)
                 SELECT ?, type, booking_id, user_id, recipient_name, customer_name, customer_phone,
-                   customer_email, vehicle_info, claim_reference, insurance_company_id, subtotal, discount_type,
+                   customer_email, vehicle_info, registration, claim_reference, insurance_company_id, subtotal, discount_type,
                    discount_value, discount_amount, vat_enabled, vat_rate, vat_amount, less_excess, total,
                    'unpaid', 0, '', NULL, '', notes, NOW(), due_date, ?
                 FROM invoices WHERE id = ?");
@@ -148,6 +148,7 @@ $customer_name  = trim($data['customer_name']  ?? '');
 $customer_phone = trim($data['customer_phone'] ?? '');
 $customer_email = trim($data['customer_email'] ?? '');
 $vehicle_info   = trim($data['vehicle_info']   ?? '');
+$registration   = trim($data['registration']   ?? '');   // Vehicle registration / plate no.
 $recipient_name = trim($data['recipient_name'] ?? '');   // For insurance "Att:" line
 $claim_reference= trim($data['claim_reference']?? '');   // BT/MPRV/CLM/XXXXX
 
@@ -237,12 +238,12 @@ try {
         $stmt = $conn->prepare("
             INSERT INTO invoices (
                 invoice_number, type, booking_id, user_id, recipient_name,
-                customer_name, customer_phone, customer_email, vehicle_info, claim_reference, insurance_company_id,
+                customer_name, customer_phone, customer_email, vehicle_info, registration, claim_reference, insurance_company_id,
                 subtotal, discount_type, discount_value, discount_amount,
                 vat_enabled, vat_rate, vat_amount, less_excess, total,
                 payment_status, amount_paid, payment_method, payment_date, payment_notes,
                 notes, issued_at, due_date, created_by
-            ) VALUES (?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?)
+            ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?)
         ");
         // Types breakdown:
         //  invoice_number, type, booking_id, user_id, recipient_name      → s s i i s     (5)
@@ -252,12 +253,12 @@ try {
         //  payment_status, amount_paid, payment_method, payment_date,
         //  payment_notes                                                   → s d s s s    (5)
         //  notes, issued_at, due_date, created_by                          → s s s i      (4)
-        //  Total: 5+6+4+5+5+4 = 29 chars, matching 29 placeholders
-        $types = 'ssiis' . 'sssssi' . 'dsdd' . 'idddd' . 'sdsss' . 'sssi';
+        //  Total: 5+7+4+5+5+4 = 30 chars, matching 30 placeholders (group 2 gained `registration`)
+        $types = 'ssiis' . 'ssssssi' . 'dsdd' . 'idddd' . 'sdsss' . 'sssi';
         $stmt->bind_param(
             $types,
             $invoice_number, $type, $booking_id, $user_id, $recipient_name,
-            $customer_name, $customer_phone, $customer_email, $vehicle_info, $claim_reference, $insurance_company_id,
+            $customer_name, $customer_phone, $customer_email, $vehicle_info, $registration, $claim_reference, $insurance_company_id,
             $subtotal_v, $discount_type, $discount_value, $discount_amount_v,
             $vat_enabled, $vat_rate, $vat_amount_v, $less_excess_v, $total_v,
             $payment_status, $amount_paid, $payment_method, $payment_date, $payment_notes,
@@ -284,7 +285,7 @@ try {
         $stmt = $conn->prepare("
             UPDATE invoices SET
                 type=?, booking_id=?, user_id=?, recipient_name=?,
-                customer_name=?, customer_phone=?, customer_email=?, vehicle_info=?, claim_reference=?, insurance_company_id=?,
+                customer_name=?, customer_phone=?, customer_email=?, vehicle_info=?, registration=?, claim_reference=?, insurance_company_id=?,
                 subtotal=?, discount_type=?, discount_value=?, discount_amount=?,
                 vat_enabled=?, vat_rate=?, vat_amount=?, less_excess=?, total=?,
                 payment_status=?, amount_paid=?, payment_method=?, payment_date=?, payment_notes=?,
@@ -300,12 +301,12 @@ try {
         //  payment_notes                                                   → s d s s s (5)
         //  notes, issued_at, due_date                                      → s s s     (3)
         //  id (WHERE)                                                      → i         (1)
-        //  Total: 4+6+4+5+5+3+1 = 28
-        $types = 'siis' . 'sssssi' . 'dsdd' . 'idddd' . 'sdsss' . 'sss' . 'i';
+        //  Total: 4+7+4+5+5+3+1 = 29 (group 2 gained `registration`)
+        $types = 'siis' . 'ssssssi' . 'dsdd' . 'idddd' . 'sdsss' . 'sss' . 'i';
         $stmt->bind_param(
             $types,
             $type, $booking_id, $user_id, $recipient_name,
-            $customer_name, $customer_phone, $customer_email, $vehicle_info, $claim_reference, $insurance_company_id,
+            $customer_name, $customer_phone, $customer_email, $vehicle_info, $registration, $claim_reference, $insurance_company_id,
             $subtotal_v, $discount_type, $discount_value, $discount_amount_v,
             $vat_enabled, $vat_rate, $vat_amount_v, $less_excess_v, $total_v,
             $payment_status, $amount_paid, $payment_method, $payment_date, $payment_notes,

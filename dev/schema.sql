@@ -152,3 +152,5 @@ ALTER TABLE invoices ADD COLUMN archived_at DATETIME NULL DEFAULT NULL AFTER pay
 ALTER TABLE invoices ADD COLUMN last_reminder_at DATETIME NULL DEFAULT NULL AFTER archived_at;
 -- Service-due: track when we last emailed a service-due reminder for this vehicle
 ALTER TABLE vehicles ADD COLUMN last_service_reminder_at DATETIME NULL DEFAULT NULL;
+-- Invoices: vehicle registration / plate number as its own field (was previously appended to vehicle_info)
+ALTER TABLE invoices ADD COLUMN registration varchar(20) NOT NULL DEFAULT '' AFTER vehicle_info;
