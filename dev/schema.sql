@@ -154,3 +154,16 @@ ALTER TABLE invoices ADD COLUMN last_reminder_at DATETIME NULL DEFAULT NULL AFTE
 ALTER TABLE vehicles ADD COLUMN last_service_reminder_at DATETIME NULL DEFAULT NULL;
 -- Invoices: vehicle registration / plate number as its own field (was previously appended to vehicle_info)
 ALTER TABLE invoices ADD COLUMN registration varchar(20) NOT NULL DEFAULT '' AFTER vehicle_info;
+-- Bookings: customer-uploaded photos of the problem (damage / warning light) attached at booking time.
+-- Files live under /uploads/bookings/ ; this table only stores the reference.
+CREATE TABLE IF NOT EXISTS `booking_attachments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `booking_id` int(11) NOT NULL,
+  `file_name` varchar(255) NOT NULL,
+  `mime` varchar(100) NOT NULL DEFAULT '',
+  `size` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_ba_booking` (`booking_id`),
+  CONSTRAINT `fk_ba_booking` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

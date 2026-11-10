@@ -129,6 +129,17 @@ $stmt->bind_param(
 if ($stmt->execute()) {
     $booking_id = $stmt->insert_id;
 
+    // ── Save any uploaded problem photos (optional, never breaks the booking) ──
+    $photo_count = 0;
+    if (!empty($_FILES['photos']['name'][0] ?? '')) {
+        try {
+            require_once __DIR__ . '/../includes/booking_attachments.php';
+            $photo_count = wm_booking_save_uploads($conn, $booking_id, $_FILES['photos']);
+        } catch (Throwable $e) {
+            error_log('Booking photo save failed: ' . $e->getMessage());
+        }
+    }
+
     // Mark the first-time offer as used (only if valid and applied)
     if ($first_time_discount == 1 && $user_id) {
         $mark = $conn->prepare("UPDATE users SET first_offer_used = 1 WHERE id = ?");
@@ -144,7 +155,7 @@ if ($stmt->execute()) {
             'full_name'    => $full_name, 'phone' => $phone,
             'vehicle_make' => $vehicle_make, 'vehicle_model' => $vehicle_model, 'vehicle_year' => $vehicle_year,
             'services'     => $services, 'booking_date' => $booking_date, 'booking_time' => $booking_time,
-            'source'       => $source ?? '—',
+            'source'       => $source ?? '—', 'photo_count' => $photo_count,
         ]);
     } catch (Throwable $e) {
         error_log('New-booking owner alert failed: ' . $e->getMessage());
@@ -153,6 +164,7 @@ if ($stmt->execute()) {
     echo json_encode([
         'success'             => true,
         'booking_id'          => $booking_id,
+        'photo_count'         => $photo_count,
         'first_time_discount' => $first_time_discount,
         'is_first_time'       => $is_first_time,
         'offer_message'       => $offer_message,

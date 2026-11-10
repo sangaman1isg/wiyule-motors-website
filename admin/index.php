@@ -201,6 +201,21 @@ $stmt->execute();
 $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
+// Attach customer-uploaded problem photos (as public URLs) to each booking row.
+require_once __DIR__ . '/../includes/booking_attachments.php';
+try {
+    $booking_photo_map = wm_booking_attachments_map($conn, array_column($bookings, 'id'));
+} catch (Throwable $e) {
+    $booking_photo_map = [];   // table not migrated yet — degrade gracefully
+}
+foreach ($bookings as &$b) {
+    $b['photos'] = array_map(
+        fn($f) => wm_booking_attachment_url($base, $f),
+        $booking_photo_map[(int)$b['id']] ?? []
+    );
+}
+unset($b);
+
 // ── Compute source counts (only show pills for sources that have bookings) ──
 $source_counts = ['unknown' => 0];
 $r = $conn->query("
@@ -1455,6 +1470,7 @@ function viewBooking(id) {
                 '<div><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Time</div><div style="font-weight:600">'+esc(b.booking_time)+'</div></div>'+
             '</div>'+
             (b.notes?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Notes</div><div style="font-style:italic;color:#64748b">'+esc(b.notes)+'</div></div>':'')+
+            ((b.photos&&b.photos.length)?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">Customer photos ('+b.photos.length+')</div><div style="display:flex;flex-wrap:wrap;gap:8px">'+b.photos.map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener" style="display:block;width:78px;height:78px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0"><img src="'+esc(u)+'" style="width:100%;height:100%;object-fit:cover" loading="lazy"></a>';}).join('')+'</div></div>':'')+
             '<div style="border-top:1px solid #f1f5f9;padding-top:16px;display:flex;gap:8px;flex-wrap:wrap">'+
                 (b.status==='pending'?'<button class="action-btn confirm" onclick="updateStatus('+b.id+',\'confirmed\');closeDetail()">✓ Confirm</button><button class="action-btn cancel" onclick="updateStatus('+b.id+',\'cancelled\');closeDetail()">✕ Cancel</button>':'')+
                 (b.status==='confirmed'?'<button class="action-btn complete" onclick="updateStatus('+b.id+',\'completed\');closeDetail()">✓ Mark Complete</button>':'')+

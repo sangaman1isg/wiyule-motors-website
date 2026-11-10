@@ -1,0 +1,8 @@
+# Uploaded customer files — static images only. Never execute anything here.
+# NOTE: deliberately no `php_flag` / `php_value` — some shared hosts (InfinityFree)
+# 500 on those in .htaccess. Denying script extensions below is enough, since we
+# only ever store MIME-validated images with random names.
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|phps|pht|phar|pl|py|cgi|sh|asp|aspx|jsp)$">
+    Require all denied
+</FilesMatch>
+Options -Indexes

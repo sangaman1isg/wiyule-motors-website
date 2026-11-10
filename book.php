@@ -15,13 +15,6 @@ $autofill = $is_logged_in ? [
 // Preselected service & first-time offer from query string
 $preselected_service = isset($_GET['svc']) ? htmlspecialchars($_GET['svc']) : '';
 $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
-
-$services_list = [
-    'General Maintenance', 'Engine Repair', 'Spray Painting',
-    'Auto Detailing', 'Panel Beating', 'Vehicle Wrapping',
-    'Brake Services', 'AC Repair', 'Polishing', 'Battery Services',
-    'Auto Body Work', 'Parts Supply',
-];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -214,6 +207,40 @@ $services_list = [
         font-size: 11px; color: #94a3b8;
         font-weight: 500; margin-left: 6px;
     }
+
+    /* ── Problem photos ─────────────────────────── */
+    .photo-help { font-size: 12px; color: #64748b; margin-bottom: 8px; line-height: 1.4; }
+    .photo-drop {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 4px; padding: 18px 12px;
+        border: 1.5px dashed #cbd5e1; border-radius: 12px;
+        background: #f8fafc; cursor: pointer; text-align: center;
+        transition: border-color 0.15s, background 0.15s;
+    }
+    .photo-drop:hover { border-color: #dc2626; background: #fef2f2; }
+    .photo-drop svg { width: 26px; height: 26px; color: #94a3b8; }
+    .photo-drop span { font-size: 13.5px; font-weight: 600; color: #334155; }
+    .photo-drop small { font-size: 11px; color: #94a3b8; }
+    .photo-drop.is-full { opacity: 0.5; pointer-events: none; }
+    .photo-previews { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .photo-thumb {
+        position: relative; width: 72px; height: 72px;
+        border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0;
+        background: #f1f5f9;
+    }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-thumb .rm {
+        position: absolute; top: 2px; right: 2px;
+        width: 20px; height: 20px; border-radius: 50%;
+        background: rgba(15,23,42,0.75); color: #fff; border: none;
+        font-size: 13px; line-height: 1; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .voice-link {
+        display: inline-block; margin-top: 10px;
+        font-size: 12.5px; font-weight: 600; color: #16a34a; text-decoration: none;
+    }
+    .voice-link:hover { text-decoration: underline; }
 
     .submit-btn {
         width: 100%; padding: 16px;
@@ -472,6 +499,21 @@ $services_list = [
                     <label for="bookingNotes">Notes <span class="field-opt">(optional)</span></label>
                     <textarea id="bookingNotes" name="notes" placeholder="Anything we should know about your car or the work you need?"></textarea>
                 </div>
+
+                <!-- Problem photos (optional). File input has NO name — we append downscaled
+                     blobs as photos[] on submit so big phone photos don't blow the upload limit. -->
+                <div class="field" style="margin-top:14px">
+                    <label>Add photos <span class="field-opt">(optional)</span></label>
+                    <div class="photo-help">A picture of the damage, warning light or the part helps us prepare and quote faster.</div>
+                    <input type="file" id="bookingPhotos" accept="image/*" multiple capture="environment" style="display:none">
+                    <div class="photo-drop" id="photoDrop">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <span>Tap to add photos</span>
+                        <small>Up to 4 · JPG or PNG</small>
+                    </div>
+                    <div class="photo-previews" id="photoPreviews"></div>
+                    <a href="https://wa.me/265993575111" target="_blank" rel="noopener" class="voice-link">🎤 Prefer a voice note? Send it to us on WhatsApp →</a>
+                </div>
             </div>
 
             <!-- ════════ SECTION 4 — A FEW MORE QUESTIONS ════════ -->
@@ -628,6 +670,71 @@ regInput.addEventListener('input', () => {
 });
 
 // ══════════════════════════════════════════════════════
+// Problem photos — downscale client-side, preview, attach on submit
+// (keeps big phone photos under the host's upload limit)
+// ══════════════════════════════════════════════════════
+const PHOTO_MAX     = 4;
+const photoInput    = document.getElementById('bookingPhotos');
+const photoDrop     = document.getElementById('photoDrop');
+const photoPreviews = document.getElementById('photoPreviews');
+let photoBlobs = [];   // [{ blob, url }]
+
+photoDrop.addEventListener('click', () => photoInput.click());
+photoInput.addEventListener('change', async () => {
+    const files = Array.from(photoInput.files || []);
+    for (const file of files) {
+        if (photoBlobs.length >= PHOTO_MAX) break;
+        if (!file.type.startsWith('image/')) continue;
+        try {
+            const blob = await downscaleImage(file, 1280, 0.8);
+            photoBlobs.push({ blob, url: URL.createObjectURL(blob) });
+        } catch (_) { /* skip unreadable image */ }
+    }
+    photoInput.value = '';   // allow re-picking the same file
+    renderPhotos();
+});
+
+function renderPhotos() {
+    photoPreviews.innerHTML = '';
+    photoBlobs.forEach((p, idx) => {
+        const d = document.createElement('div');
+        d.className = 'photo-thumb';
+        const img = document.createElement('img'); img.src = p.url; img.alt = '';
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'rm'; btn.setAttribute('aria-label', 'Remove'); btn.innerHTML = '&times;';
+        btn.addEventListener('click', () => {
+            URL.revokeObjectURL(p.url);
+            photoBlobs.splice(idx, 1);
+            renderPhotos();
+        });
+        d.appendChild(img); d.appendChild(btn);
+        photoPreviews.appendChild(d);
+    });
+    photoDrop.classList.toggle('is-full', photoBlobs.length >= PHOTO_MAX);
+}
+
+// Load an image, scale so its longest side <= maxDim, return a JPEG Blob.
+function downscaleImage(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            let width = img.width, height = img.height;
+            if (width > maxDim || height > maxDim) {
+                if (width >= height) { height = Math.round(height * maxDim / width); width = maxDim; }
+                else { width = Math.round(width * maxDim / height); height = maxDim; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            URL.revokeObjectURL(img.src);
+            canvas.toBlob(b => b ? resolve(b) : reject(new Error('encode failed')), 'image/jpeg', quality);
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+    });
+}
+
+// ══════════════════════════════════════════════════════
 // Form submit
 // ══════════════════════════════════════════════════════
 form.addEventListener('submit', async function(e) {
@@ -644,6 +751,7 @@ form.addEventListener('submit', async function(e) {
     submit.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="10" opacity="0.3"/><path d="M22 12a10 10 0 0 0-10-10"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg> Sending…';
 
     const fd = new FormData(form);
+    photoBlobs.forEach((p, i) => fd.append('photos[]', p.blob, 'photo' + (i + 1) + '.jpg'));
 
     try {
         const resp = await fetch('<?= $base ?>/pages/process-booking.php', {

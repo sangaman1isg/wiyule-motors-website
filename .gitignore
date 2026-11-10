@@ -46,3 +46,7 @@ __pycache__/
 
 # Local dev DB override — never commit or deploy
 includes/db.local.php
+
+# Customer-uploaded booking photos are runtime data — keep the folder + rules, ignore the files
+/uploads/bookings/*
+!/uploads/bookings/.gitkeep
