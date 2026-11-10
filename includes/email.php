@@ -71,14 +71,14 @@ function wm_send_email($to_email, $to_name, $subject, $html_body, $text_body = '
  * Send a 6-digit verification code to a new signup.
  */
 function wm_send_verification_email($to_email, $to_name, $code) {
-    $subject = 'Your Wiyule Motors verification code: ' . $code;
+    $subject = 'Your Wiyule & F.A Motors verification code: ' . $code;
     $safe_name = htmlspecialchars($to_name ?: 'there', ENT_QUOTES);
 
     $html = '
 <div style="font-family: -apple-system, Segoe UI, Arial, sans-serif; background:#0b0f1a; padding:32px 16px; color:#f1f5f9;">
   <div style="max-width:520px; margin:0 auto; background:#141925; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:32px;">
     <div style="text-align:center; margin-bottom:24px;">
-      <h1 style="font-size:22px; font-weight:800; margin:0; color:#fff;">Welcome to Wiyule Motors</h1>
+      <h1 style="font-size:22px; font-weight:800; margin:0; color:#fff;">Welcome to Wiyule & F.A Motors</h1>
       <p style="font-size:14px; color:#94a3b8; margin:6px 0 0;">Verify your email to activate your account</p>
     </div>
     <p style="font-size:15px; color:#cbd5e1; margin:0 0 18px;">Hi ' . $safe_name . ',</p>
@@ -88,11 +88,11 @@ function wm_send_verification_email($to_email, $to_name, $code) {
     </div>
     <p style="font-size:13px; color:#94a3b8; margin:0 0 12px;">This code expires in <strong style="color:#f1f5f9;">15 minutes</strong>. If you didn\'t sign up, you can ignore this email.</p>
     <hr style="border:none; border-top:1px solid rgba(255,255,255,0.08); margin:24px 0;">
-    <p style="font-size:12px; color:#64748b; margin:0; text-align:center;">Wiyule Motors · Blantyre, Malawi · +265 993 575 111</p>
+    <p style="font-size:12px; color:#64748b; margin:0; text-align:center;">Wiyule & F.A Motors · Blantyre, Malawi · +265 993 575 111</p>
   </div>
 </div>';
 
-    $text = "Hi $to_name,\n\nYour Wiyule Motors verification code is: $code\n\nIt expires in 15 minutes.\n\nIf you didn't sign up, ignore this email.\n\n— Wiyule Motors";
+    $text = "Hi $to_name,\n\nYour Wiyule & F.A Motors verification code is: $code\n\nIt expires in 15 minutes.\n\nIf you didn't sign up, ignore this email.\n\n— Wiyule & F.A Motors";
 
     return wm_send_email($to_email, $to_name, $subject, $html, $text);
 }
@@ -101,7 +101,7 @@ function wm_send_verification_email($to_email, $to_name, $code) {
  * Send a 6-digit sign-in (2FA) code to an existing customer logging in.
  */
 function wm_send_login_code_email($to_email, $to_name, $code) {
-    $subject = 'Your Wiyule Motors sign-in code: ' . $code;
+    $subject = 'Your Wiyule & F.A Motors sign-in code: ' . $code;
     $safe_name = htmlspecialchars($to_name ?: 'there', ENT_QUOTES);
 
     $html = '
@@ -112,17 +112,17 @@ function wm_send_login_code_email($to_email, $to_name, $code) {
       <p style="font-size:14px; color:#94a3b8; margin:6px 0 0;">Confirm it\'s really you</p>
     </div>
     <p style="font-size:15px; color:#cbd5e1; margin:0 0 18px;">Hi ' . $safe_name . ',</p>
-    <p style="font-size:15px; color:#cbd5e1; margin:0 0 24px;">Use this 6-digit code to finish signing in to your Wiyule Motors account:</p>
+    <p style="font-size:15px; color:#cbd5e1; margin:0 0 24px;">Use this 6-digit code to finish signing in to your Wiyule & F.A Motors account:</p>
     <div style="background:#0b0f1a; border:1px solid rgba(220,38,38,0.4); border-radius:14px; padding:24px; text-align:center; margin:0 0 24px;">
       <div style="font-size:38px; font-weight:800; letter-spacing:0.3em; color:#fff; font-family: SF Mono, Menlo, monospace;">' . $code . '</div>
     </div>
     <p style="font-size:13px; color:#94a3b8; margin:0 0 12px;">This code expires in <strong style="color:#f1f5f9;">10 minutes</strong>. If you didn\'t try to sign in, change your password and contact us.</p>
     <hr style="border:none; border-top:1px solid rgba(255,255,255,0.08); margin:24px 0;">
-    <p style="font-size:12px; color:#64748b; margin:0; text-align:center;">Wiyule Motors · Blantyre, Malawi · +265 993 575 111</p>
+    <p style="font-size:12px; color:#64748b; margin:0; text-align:center;">Wiyule & F.A Motors · Blantyre, Malawi · +265 993 575 111</p>
   </div>
 </div>';
 
-    $text = "Hi $to_name,\n\nYour Wiyule Motors sign-in code is: $code\n\nIt expires in 10 minutes.\n\nIf you didn't try to sign in, change your password and contact us.\n\n— Wiyule Motors";
+    $text = "Hi $to_name,\n\nYour Wiyule & F.A Motors sign-in code is: $code\n\nIt expires in 10 minutes.\n\nIf you didn't try to sign in, change your password and contact us.\n\n— Wiyule & F.A Motors";
 
     return wm_send_email($to_email, $to_name, $subject, $html, $text);
 }
@@ -132,7 +132,7 @@ function wm_send_login_code_email($to_email, $to_name, $code) {
  * $reset_url should be the full https:// URL with the token already appended.
  */
 function wm_send_password_reset_email($to_email, $to_name, $reset_url) {
-    $subject = 'Reset your Wiyule Motors password';
+    $subject = 'Reset your Wiyule & F.A Motors password';
     $safe_name = htmlspecialchars($to_name ?: 'there', ENT_QUOTES);
     $safe_url  = htmlspecialchars($reset_url, ENT_QUOTES);
 
@@ -141,7 +141,7 @@ function wm_send_password_reset_email($to_email, $to_name, $reset_url) {
   <div style="max-width:520px; margin:0 auto; background:#141925; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:32px;">
     <div style="text-align:center; margin-bottom:24px;">
       <h1 style="font-size:22px; font-weight:800; margin:0; color:#fff;">Reset your password</h1>
-      <p style="font-size:14px; color:#94a3b8; margin:6px 0 0;">Wiyule Motors account</p>
+      <p style="font-size:14px; color:#94a3b8; margin:6px 0 0;">Wiyule & F.A Motors account</p>
     </div>
     <p style="font-size:15px; color:#cbd5e1; margin:0 0 18px;">Hi ' . $safe_name . ',</p>
     <p style="font-size:15px; color:#cbd5e1; margin:0 0 24px;">We got a request to reset your password. Click the button below to choose a new one. This link expires in <strong style="color:#f1f5f9;">1 hour</strong> and can only be used once.</p>
@@ -152,11 +152,11 @@ function wm_send_password_reset_email($to_email, $to_name, $reset_url) {
     <p style="font-size:12px; color:#94a3b8; margin:0 0 16px; word-break:break-all;"><a href="' . $safe_url . '" style="color:#f87171;">' . $safe_url . '</a></p>
     <p style="font-size:13px; color:#94a3b8; margin:0 0 12px;"><strong style="color:#f1f5f9;">Didn\'t request this?</strong> You can safely ignore this email — your password won\'t change unless you click the link above.</p>
     <hr style="border:none; border-top:1px solid rgba(255,255,255,0.08); margin:24px 0;">
-    <p style="font-size:12px; color:#64748b; margin:0; text-align:center;">Wiyule Motors · Blantyre, Malawi · +265 993 575 111</p>
+    <p style="font-size:12px; color:#64748b; margin:0; text-align:center;">Wiyule & F.A Motors · Blantyre, Malawi · +265 993 575 111</p>
   </div>
 </div>';
 
-    $text = "Hi $to_name,\n\nReset your Wiyule Motors password by visiting:\n$reset_url\n\nThis link expires in 1 hour and can only be used once.\n\nIf you didn't request this, ignore this email.\n\n— Wiyule Motors";
+    $text = "Hi $to_name,\n\nReset your Wiyule & F.A Motors password by visiting:\n$reset_url\n\nThis link expires in 1 hour and can only be used once.\n\nIf you didn't request this, ignore this email.\n\n— Wiyule & F.A Motors";
 
     return wm_send_email($to_email, $to_name, $subject, $html, $text);
 }
@@ -214,9 +214,9 @@ function wm_send_invoice_email(array $invoice, array $items) {
 
     $note = $is_quote
         ? 'This quotation is valid for 14 days. Additional damage identified after stripping will be quoted separately.'
-        : 'Thank you for choosing Wiyule Motors. Payment within 21 days is appreciated.';
+        : 'Thank you for choosing Wiyule & F.A Motors. Payment within 21 days is appreciated.';
 
-    $subject = "$doc_word $num from Wiyule Motors";
+    $subject = "$doc_word $num from Wiyule & F.A Motors";
 
     $html = '
 <div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f5;padding:28px 14px;color:#0f172a;">
@@ -236,12 +236,12 @@ function wm_send_invoice_email(array $invoice, array $items) {
       <p style="font-size:13px;color:#94a3b8;margin:22px 0 0;line-height:1.6;">' . htmlspecialchars($note, ENT_QUOTES) . '</p>
     </div>
     <div style="background:#f8fafc;padding:16px 28px;border-top:1px solid #e2e8f0;text-align:center;">
-      <p style="font-size:12px;color:#64748b;margin:0;">Wiyule Motors · Blantyre, Malawi · +265 993 575 111 · <a href="' . htmlspecialchars($site, ENT_QUOTES) . '" style="color:#dc2626;text-decoration:none;">wiyulemotors.co.mw</a></p>
+      <p style="font-size:12px;color:#64748b;margin:0;">Wiyule & F.A Motors · Blantyre, Malawi · +265 993 575 111 · <a href="' . htmlspecialchars($site, ENT_QUOTES) . '" style="color:#dc2626;text-decoration:none;">wiyulemotors.co.mw</a></p>
     </div>
   </div>
 </div>';
 
-    $text = "$doc_word $num from Wiyule Motors\n\nHi $cust,\n\nYour $total_label is " . wm_invoice_format_mwk($invoice['total']) . ".\n\n$note\n\n— Wiyule Motors, Blantyre · +265 993 575 111";
+    $text = "$doc_word $num from Wiyule & F.A Motors\n\nHi $cust,\n\nYour $total_label is " . wm_invoice_format_mwk($invoice['total']) . ".\n\n$note\n\n— Wiyule & F.A Motors, Blantyre · +265 993 575 111";
 
     return wm_send_email($to_email, $invoice['customer_name'], $subject, $html, $text);
 }
@@ -260,7 +260,7 @@ function _wm_email_shell(string $heading, string $badge, string $body_html): str
       ' . $body_html . '
     </div>
     <div style="background:#f8fafc;padding:14px 26px;border-top:1px solid #e2e8f0;text-align:center;">
-      <p style="font-size:12px;color:#64748b;margin:0;">Wiyule Motors · Blantyre, Malawi · +265 993 575 111</p>
+      <p style="font-size:12px;color:#64748b;margin:0;">Wiyule & F.A Motors · Blantyre, Malawi · +265 993 575 111</p>
     </div>
   </div>
 </div>';
@@ -281,7 +281,7 @@ function wm_send_payment_reminder_email(array $invoice) {
           . '<div style="font-size:26px;font-weight:800;color:#dc2626;margin-top:4px;">' . wm_invoice_format_mwk($bal) . '</div></div>'
           . '<p style="font-size:13px;color:#64748b;margin:0;">Please settle at your earliest convenience, or reply/call us to arrange payment. Thank you!</p>';
     $html = _wm_email_shell('Payment reminder', 'Invoice ' . $invoice['invoice_number'], $body);
-    $text = "Hi " . $invoice['customer_name'] . ",\n\nReminder: invoice " . $invoice['invoice_number'] . " has an outstanding balance of " . wm_invoice_format_mwk($bal) . ($due ? " (due $due)" : "") . ".\nPlease settle at your earliest convenience.\n\n— Wiyule Motors · +265 993 575 111";
+    $text = "Hi " . $invoice['customer_name'] . ",\n\nReminder: invoice " . $invoice['invoice_number'] . " has an outstanding balance of " . wm_invoice_format_mwk($bal) . ($due ? " (due $due)" : "") . ".\nPlease settle at your earliest convenience.\n\n— Wiyule & F.A Motors · +265 993 575 111";
     return wm_send_email($to, $invoice['customer_name'], 'Payment reminder — invoice ' . $invoice['invoice_number'], $html, $text);
 }
 
@@ -295,8 +295,8 @@ function wm_send_quote_expiry_email(array $invoice) {
     $body = '<p style="font-size:14px;color:#334155;margin:0 0 14px;">Hi ' . $cust . ', your quotation <strong>' . $num . '</strong> for ' . wm_invoice_format_mwk($invoice['total']) . ' is valid for 14 days and will expire soon.</p>'
           . '<p style="font-size:13px;color:#64748b;margin:0;">If you\'d like to go ahead, just reply or call us and we\'ll get your vehicle booked in. Prices may change after the quote expires.</p>';
     $html = _wm_email_shell('Your quotation expires soon', 'Quotation ' . $invoice['invoice_number'], $body);
-    $text = "Hi " . $invoice['customer_name'] . ",\n\nYour quotation " . $invoice['invoice_number'] . " for " . wm_invoice_format_mwk($invoice['total']) . " is valid for 14 days and will expire soon. Reply or call to proceed.\n\n— Wiyule Motors · +265 993 575 111";
-    return wm_send_email($to, $invoice['customer_name'], 'Your Wiyule Motors quotation expires soon', $html, $text);
+    $text = "Hi " . $invoice['customer_name'] . ",\n\nYour quotation " . $invoice['invoice_number'] . " for " . wm_invoice_format_mwk($invoice['total']) . " is valid for 14 days and will expire soon. Reply or call to proceed.\n\n— Wiyule & F.A Motors · +265 993 575 111";
+    return wm_send_email($to, $invoice['customer_name'], 'Your Wiyule & F.A Motors quotation expires soon', $html, $text);
 }
 
 /** Service-due reminder to a customer. */
@@ -308,7 +308,7 @@ function wm_send_service_due_email(string $to_email, string $to_name, string $ve
           . ($last_text !== '' ? ' (' . htmlspecialchars($last_text, ENT_QUOTES) . ')' : '') . '.</p>'
           . '<p style="font-size:13px;color:#64748b;margin:0 0 4px;">Regular servicing keeps your vehicle safe, reliable, and holding its value. Reply or call us and we\'ll book you a convenient slot.</p>';
     $html = _wm_email_shell('Time for a service?', 'Service reminder', $body);
-    $text = "Hi $to_name,\n\nOur records show your $vehicle_label may be due for a service" . ($last_text !== '' ? " ($last_text)" : "") . ".\nReply or call us to book a slot.\n\n— Wiyule Motors · +265 993 575 111";
+    $text = "Hi $to_name,\n\nOur records show your $vehicle_label may be due for a service" . ($last_text !== '' ? " ($last_text)" : "") . ".\nReply or call us to book a slot.\n\n— Wiyule & F.A Motors · +265 993 575 111";
     return wm_send_email($to_email, $to_name, 'Your ' . $vehicle_label . ' may be due for a service', $html, $text);
 }
 
@@ -336,5 +336,5 @@ function wm_send_new_booking_alert(array $b) {
           . '<table style="width:100%;border-collapse:collapse;">' . $tbl . '</table>';
     $html = _wm_email_shell('New booking received', 'Booking', $body);
     $text = "New booking:\n" . implode("\n", array_map(fn($k,$v)=>"$k: $v", array_keys($rows), array_values($rows)));
-    return wm_send_email($owner, 'Wiyule Motors', '🔔 New booking: ' . ($b['full_name'] ?? 'customer'), $html, $text);
+    return wm_send_email($owner, 'Wiyule & F.A Motors', '🔔 New booking: ' . ($b['full_name'] ?? 'customer'), $html, $text);
 }
