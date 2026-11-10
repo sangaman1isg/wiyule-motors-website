@@ -198,3 +198,31 @@ function wm_invoice_group_items(array $items): array {
     }
     return $groups;
 }
+
+/**
+ * Can a logged-in CUSTOMER view this invoice? True if it's directly theirs
+ * (user_id), linked to one of their bookings, or addressed to their verified
+ * account email. Used to let customers open their own invoice from the dashboard.
+ */
+function wm_customer_owns_invoice(mysqli $conn, array $invoice, int $user_id, string $email): bool {
+    if ($user_id <= 0) return false;
+
+    if (!empty($invoice['user_id']) && (int)$invoice['user_id'] === $user_id) return true;
+
+    if (!empty($invoice['booking_id'])) {
+        $bid  = (int)$invoice['booking_id'];
+        $stmt = $conn->prepare("SELECT 1 FROM bookings WHERE id = ? AND user_id = ? LIMIT 1");
+        $stmt->bind_param('ii', $bid, $user_id);
+        $stmt->execute();
+        $owns = (bool)$stmt->get_result()->fetch_row();
+        $stmt->close();
+        if ($owns) return true;
+    }
+
+    if ($email !== '' && !empty($invoice['customer_email'])
+        && strcasecmp(trim($invoice['customer_email']), trim($email)) === 0) {
+        return true;
+    }
+
+    return false;
+}

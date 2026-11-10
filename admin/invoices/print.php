@@ -5,11 +5,6 @@ require_once __DIR__ . '/../../includes/security.php';
 wm_secure_session_start();
 $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: " . $base . "/admin/login.php");
-    exit;
-}
-
 require_once __DIR__ . '/../../includes/db_connection.php';
 require_once __DIR__ . '/../../includes/invoices.php';
 
@@ -17,12 +12,22 @@ $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) { header("Location: " . $base . "/admin/invoices/"); exit; }
 
 $data = wm_invoice_fetch($conn, $id);
-if (!$data) { header("Location: " . $base . "/admin/invoices/"); exit; }
+if (!$data) { header("Location: " . $base . ($_SESSION['admin_id'] ?? false ? "/admin/invoices/" : "/pages/dashboard.php")); exit; }
 
 $invoice  = $data['invoice'];
 $items    = $data['items'];
 $is_quote = ($invoice['type'] === 'quotation');
 $groups   = wm_invoice_group_items($items);
+
+// ── Access control: admins may view any document; a logged-in customer may view
+//    ONLY their own invoice (via the dashboard). Everyone else is bounced. ──
+$is_admin = isset($_SESSION['admin_id']);
+$is_owner = !$is_admin && isset($_SESSION['user_id'])
+         && wm_customer_owns_invoice($conn, $invoice, (int)$_SESSION['user_id'], $_SESSION['email'] ?? '');
+if (!$is_admin && !$is_owner) {
+    header("Location: " . $base . (isset($_SESSION['user_id']) ? "/pages/dashboard.php" : "/admin/login.php"));
+    exit;
+}
 
 // Build WhatsApp text version
 function build_whatsapp_text(array $invoice, array $items): string {
@@ -621,14 +626,18 @@ if (!empty($invoice['registration'])) $pdf_title .= ' - Reg ' . $invoice['regist
 <!-- Toolbar -->
 <div class="toolbar no-print">
     <div class="toolbar-left">
-        <a href="<?= $base ?>/admin/invoices/edit.php?id=<?= (int)$invoice['id'] ?>" style="color:#64748b;text-decoration:none">← Back to editor</a>
+        <?php if ($is_admin): ?>
+            <a href="<?= $base ?>/admin/invoices/edit.php?id=<?= (int)$invoice['id'] ?>" style="color:#64748b;text-decoration:none">← Back to editor</a>
+        <?php else: ?>
+            <a href="<?= $base ?>/pages/dashboard.php" style="color:#64748b;text-decoration:none">← Back to dashboard</a>
+        <?php endif; ?>
     </div>
     <div class="toolbar-right">
         <a href="<?= htmlspecialchars($whatsapp_url) ?>" target="_blank" class="t-btn-link" title="Open WhatsApp with a text summary of this document">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2z"/></svg>
             WhatsApp summary
         </a>
-        <?php if (!empty($invoice['customer_email'])): ?>
+        <?php if ($is_admin && !empty($invoice['customer_email'])): ?>
             <button class="t-btn ghost" id="emailBtn" onclick="emailInvoice()" title="Email this document to <?= htmlspecialchars($invoice['customer_email']) ?>">✉ Email to customer</button>
         <?php endif; ?>
         <button class="t-btn dark" onclick="window.print()">🖨 Print / Save as PDF</button>

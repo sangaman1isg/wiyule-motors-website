@@ -211,12 +211,25 @@ if (!empty($service_history)) {
         $fbst->close();
     } catch (Throwable $e) { $hist_fb_map = []; }
 
+    // Linked invoices (by booking) so a record can offer a real "Download Invoice".
+    $hist_inv_map = [];
+    try {
+        $iv_in = implode(',', array_fill(0, count($hist_ids), '?'));
+        $ivst  = $conn->prepare("SELECT booking_id, id FROM invoices WHERE type='invoice' AND payment_status<>'void' AND booking_id IN ($iv_in)");
+        $ivst->bind_param(str_repeat('i', count($hist_ids)), ...$hist_ids);
+        $ivst->execute();
+        $ivres = $ivst->get_result();
+        while ($row = $ivres->fetch_assoc()) $hist_inv_map[(int)$row['booking_id']] = (int)$row['id'];
+        $ivst->close();
+    } catch (Throwable $e) { $hist_inv_map = []; }
+
     foreach ($service_history as &$h) {
         $bid = (int)$h['db_id'];
-        $h['photos']  = array_map(fn($f) => wm_booking_attachment_url($base, $f), $hist_photo_map[$bid] ?? []);
+        $h['photos']     = array_map(fn($f) => wm_booking_attachment_url($base, $f), $hist_photo_map[$bid] ?? []);
         $fb = $hist_fb_map[$bid] ?? null;
-        $h['rating']  = $fb ? (int)$fb['rating'] : 0;
-        $h['comment'] = $fb['comment'] ?? '';
+        $h['rating']     = $fb ? (int)$fb['rating'] : 0;
+        $h['comment']    = $fb['comment'] ?? '';
+        $h['invoice_id'] = $hist_inv_map[$bid] ?? 0;
     }
     unset($h);
 }
@@ -2751,7 +2764,9 @@ function wm_brand_logo($make) {
                             <?php endif; ?>
 
                             <div style="margin-top:10px;display:flex;gap:8px">
-                                <button style="font-size:12px;font-weight:600;color:#dc2626;background:none;border:1px solid #fecaca;padding:4px 12px;border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif">Download Invoice</button>
+                                <?php if (!empty($h['invoice_id'])): ?>
+                                <a href="<?= $base ?>/admin/invoices/print.php?id=<?= (int)$h['invoice_id'] ?>" target="_blank" rel="noopener" style="font-size:12px;font-weight:600;color:#dc2626;background:none;border:1px solid #fecaca;padding:4px 12px;border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif;text-decoration:none">🧾 Download Invoice</a>
+                                <?php endif; ?>
                                 <?php if (empty($h['rating'])): ?>
                                 <button style="font-size:12px;font-weight:600;color:#94a3b8;background:none;border:1px solid rgba(255,255,255,0.12);padding:4px 12px;border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif">Leave Review</button>
                                 <?php endif; ?>
