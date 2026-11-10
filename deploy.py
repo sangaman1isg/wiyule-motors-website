@@ -17,11 +17,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
-# Files/dirs never uploaded (dev/meta/local-only). secrets.php IS uploaded.
+# Files/dirs never uploaded (dev/meta/local-only).
+# IMPORTANT: secrets.php is EXCLUDED — production manages its own (real Brevo key,
+# WM_HEALTH_KEY, etc.). Uploading the local copy would overwrite prod's live values.
 EXCLUDE_NAMES = {
     ".git", ".gitignore", ".idea", ".vscode", ".claude", ".DS_Store",
     ".deploy.env", ".deploy.env.example", "deploy.py", "deploy.sh",
-    "secrets.example.php", "db.local.php", "dev", "__MACOSX", "__pycache__",
+    "secrets.php", "secrets.example.php", "db.local.php", "dev", "__MACOSX", "__pycache__",
 }
 # Also skip any file with one of these suffixes.
 EXCLUDE_SUFFIX = {".pyc"}
