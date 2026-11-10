@@ -58,46 +58,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header('Location: ' . $base . '/pages/verify-email.php');
                     exit();
                 }
-                wm_login_record_success($email);
-                // ── Regenerate session ID to prevent fixation ──
-                session_regenerate_id(true);
+                // ── Password OK + email verified → require a fresh 2FA code by email ──
+                $uid      = (int)$user['id'];
+                $uemail   = $user['email'];
+                $ufirst   = explode(' ', $user['full_name'], 2)[0];
+                $remember = !empty($_POST['remember']);
+                $stmt->close();
 
-                $_SESSION['user_id']      = $user['id'];
-                $_SESSION['email']        = $user['email'];
-                $_SESSION['user_email']   = $user['email'];
-                $_SESSION['user_name']    = $user['full_name'];
-                $_SESSION['phone']        = $user['phone'] ?? '';
-                $_SESSION['member_since'] = $user['created_at'] ?? date('Y-m-d');
+                require_once __DIR__ . '/../includes/auth.php';
+                wm_issue_login_code($conn, $uid, $uemail, $ufirst);
 
-                $name_parts             = explode(' ', $user['full_name'], 2);
-                $_SESSION['first_name'] = $name_parts[0];
-                $_SESSION['last_name']  = $name_parts[1] ?? '';
+                // Hold identity in a PENDING slot — NOT logged in until the code is entered.
+                $_SESSION['pending_2fa_id']       = $uid;
+                $_SESSION['pending_2fa_email']    = $uemail;
+                $_SESSION['pending_2fa_remember'] = $remember;
+                unset($_SESSION['twofa_attempts']);
 
-                // ── Load FIRST vehicle for session (dashboard fetches full list from DB) ──
-                $vstmt = $conn->prepare("SELECT make, model, year, registration, color, mileage, engine, transmission FROM vehicles WHERE user_id = ? ORDER BY created_at DESC LIMIT 1");
-                $vstmt->bind_param("i", $user['id']);
-                $vstmt->execute();
-                $vresult = $vstmt->get_result();
-                if ($vresult->num_rows >= 1) {
-                    $v = $vresult->fetch_assoc();
-                    $_SESSION['vehicle_make']         = $v['make'];
-                    $_SESSION['vehicle_model']        = $v['model'];
-                    $_SESSION['vehicle_year']          = $v['year'];
-                    $_SESSION['vehicle_reg']           = $v['registration'];
-                    $_SESSION['vehicle_color']         = $v['color'];
-                    $_SESSION['vehicle_mileage']       = (int)$v['mileage'];
-                    $_SESSION['vehicle_engine']        = $v['engine'];
-                    $_SESSION['vehicle_transmission']  = $v['transmission'];
-                }
-                $vstmt->close();
-
-                // Handle remember me (30-day cookie)
-                if (!empty($_POST['remember'])) {
-                    $token = bin2hex(random_bytes(32));
-                    setcookie('remember_token', $token, time() + (30 * 24 * 60 * 60), '/', '', false, true);
-                }
-
-                header("Location: " . $base . "/pages/dashboard.php");
+                header('Location: ' . $base . '/pages/login-verify.php');
                 exit();
 
             } else {

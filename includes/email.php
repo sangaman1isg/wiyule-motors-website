@@ -98,6 +98,36 @@ function wm_send_verification_email($to_email, $to_name, $code) {
 }
 
 /**
+ * Send a 6-digit sign-in (2FA) code to an existing customer logging in.
+ */
+function wm_send_login_code_email($to_email, $to_name, $code) {
+    $subject = 'Your Wiyule Motors sign-in code: ' . $code;
+    $safe_name = htmlspecialchars($to_name ?: 'there', ENT_QUOTES);
+
+    $html = '
+<div style="font-family: -apple-system, Segoe UI, Arial, sans-serif; background:#0b0f1a; padding:32px 16px; color:#f1f5f9;">
+  <div style="max-width:520px; margin:0 auto; background:#141925; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:32px;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <h1 style="font-size:22px; font-weight:800; margin:0; color:#fff;">Sign-in verification</h1>
+      <p style="font-size:14px; color:#94a3b8; margin:6px 0 0;">Confirm it\'s really you</p>
+    </div>
+    <p style="font-size:15px; color:#cbd5e1; margin:0 0 18px;">Hi ' . $safe_name . ',</p>
+    <p style="font-size:15px; color:#cbd5e1; margin:0 0 24px;">Use this 6-digit code to finish signing in to your Wiyule Motors account:</p>
+    <div style="background:#0b0f1a; border:1px solid rgba(220,38,38,0.4); border-radius:14px; padding:24px; text-align:center; margin:0 0 24px;">
+      <div style="font-size:38px; font-weight:800; letter-spacing:0.3em; color:#fff; font-family: SF Mono, Menlo, monospace;">' . $code . '</div>
+    </div>
+    <p style="font-size:13px; color:#94a3b8; margin:0 0 12px;">This code expires in <strong style="color:#f1f5f9;">10 minutes</strong>. If you didn\'t try to sign in, change your password and contact us.</p>
+    <hr style="border:none; border-top:1px solid rgba(255,255,255,0.08); margin:24px 0;">
+    <p style="font-size:12px; color:#64748b; margin:0; text-align:center;">Wiyule Motors · Blantyre, Malawi · +265 993 575 111</p>
+  </div>
+</div>';
+
+    $text = "Hi $to_name,\n\nYour Wiyule Motors sign-in code is: $code\n\nIt expires in 10 minutes.\n\nIf you didn't try to sign in, change your password and contact us.\n\n— Wiyule Motors";
+
+    return wm_send_email($to_email, $to_name, $subject, $html, $text);
+}
+
+/**
  * Send a password-reset link to a user who forgot their password.
  * $reset_url should be the full https:// URL with the token already appended.
  */
