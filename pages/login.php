@@ -58,23 +58,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header('Location: ' . $base . '/pages/verify-email.php');
                     exit();
                 }
-                // ── Password OK + email verified → require a fresh 2FA code by email ──
-                $uid      = (int)$user['id'];
-                $uemail   = $user['email'];
-                $ufirst   = explode(' ', $user['full_name'], 2)[0];
-                $remember = !empty($_POST['remember']);
-                $stmt->close();
-
+                // NOTE: email 2FA is temporarily DISABLED — Brevo email delivery is failing in
+                // prod, and a code step would lock everyone out. Re-enable (restore the
+                // wm_issue_login_code + pending_2fa + login-verify redirect) once email works.
                 require_once __DIR__ . '/../includes/auth.php';
-                wm_issue_login_code($conn, $uid, $uemail, $ufirst);
-
-                // Hold identity in a PENDING slot — NOT logged in until the code is entered.
-                $_SESSION['pending_2fa_id']       = $uid;
-                $_SESSION['pending_2fa_email']    = $uemail;
-                $_SESSION['pending_2fa_remember'] = $remember;
-                unset($_SESSION['twofa_attempts']);
-
-                header('Location: ' . $base . '/pages/login-verify.php');
+                wm_login_record_success($email);
+                wm_establish_user_session($conn, $user, !empty($_POST['remember']));
+                $stmt->close();
+                header('Location: ' . $base . '/pages/dashboard.php');
                 exit();
 
             } else {
