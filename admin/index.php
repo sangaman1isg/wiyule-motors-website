@@ -208,11 +208,34 @@ try {
 } catch (Throwable $e) {
     $booking_photo_map = [];   // table not migrated yet — degrade gracefully
 }
+
+// Post-booking feedback (rating + comment) per booking, in one query.
+$booking_feedback_map = [];
+try {
+    $fb_ids = array_values(array_filter(array_map('intval', array_column($bookings, 'id'))));
+    if ($fb_ids) {
+        $fin   = implode(',', array_fill(0, count($fb_ids), '?'));
+        $fstmt = $conn->prepare("SELECT booking_id, rating, comment FROM booking_feedback WHERE booking_id IN ($fin)");
+        $fstmt->bind_param(str_repeat('i', count($fb_ids)), ...$fb_ids);
+        $fstmt->execute();
+        $fres = $fstmt->get_result();
+        while ($fr = $fres->fetch_assoc()) {
+            $booking_feedback_map[(int)$fr['booking_id']] = ['rating' => (int)$fr['rating'], 'comment' => $fr['comment']];
+        }
+        $fstmt->close();
+    }
+} catch (Throwable $e) {
+    $booking_feedback_map = [];   // table not migrated yet — degrade gracefully
+}
+
 foreach ($bookings as &$b) {
     $b['photos'] = array_map(
         fn($f) => wm_booking_attachment_url($base, $f),
         $booking_photo_map[(int)$b['id']] ?? []
     );
+    $fb = $booking_feedback_map[(int)$b['id']] ?? null;
+    $b['fb_rating']  = $fb['rating'] ?? 0;
+    $b['fb_comment'] = $fb['comment'] ?? '';
 }
 unset($b);
 
@@ -1471,6 +1494,7 @@ function viewBooking(id) {
             '</div>'+
             (b.notes?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Notes</div><div style="font-style:italic;color:#64748b">'+esc(b.notes)+'</div></div>':'')+
             ((b.photos&&b.photos.length)?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">Customer photos ('+b.photos.length+')</div><div style="display:flex;flex-wrap:wrap;gap:8px">'+b.photos.map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener" style="display:block;width:78px;height:78px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0"><img src="'+esc(u)+'" style="width:100%;height:100%;object-fit:cover" loading="lazy"></a>';}).join('')+'</div></div>':'')+
+            (b.fb_rating?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Booking feedback</div><div style="font-size:18px;letter-spacing:2px">'+'★'.repeat(b.fb_rating)+'<span style="color:#e2e8f0">'+'★'.repeat(5-b.fb_rating)+'</span><span style="font-size:12px;color:#94a3b8;letter-spacing:0;margin-left:8px">'+b.fb_rating+'/5</span></div>'+(b.fb_comment?'<div style="font-style:italic;color:#64748b;margin-top:6px">“'+esc(b.fb_comment)+'”</div>':'')+'</div>':'')+
             '<div style="border-top:1px solid #f1f5f9;padding-top:16px;display:flex;gap:8px;flex-wrap:wrap">'+
                 (b.status==='pending'?'<button class="action-btn confirm" onclick="updateStatus('+b.id+',\'confirmed\');closeDetail()">✓ Confirm</button><button class="action-btn cancel" onclick="updateStatus('+b.id+',\'cancelled\');closeDetail()">✕ Cancel</button>':'')+
                 (b.status==='confirmed'?'<button class="action-btn complete" onclick="updateStatus('+b.id+',\'completed\');closeDetail()">✓ Mark Complete</button>':'')+

@@ -129,6 +129,25 @@ $stmt->bind_param(
 if ($stmt->execute()) {
     $booking_id = $stmt->insert_id;
 
+    // Remember which bookings THIS visitor made, so only they can leave feedback on them.
+    $_SESSION['recent_booking_ids'] = array_slice(
+        array_merge($_SESSION['recent_booking_ids'] ?? [], [$booking_id]), -10
+    );
+
+    // Stash contact details (in the SESSION, never the URL) so the "create an account"
+    // nudge on the success screen can pre-fill signup for this visitor.
+    $pf_digits = preg_replace('/\D/', '', $phone);
+    if (strlen($pf_digits) === 12 && strpos($pf_digits, '265') === 0) { $pf_national = substr($pf_digits, 3); }
+    elseif (strlen($pf_digits) === 10 && $pf_digits[0] === '0')       { $pf_national = substr($pf_digits, 1); }
+    else                                                             { $pf_national = $pf_digits; }
+    $pf_parts = preg_split('/\s+/', trim($full_name), 2);
+    $_SESSION['booking_prefill'] = [
+        'first_name' => $pf_parts[0] ?? '',
+        'last_name'  => $pf_parts[1] ?? '',
+        'email'      => $email,
+        'phone'      => $pf_national,
+    ];
+
     // ── Save any uploaded problem photos (optional, never breaks the booking) ──
     $photo_count = 0;
     if (!empty($_FILES['photos']['name'][0] ?? '')) {

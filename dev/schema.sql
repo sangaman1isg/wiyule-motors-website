@@ -167,3 +167,16 @@ CREATE TABLE IF NOT EXISTS `booking_attachments` (
   KEY `idx_ba_booking` (`booking_id`),
   CONSTRAINT `fk_ba_booking` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+-- Bookings: customer feedback on how the online booking felt (1–5 + optional comment).
+-- One row per booking (UNIQUE), upserted so a customer can refine their rating.
+CREATE TABLE IF NOT EXISTS `booking_feedback` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `booking_id` int(11) NOT NULL,
+  `rating` tinyint(4) NOT NULL,
+  `comment` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_bf_booking` (`booking_id`),
+  CONSTRAINT `fk_bf_booking` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

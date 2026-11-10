@@ -14,6 +14,14 @@ if (isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Pre-fill from a just-completed booking (set in the session by process-booking.php).
+// Used once then cleared so it doesn't linger on later visits.
+$pf = $_SESSION['booking_prefill'] ?? [];
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { unset($_SESSION['booking_prefill']); }
+$prefill = function(string $key) use ($pf) {
+    return htmlspecialchars($_POST[$key] ?? ($pf[$key] ?? ''));
+};
+
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -542,7 +550,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="email">Email Address <span class="req">*</span></label>
                         <div class="field-input-wrap">
                             <input type="email" id="email" name="email"
-                                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
+                                   value="<?= $prefill('email') ?>"
                                    class="field-input" placeholder="john@example.com" autocomplete="email">
                             <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
                         </div>
@@ -621,7 +629,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label for="first_name">First Name <span class="req">*</span></label>
                             <div class="field-input-wrap">
                                 <input type="text" id="first_name" name="first_name"
-                                       value="<?= htmlspecialchars($_POST['first_name'] ?? '') ?>"
+                                       value="<?= $prefill('first_name') ?>"
                                        class="field-input" placeholder="Daniel" autocomplete="given-name">
                                 <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             </div>
@@ -631,7 +639,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label for="last_name">Last Name <span class="req">*</span></label>
                             <div class="field-input-wrap">
                                 <input type="text" id="last_name" name="last_name"
-                                       value="<?= htmlspecialchars($_POST['last_name'] ?? '') ?>"
+                                       value="<?= $prefill('last_name') ?>"
                                        class="field-input" placeholder="Kumwenda" autocomplete="family-name">
                                 <svg class="field-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             </div>
@@ -654,7 +662,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </select>
                             <div class="field-input-wrap">
                                 <input type="tel" id="phone" name="phone"
-                                       value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>"
+                                       value="<?= $prefill('phone') ?>"
                                        class="field-input" placeholder="993 575 111" autocomplete="tel" style="padding-left:16px">
                             </div>
                         </div>

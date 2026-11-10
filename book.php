@@ -236,11 +236,6 @@ $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
         font-size: 13px; line-height: 1; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
     }
-    .voice-link {
-        display: inline-block; margin-top: 10px;
-        font-size: 12.5px; font-weight: 600; color: #16a34a; text-decoration: none;
-    }
-    .voice-link:hover { text-decoration: underline; }
 
     .submit-btn {
         width: 100%; padding: 16px;
@@ -326,6 +321,55 @@ $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
         padding: 10px 16px;
     }
     .success-actions .home:hover { color: #0f172a; }
+
+    /* ── Account-creation nudge ─────────────────────────── */
+    .acct-nudge {
+        display: flex; align-items: center; gap: 12px;
+        margin-top: 16px; padding: 12px 14px;
+        border: 1.5px solid #fde68a; background: #fffbeb;
+        border-radius: 14px; text-decoration: none;
+        transition: border-color 0.15s, background 0.15s, transform 0.12s;
+    }
+    .acct-nudge:hover { border-color: #f59e0b; background: #fef3c7; transform: translateY(-1px); }
+    .acct-nudge-ic {
+        flex: 0 0 auto; width: 38px; height: 38px; border-radius: 10px;
+        background: #0f172a; color: #fff;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .acct-nudge-ic svg { width: 20px; height: 20px; }
+    .acct-nudge-tx { flex: 1; text-align: left; line-height: 1.3; }
+    .acct-nudge-tx strong { display: block; font-size: 13.5px; color: #0f172a; }
+    .acct-nudge-tx span { font-size: 12px; color: #92740b; }
+    .acct-nudge-arrow { width: 18px; height: 18px; color: #b45309; flex: 0 0 auto; }
+
+    /* ── Post-booking feedback ─────────────────────────── */
+    .fb { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e2e8f0; }
+    .fb-q { font-size: 13.5px; font-weight: 700; color: #334155; margin-bottom: 10px; }
+    .fb-faces { display: flex; justify-content: center; gap: 6px; }
+    .fb-face {
+        background: none; border: none; cursor: pointer;
+        font-size: 28px; line-height: 1; padding: 4px 6px;
+        border-radius: 10px; filter: grayscale(0.7); opacity: 0.7;
+        transition: transform 0.12s, filter 0.12s, opacity 0.12s, background 0.12s;
+    }
+    .fb-face:hover { transform: scale(1.18); filter: none; opacity: 1; }
+    .fb-face.sel { filter: none; opacity: 1; background: #fef2f2; transform: scale(1.12); }
+    .fb-more { display: none; margin-top: 12px; }
+    .fb-more.show { display: block; }
+    .fb-more textarea {
+        width: 100%; border: 1.5px solid #e2e8f0; border-radius: 10px;
+        padding: 9px 11px; font-family: inherit; font-size: 13px; resize: vertical;
+    }
+    .fb-more textarea:focus { outline: none; border-color: #dc2626; }
+    .fb-send {
+        margin-top: 8px; width: 100%; padding: 9px;
+        background: #0f172a; color: #fff; border: none; border-radius: 10px;
+        font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+    }
+    .fb-send:hover { background: #1e293b; }
+    .fb-thanks { display: none; font-size: 13.5px; font-weight: 600; color: #16a34a; margin-top: 6px; }
+    .fb.done .fb-faces, .fb.done .fb-more, .fb.done .fb-q { display: none; }
+    .fb.done .fb-thanks { display: block; }
 </style>
 </head>
 <body>
@@ -512,7 +556,6 @@ $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
                         <small>Up to 4 · JPG or PNG</small>
                     </div>
                     <div class="photo-previews" id="photoPreviews"></div>
-                    <a href="https://wa.me/265993575111" target="_blank" rel="noopener" class="voice-link">🎤 Prefer a voice note? Send it to us on WhatsApp →</a>
                 </div>
             </div>
 
@@ -589,6 +632,37 @@ $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
                 </svg>
                 Send via WhatsApp
             </a>
+        </div>
+
+        <?php if (!$is_logged_in): ?>
+        <!-- ── Nudge: create an account to track the vehicle (guests only) ── -->
+        <a href="<?= $base ?>/pages/signup.php?from=booking" class="acct-nudge">
+            <div class="acct-nudge-ic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13l2 2 4-4"/></svg>
+            </div>
+            <div class="acct-nudge-tx">
+                <strong>Track your car's service history</strong>
+                <span>Create a free account to manage your vehicle &amp; bookings</span>
+            </div>
+            <svg class="acct-nudge-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+        <?php endif; ?>
+
+        <!-- ── Quick post-booking feedback (how did booking with us feel?) ── -->
+        <div class="fb" id="fbBlock">
+            <div class="fb-q">How was booking with us?</div>
+            <div class="fb-faces" id="fbFaces">
+                <button type="button" class="fb-face" data-rating="1" aria-label="Bad">😞</button>
+                <button type="button" class="fb-face" data-rating="2" aria-label="Poor">😕</button>
+                <button type="button" class="fb-face" data-rating="3" aria-label="Okay">😐</button>
+                <button type="button" class="fb-face" data-rating="4" aria-label="Good">🙂</button>
+                <button type="button" class="fb-face" data-rating="5" aria-label="Great">😍</button>
+            </div>
+            <div class="fb-more" id="fbMore">
+                <textarea id="fbComment" rows="2" placeholder="Anything we could do better? (optional)"></textarea>
+                <button type="button" class="fb-send" id="fbSend">Send feedback</button>
+            </div>
+            <div class="fb-thanks" id="fbThanks">🙏 Thank you — your feedback helps us improve!</div>
         </div>
     </div>
 </div>
@@ -861,8 +935,13 @@ form.addEventListener('submit', async function(e) {
             const waBtn   = document.getElementById('successWaBtn');
             if (waBtn) waBtn.href = waLink;
 
+            resetFeedback(data.booking_id);
             modal.classList.add('open');
             form.reset();
+            // Clear any selected photos so a second booking starts clean
+            photoBlobs.forEach(p => URL.revokeObjectURL(p.url));
+            photoBlobs = [];
+            renderPhotos();
             if (typeof gtag !== 'undefined') {
                 gtag('event','book_service',{event_category:'conversion',event_label:'booking_confirmed'});
             }
@@ -878,6 +957,52 @@ form.addEventListener('submit', async function(e) {
 });
 
 function closeSuccess() { modal.classList.remove('open'); }
+
+// ══════════════════════════════════════════════════════
+// Post-booking feedback (emoji rating + optional comment)
+// ══════════════════════════════════════════════════════
+let fbBookingId = null, fbRating = 0;
+const fbBlock   = document.getElementById('fbBlock');
+const fbFaces   = document.getElementById('fbFaces');
+const fbMore    = document.getElementById('fbMore');
+const fbComment = document.getElementById('fbComment');
+const fbSend    = document.getElementById('fbSend');
+
+function resetFeedback(bookingId) {
+    fbBookingId = bookingId || null;
+    fbRating = 0;
+    fbBlock.classList.remove('done');
+    fbMore.classList.remove('show');
+    if (fbComment) fbComment.value = '';
+    fbFaces.querySelectorAll('.fb-face').forEach(f => f.classList.remove('sel'));
+    fbBlock.style.display = fbBookingId ? '' : 'none';   // can't attribute feedback without an id
+}
+
+async function postFeedback(withComment) {
+    if (!fbBookingId || !fbRating) return;
+    const fd = new FormData();
+    fd.append('booking_id', fbBookingId);
+    fd.append('rating', fbRating);
+    if (withComment && fbComment) fd.append('comment', fbComment.value.trim());
+    try {
+        await fetch('<?= $base ?>/pages/submit-feedback.php', { method:'POST', body:fd, credentials:'same-origin' });
+    } catch(_) { /* feedback is best-effort — never block the user */ }
+}
+
+fbFaces.querySelectorAll('.fb-face').forEach(face => {
+    face.addEventListener('click', () => {
+        fbRating = parseInt(face.getAttribute('data-rating'), 10) || 0;
+        fbFaces.querySelectorAll('.fb-face').forEach(f => f.classList.remove('sel'));
+        face.classList.add('sel');
+        fbMore.classList.add('show');
+        postFeedback(false);   // record the rating immediately, even if no comment follows
+    });
+});
+fbSend.addEventListener('click', () => {
+    if (!fbRating) return;
+    postFeedback(true);
+    fbBlock.classList.add('done');
+});
 </script>
 
 </body>
