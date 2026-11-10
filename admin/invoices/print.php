@@ -92,7 +92,12 @@ $whatsapp_url  = 'https://wa.me/' . $phone_intl . '?text=' . urlencode($whatsapp
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= htmlspecialchars($invoice['invoice_number']) ?> — <?= htmlspecialchars($invoice['customer_name']) ?></title>
+<?php
+// Browser uses <title> as the default "Save as PDF" filename + print header — build it for easy filing/tracking
+$pdf_title = ($is_quote ? 'Quotation ' : 'Invoice ') . $invoice['invoice_number'];
+if (!empty($invoice['registration'])) $pdf_title .= ' - Reg ' . $invoice['registration'];
+?>
+<title><?= htmlspecialchars($pdf_title) ?></title>
 <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
