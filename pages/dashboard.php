@@ -192,6 +192,35 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
+// Enrich history with the photos the customer uploaded + the feedback they left.
+if (!empty($service_history)) {
+    require_once __DIR__ . '/../includes/booking_attachments.php';
+    $hist_ids = array_map('intval', array_column($service_history, 'db_id'));
+
+    try { $hist_photo_map = wm_booking_attachments_map($conn, $hist_ids); }
+    catch (Throwable $e) { $hist_photo_map = []; }
+
+    $hist_fb_map = [];
+    try {
+        $fb_in = implode(',', array_fill(0, count($hist_ids), '?'));
+        $fbst  = $conn->prepare("SELECT booking_id, rating, comment FROM booking_feedback WHERE booking_id IN ($fb_in)");
+        $fbst->bind_param(str_repeat('i', count($hist_ids)), ...$hist_ids);
+        $fbst->execute();
+        $fbres = $fbst->get_result();
+        while ($row = $fbres->fetch_assoc()) $hist_fb_map[(int)$row['booking_id']] = $row;
+        $fbst->close();
+    } catch (Throwable $e) { $hist_fb_map = []; }
+
+    foreach ($service_history as &$h) {
+        $bid = (int)$h['db_id'];
+        $h['photos']  = array_map(fn($f) => wm_booking_attachment_url($base, $f), $hist_photo_map[$bid] ?? []);
+        $fb = $hist_fb_map[$bid] ?? null;
+        $h['rating']  = $fb ? (int)$fb['rating'] : 0;
+        $h['comment'] = $fb['comment'] ?? '';
+    }
+    unset($h);
+}
+
 // Total bookings count for stats
 $stmt = $conn->prepare("SELECT COUNT(*) as total FROM bookings WHERE user_id = ?");
 $stmt->bind_param("i", $current_user_id);
@@ -415,6 +444,7 @@ foreach ($all_vehicles as $av) {
     // AND the last recorded service mileage (combining what used to be 3 separate
     // queries across the page into ONE — drastically cuts DB load)
     $last_service_days_ago = null;
+    $last_service_date_actual = null;
     $completed_count = 0;
     $has_completed_service = false;
     $last_service_km = null;
@@ -436,6 +466,7 @@ foreach ($all_vehicles as $av) {
             $completed_count = (int)$r['completed_count'];
             $has_completed_service = true;
             if ($r['last_date']) {
+                $last_service_date_actual = $r['last_date'];
                 $last_service_days_ago = (int)((time() - strtotime($r['last_date'])) / 86400);
             }
             if ($r['last_service_km']) {
@@ -447,45 +478,60 @@ foreach ($all_vehicles as $av) {
     // Service interval pct (out of 5000km)
     $vh_interval_pct = $vh_mileage > 0 ? min(100, ($vh_mileage % 5000) / 50) : 0;
 
-    // Base score starts at 95 for well-maintained cars
+    // Honest "service health" score from REAL signals only — how recent the last
+    // service was and how far through the 5,000 km interval the car is. (No invented
+    // per-component percentages.)
     $health_score = 95;
-
-    // Penalty if service is overdue (more than 180 days since last service)
     if ($last_service_days_ago === null) {
-        // Never serviced with us — slight penalty
-        $health_score -= 10;
+        $health_score -= 10;                        // never serviced with us
     } else {
-        if ($last_service_days_ago > 365) $health_score -= 25;
-        elseif ($last_service_days_ago > 180) $health_score -= 15;
-        elseif ($last_service_days_ago > 90)  $health_score -= 5;
+        if ($last_service_days_ago > 365)      $health_score -= 25;
+        elseif ($last_service_days_ago > 180)  $health_score -= 15;
+        elseif ($last_service_days_ago > 90)   $health_score -= 5;
     }
-
-    // Penalty if close to next 5000km service interval
     if ($vh_interval_pct > 95)      $health_score -= 20;
     elseif ($vh_interval_pct > 85)  $health_score -= 10;
     elseif ($vh_interval_pct > 70)  $health_score -= 5;
-
-    // Bonus for tracked maintenance history
     $health_score += min(5, $completed_count * 2);
-
-    // Clamp
     $health_score = max(35, min(100, $health_score));
 
-    // Per-component scores — slight variation to look real
-    $items = [
-        ['label'=>'Engine',    'score'=> max(35, min(100, $health_score + 3)),  'icon'=>'settings'],
-        ['label'=>'Brakes',    'score'=> max(35, min(100, $health_score - 2)),  'icon'=>'disc'],
-        ['label'=>'Tyres',     'score'=> max(35, min(100, $health_score - 5)),  'icon'=>'circle'],
-        ['label'=>'Oil Level', 'score'=> max(35, min(100, $health_score - (int)($vh_interval_pct/10))), 'icon'=>'droplet'],
-        ['label'=>'AC System', 'score'=> max(35, min(100, $health_score + 4)),  'icon'=>'wind'],
-        ['label'=>'Battery',   'score'=> max(35, min(100, $health_score + 1)),  'icon'=>'zap'],
+    // Real next-service estimate: 3 months OR +5,000 km after the last service.
+    $next_due_date = $last_service_date_actual
+        ? date('d M Y', strtotime($last_service_date_actual . ' +3 months'))
+        : null;
+    $next_due_km = $last_service_km ? ($last_service_km + 5000) : null;
+
+    // Honest status badge from real data.
+    if ($last_service_days_ago === null) {
+        $vh_status = ['label'=>'No service record yet', 'tone'=>'amber'];
+    } elseif ($last_service_days_ago > 180 || $vh_interval_pct > 95) {
+        $vh_status = ['label'=>'Service overdue', 'tone'=>'red'];
+    } elseif ($last_service_days_ago > 90 || $vh_interval_pct > 80) {
+        $vh_status = ['label'=>'Service due soon', 'tone'=>'amber'];
+    } else {
+        $vh_status = ['label'=>'Up to date', 'tone'=>'green'];
+    }
+
+    // Real facts shown to the customer (replaces the invented component scores).
+    $facts = [
+        ['label'=>'Last service', 'icon'=>'settings',
+         'value'=> $last_service_date_actual ? date('d M Y', strtotime($last_service_date_actual)) : 'No record with us',
+         'sub'=> $last_service_days_ago !== null ? $last_service_days_ago.' day'.($last_service_days_ago!==1?'s':'').' ago' : 'book one to start tracking'],
+        ['label'=>'Next service due', 'icon'=>'droplet',
+         'value'=> $next_due_date ?: '—',
+         'sub'=> $next_due_km ? 'or at '.number_format($next_due_km).' km' : 'every 3 months / 5,000 km'],
+        ['label'=>'Current mileage', 'icon'=>'circle',
+         'value'=> $vh_mileage > 0 ? number_format($vh_mileage).' km' : '—',
+         'sub'=> $last_service_km ? 'serviced at '.number_format($last_service_km).' km' : ''],
+        ['label'=>'Services completed', 'icon'=>'disc',
+         'value'=> (string)$completed_count,
+         'sub'=> 'with Wiyule & F.A Motors'],
     ];
 
-    $overall = (int)(array_sum(array_column($items, 'score')) / count($items));
-
     $vehicles_health[$vh_id] = [
-        'items'                 => $items,
-        'overall'               => $overall,
+        'overall'               => $health_score,
+        'status'                => $vh_status,
+        'facts'                 => $facts,
         'last_service_days_ago' => $last_service_days_ago,
         'completed_count'       => $completed_count,
         'interval_pct'          => $vh_interval_pct,
@@ -494,23 +540,24 @@ foreach ($all_vehicles as $av) {
     ];
 }
 
-// For the overview card (single-vehicle fallback), use the FIRST vehicle's health
-$first_vh_id = count($all_vehicles) > 0 ? (int)$all_vehicles[0]['id'] : 0;
-$health_items = $first_vh_id && isset($vehicles_health[$first_vh_id])
-    ? $vehicles_health[$first_vh_id]['items']
-    : [
-        ['label'=>'Engine',    'score'=>85,'icon'=>'settings'],
-        ['label'=>'Brakes',    'score'=>80,'icon'=>'disc'],
-        ['label'=>'Tyres',     'score'=>75,'icon'=>'circle'],
-        ['label'=>'Oil Level', 'score'=>70,'icon'=>'droplet'],
-        ['label'=>'AC System', 'score'=>90,'icon'=>'wind'],
-        ['label'=>'Battery',   'score'=>83,'icon'=>'zap'],
-    ];
+// For the Vehicle Health panel (single-vehicle view), use the FIRST vehicle's data.
+$first_vh_id  = count($all_vehicles) > 0 ? (int)$all_vehicles[0]['id'] : 0;
+$first_vh     = ($first_vh_id && isset($vehicles_health[$first_vh_id])) ? $vehicles_health[$first_vh_id] : null;
+$health_facts = $first_vh['facts'] ?? [];
+$health_status = $first_vh['status'] ?? ['label'=>'No vehicle on record', 'tone'=>'amber'];
 
 // ── Helpers ──────────────────────────────────────────────────
 function healthColor(int $s): string { return $s>=80 ? '#16a34a' : ($s>=55 ? '#f59e0b' : '#dc2626'); }
 function healthBg(int $s): string    { return $s>=80 ? 'bg-green-50 text-green-700' : ($s>=55 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'); }
 function healthLabel(int $s): string { return $s>=80 ? 'Good' : ($s>=55 ? 'Fair' : 'Check'); }
+// Service-status tone → [text colour, background]
+function statusTone(string $t): array {
+    return match($t) {
+        'green' => ['#16a34a', '#f0fdf4'],
+        'red'   => ['#dc2626', '#fef2f2'],
+        default => ['#d97706', '#fffbeb'],   // amber
+    };
+}
 
 function statusPill(string $s): string {
     return match($s) {
@@ -548,7 +595,7 @@ function notifIcon(string $t): string {
 
 $unread_count   = count(array_filter($notifications, fn($n) => !$n['read']));
 $urgent_count   = count(array_filter($reminders, fn($r) => $r['urgency'] === 'urgent'));
-$overall_health = count($health_items) > 0 ? (int)(array_sum(array_column($health_items,'score')) / count($health_items)) : 100;
+$overall_health = $first_vh['overall'] ?? 100;
 
 // Mileage progress to next service
 $miles_done = $vehicle['mileage'] - $vehicle['last_service_mileage'];
@@ -2432,8 +2479,10 @@ function wm_brand_logo($make) {
                             $vh_id   = (int)$v['id'];
                             $vh_data = $vehicles_health[$vh_id] ?? null;
                             if (!$vh_data) continue;
-                            $vh_items   = $vh_data['items'];
+                            $vh_facts   = $vh_data['facts'];
+                            $vh_status  = $vh_data['status'];
                             $vh_overall = $vh_data['overall'];
+                            [$stCol, $stBg] = statusTone($vh_status['tone']);
                         ?>
                         <div class="health-pane" data-vidx="<?= $i ?>" style="display:<?= $i === 0 ? 'block' : 'none' ?>">
                             <div class="health-ring-wrap">
@@ -2450,35 +2499,26 @@ function wm_brand_logo($make) {
                                     </svg>
                                     <div class="health-ring-inner">
                                         <div class="health-pct" style="color:<?= healthColor($vh_overall) ?>"><?= $vh_overall ?>%</div>
-                                        <div class="health-sublabel"><?= healthLabel($vh_overall) ?></div>
+                                        <div class="health-sublabel">Service health</div>
                                     </div>
                                 </div>
                             </div>
-                            <!-- Vehicle label above bars -->
-                            <div style="text-align:center;font-size:12px;color:#94a3b8;margin:6px 0 2px">
-                                <strong style="color:#f1f5f9"><?= htmlspecialchars($v['make'].' '.$v['model']) ?></strong>
-                                <?php if($vh_data['last_service_days_ago'] !== null): ?>
-                                    · Last serviced <?= $vh_data['last_service_days_ago'] ?> day<?= $vh_data['last_service_days_ago'] !== 1 ? 's' : '' ?> ago
-                                <?php else: ?>
-                                    · No service history yet
-                                <?php endif; ?>
+                            <div style="text-align:center;margin:10px 0 2px">
+                                <strong style="color:#f1f5f9;font-size:13px"><?= htmlspecialchars($v['make'].' '.$v['model']) ?></strong>
+                                <div style="margin-top:6px"><span style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:99px;color:<?= $stCol ?>;background:<?= $stBg ?>"><?= htmlspecialchars($vh_status['label']) ?></span></div>
                             </div>
                             <div class="health-items" style="margin-top:12px">
-                                <?php foreach ($vh_items as $h): ?>
+                                <?php foreach ($vh_facts as $f): ?>
                                 <div class="health-row">
-                                    <div class="health-icon <?= healthBg($h['score']) ?>">
-                                        <?= wm_icon($h['icon']) ?>
+                                    <div class="health-icon" style="background:rgba(255,255,255,0.06);color:#cbd5e1">
+                                        <?= wm_icon($f['icon']) ?>
                                     </div>
                                     <div class="health-bar-wrap">
                                         <div class="health-bar-label">
-                                            <span><?= htmlspecialchars($h['label']) ?></span>
-                                            <span style="color:<?= healthColor($h['score']) ?>"><?= healthLabel($h['score']) ?></span>
+                                            <span><?= htmlspecialchars($f['label']) ?></span>
+                                            <span style="color:#f1f5f9;font-weight:700"><?= htmlspecialchars($f['value']) ?></span>
                                         </div>
-                                        <div class="health-bar-track">
-                                            <div class="health-bar-fill health-bar-animated"
-                                                 data-target="<?= $h['score'] ?>"
-                                                 style="width:<?= $h['score'] ?>%; background:<?= healthColor($h['score']) ?>"></div>
-                                        </div>
+                                        <?php if(!empty($f['sub'])): ?><div style="font-size:11px;color:#94a3b8;margin-top:2px"><?= htmlspecialchars($f['sub']) ?></div><?php endif; ?>
                                     </div>
                                 </div>
                                 <?php endforeach; ?>
@@ -2690,9 +2730,31 @@ function wm_brand_logo($make) {
                                 <?= date('d M Y', strtotime($h['date'])) ?> · <?= htmlspecialchars($h['tech']) ?> · <span style="font-family:monospace"><?= htmlspecialchars($h['id']) ?></span>
                             </div>
                             <div class="timeline-notes"><?= htmlspecialchars($h['notes']) ?></div>
+
+                            <?php if (!empty($h['photos'])): ?>
+                            <div style="margin-top:10px">
+                                <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Photos you sent</div>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                                    <?php foreach ($h['photos'] as $pu): ?>
+                                    <a href="<?= htmlspecialchars($pu) ?>" target="_blank" rel="noopener" style="display:block;width:60px;height:60px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.12)"><img src="<?= htmlspecialchars($pu) ?>" loading="lazy" style="width:100%;height:100%;object-fit:cover"></a>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($h['rating'])): ?>
+                            <div style="margin-top:10px;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px">
+                                <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Your feedback</div>
+                                <div style="font-size:16px;letter-spacing:2px;color:#f59e0b"><?= str_repeat('★', (int)$h['rating']) ?><span style="color:rgba(255,255,255,0.15)"><?= str_repeat('★', 5 - (int)$h['rating']) ?></span></div>
+                                <?php if (!empty($h['comment'])): ?><div style="font-size:12.5px;color:#94a3b8;font-style:italic;margin-top:4px">"<?= htmlspecialchars($h['comment']) ?>"</div><?php endif; ?>
+                            </div>
+                            <?php endif; ?>
+
                             <div style="margin-top:10px;display:flex;gap:8px">
                                 <button style="font-size:12px;font-weight:600;color:#dc2626;background:none;border:1px solid #fecaca;padding:4px 12px;border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif">Download Invoice</button>
+                                <?php if (empty($h['rating'])): ?>
                                 <button style="font-size:12px;font-weight:600;color:#94a3b8;background:none;border:1px solid rgba(255,255,255,0.12);padding:4px 12px;border-radius:8px;cursor:pointer;font-family:'Sora',sans-serif">Leave Review</button>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -2841,7 +2903,7 @@ function wm_brand_logo($make) {
     <div id="panel-health" class="page-body" style="display:none">
         <div class="fade-in">
             <h1 style="font-size:22px;font-weight:900;color:#f1f5f9">Vehicle Health Report</h1>
-            <p style="font-size:13px;color:#94a3b8;margin-top:2px">Based on your last inspection on <?= !empty($service_history) ? date('d M Y', strtotime($service_history[0]['date'])) : date('d M Y') ?></p>
+            <p style="font-size:13px;color:#94a3b8;margin-top:2px">Your vehicle's service status, from your history with us — not a mechanical inspection.</p>
         </div>
 
         <div class="card fade-in delay-1" style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff">
@@ -2856,52 +2918,49 @@ function wm_brand_logo($make) {
                     </svg>
                     <div class="health-ring-inner">
                         <div class="health-pct" style="color:<?= healthColor($overall_health) ?>"><?= $overall_health ?>%</div>
-                        <div class="health-sublabel" style="color:#94a3b8">Overall</div>
+                        <div class="health-sublabel" style="color:#94a3b8">Service health</div>
                     </div>
                 </div>
                 <div>
+                    <?php [$hsCol, $hsBg] = statusTone($health_status['tone']); ?>
                     <div style="font-size:28px;font-weight:900;color:#fff;margin-bottom:6px">
-                        <?= $overall_health >= 80 ? '✅ Your car is in good shape' : ($overall_health >= 55 ? '⚠️ Some items need attention' : '🚨 Immediate service recommended') ?>
+                        <?= htmlspecialchars($health_status['label']) ?>
                     </div>
                     <div style="font-size:14px;color:#94a3b8;margin-bottom:16px">
-                        <?= $overall_health >= 80 ? 'Keep up with routine maintenance to stay in top condition.' : 'We recommend booking a service to address flagged items.' ?>
+                        <?= $health_status['tone'] === 'green'
+                            ? 'You\'re on track — keep up with routine servicing to stay current.'
+                            : 'Based on your last service date and mileage. Book a service to stay on schedule.' ?>
                     </div>
                     <button onclick="openBookModal()" class="dash-glass-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(220,38,38,0.4)">
                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        Book Full Inspection
+                        Book a Service
                     </button>
                 </div>
             </div>
         </div>
 
+        <?php if (empty($health_facts)): ?>
+        <div class="card fade-in delay-2"><div class="card-body" style="padding:28px;text-align:center;color:#94a3b8">
+            Add a vehicle and book a service to start tracking its service record here.
+        </div></div>
+        <?php else: ?>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 fade-in delay-2">
-            <?php foreach ($health_items as $h): ?>
+            <?php foreach ($health_facts as $f): ?>
             <div class="card">
                 <div class="card-body" style="padding:20px">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-                        <div style="display:flex;align-items:center;gap:10px">
-                            <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:<?= $h['score']>=80 ? '#f0fdf4' : ($h['score']>=55 ? '#fffbeb' : '#fef2f2') ?>;color:<?= healthColor($h['score']) ?>">
-                                <?= wm_icon($h['icon']) ?>
-                            </div>
-                            <div style="font-size:15px;font-weight:800;color:#f1f5f9"><?= htmlspecialchars($h['label']) ?></div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                        <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.06);color:#cbd5e1">
+                            <?= wm_icon($f['icon']) ?>
                         </div>
-                        <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;background:<?= $h['score']>=80 ? '#f0fdf4' : ($h['score']>=55 ? '#fffbeb' : '#fef2f2') ?>;color:<?= healthColor($h['score']) ?>">
-                            <?= healthLabel($h['score']) ?>
-                        </span>
+                        <div style="font-size:14px;font-weight:700;color:#94a3b8"><?= htmlspecialchars($f['label']) ?></div>
                     </div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                        <div style="font-size:36px;font-weight:900;color:<?= healthColor($h['score']) ?>;line-height:1"><?= $h['score'] ?>%</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.06);border-radius:99px;height:8px;overflow:hidden">
-                        <div style="width:<?= $h['score'] ?>%;height:100%;background:<?= healthColor($h['score']) ?>;border-radius:99px;transition:width 1.2s cubic-bezier(0.4,0,0.2,1)"></div>
-                    </div>
-                    <?php if($h['score'] < 70): ?>
-                    <button onclick="openBookModal()" style="width:100%;margin-top:12px;background:none;border:1.5px solid #fecaca;color:#dc2626;padding:8px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif">Book Service →</button>
-                    <?php endif; ?>
+                    <div style="font-size:24px;font-weight:900;color:#f1f5f9;line-height:1.15"><?= htmlspecialchars($f['value']) ?></div>
+                    <?php if(!empty($f['sub'])): ?><div style="font-size:12px;color:#94a3b8;margin-top:6px"><?= htmlspecialchars($f['sub']) ?></div><?php endif; ?>
                 </div>
             </div>
             <?php endforeach; ?>
         </div>
+        <?php endif; ?>
     </div>
 
     <!-- ─── NOTIFICATIONS PANEL ─── (Keep from original) -->
