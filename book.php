@@ -208,6 +208,28 @@ $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
         font-weight: 500; margin-left: 6px;
     }
 
+    /* ── Returning-customer recall banner ─────────────────────────── */
+    .recall {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 18px; padding: 12px 14px;
+        background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 14px;
+    }
+    .recall-tx { line-height: 1.35; min-width: 0; }
+    .recall-tx strong { display: block; font-size: 14px; color: #065f46; }
+    .recall-tx span { font-size: 12.5px; color: #047857; }
+    .recall-btns { display: flex; gap: 8px; flex-shrink: 0; }
+    .recall-fill {
+        padding: 8px 14px; border: none; border-radius: 10px;
+        background: #059669; color: #fff; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .recall-fill:hover { background: #047857; }
+    .recall-no {
+        padding: 8px 12px; border: 1.5px solid #d1fae5; border-radius: 10px;
+        background: transparent; color: #047857; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .recall-no:hover { background: #d1fae5; }
+
     /* ── Problem photos ─────────────────────────── */
     .photo-help { font-size: 12px; color: #64748b; margin-bottom: 8px; line-height: 1.4; }
     .photo-drop {
@@ -407,6 +429,20 @@ $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
 <div class="form-card">
     <div class="form-inner">
         <form id="bookingForm" novalidate>
+
+            <?php if (!$is_logged_in): ?>
+            <!-- Returning-customer recall (same device only; data lives in the browser, shown via JS) -->
+            <div class="recall" id="recallBanner" style="display:none">
+                <div class="recall-tx">
+                    <strong>Welcome back! 👋</strong>
+                    <span id="recallWho"></span>
+                </div>
+                <div class="recall-btns">
+                    <button type="button" class="recall-fill" id="recallFill">Use my details</button>
+                    <button type="button" class="recall-no" id="recallNo">Not me</button>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <!-- ════════ SECTION 1 — YOUR DETAILS ════════ -->
             <div class="section">
@@ -935,6 +971,16 @@ form.addEventListener('submit', async function(e) {
             const waBtn   = document.getElementById('successWaBtn');
             if (waBtn) waBtn.href = waLink;
 
+            // Remember this customer on THIS device for faster rebooking
+            // (privacy-safe: never leaves the browser; cleared via "Not me").
+            try {
+                const v = d.vehicle || {};
+                localStorage.setItem('wm_return_customer', JSON.stringify({
+                    name: d.name || '', phone: d.phone || '', email: d.email || '',
+                    make: v.make || '', model: v.model || '', year: v.year || '', reg: v.registration || ''
+                }));
+            } catch(_) {}
+
             resetFeedback(data.booking_id);
             modal.classList.add('open');
             form.reset();
@@ -1003,6 +1049,34 @@ fbSend.addEventListener('click', () => {
     postFeedback(true);
     fbBlock.classList.add('done');
 });
+
+// ══════════════════════════════════════════════════════
+// Returning-customer recall — offer to refill saved details (same device only)
+// ══════════════════════════════════════════════════════
+(function initRecall() {
+    const banner = document.getElementById('recallBanner');
+    if (!banner) return;   // logged-in visitors already have their details filled
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('wm_return_customer') || 'null'); } catch(_) {}
+    if (!saved || !(saved.name || saved.phone)) return;
+
+    const vehicle = [saved.make, saved.model].filter(Boolean).join(' ');
+    const who = [saved.name, vehicle].filter(Boolean).join(' · ');
+    document.getElementById('recallWho').textContent = who ? ('Fill in your details' + (who ? ' (' + who + ')' : '')) : 'Fill in your saved details';
+    banner.style.display = '';
+
+    document.getElementById('recallFill').addEventListener('click', () => {
+        const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+        set('bookingName', saved.name);  set('bookingPhone', saved.phone); set('bookingEmail', saved.email);
+        set('bookingMake', saved.make);  set('bookingModel', saved.model); set('bookingYear', saved.year);
+        set('bookingReg', (saved.reg || '').toUpperCase());
+        banner.style.display = 'none';
+    });
+    document.getElementById('recallNo').addEventListener('click', () => {
+        try { localStorage.removeItem('wm_return_customer'); } catch(_) {}
+        banner.style.display = 'none';
+    });
+})();
 </script>
 
 </body>
