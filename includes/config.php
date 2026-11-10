@@ -10,10 +10,9 @@
 // BREVO_API_KEY is defined in the untracked secrets.php (see secrets.example.php).
 require_once __DIR__ . '/secrets.php';
 
-// The email Brevo will send FROM. Must be verified in Brevo first:
-//   Senders, Domains & Dedicated IPs → Senders → Add a sender
-// Then come back here and put the verified email below.
-define('BREVO_SENDER_EMAIL', 'wiyulemotors@gmail.com');
+// The email Brevo will send FROM. The domain wiyulemotors.co.mw is authenticated
+// in Brevo (DKIM/SPF/DMARC), so any address on it is a valid sender.
+define('BREVO_SENDER_EMAIL', 'twandakayuni@wiyulemotors.co.mw');
 define('BREVO_SENDER_NAME',  'Wiyule Motors');
 
 // Public site URL (used in email links)
