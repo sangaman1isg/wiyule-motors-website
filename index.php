@@ -1255,7 +1255,6 @@ function dismissOfferBanner(){
                 <a href="<?= $base ?>/"        class="nav-link active">Home</a>
                 <a href="#services"             class="nav-link">Services</a>
                 <a href="#our-work"             class="nav-link">Our Work</a>
-                <a href="<?= $base ?>/pricing.php" class="nav-link">Pricing</a>
                 <a href="<?= $base ?>/book.php"              class="nav-link">Book</a>
                 <a href="<?= $base ?>/about.php"                class="nav-link">About</a>
                 <a href="<?= $base ?>/contact.php"              class="nav-link">Contact</a>
@@ -1369,10 +1368,6 @@ function dismissOfferBanner(){
             <a href="#our-work"       onclick="closeMobileMenu()" class="mob-item">
                 <span class="mi-tile mi-green"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="#fff" stroke="#fff"/><circle cx="8.5" cy="9.5" r="1.6" fill="#16a34a" stroke="none"/><path d="M20 14l-4.5-4L7 18.5" stroke="#16a34a"/></svg></span>
                 Our Work
-            </a>
-            <a href="<?= $base ?>/pricing.php" onclick="closeMobileMenu()" class="mob-item">
-                <span class="mi-tile mi-dark"><svg viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"><path d="M20.6 13.4L13.4 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5.5A1.5 1.5 0 0 1 4.5 4h6.7c.5 0 1 .2 1.4.6l8 8a2 2 0 0 1 0 2.8z"/><circle cx="8" cy="8" r="1.5" fill="#1d1d1f" stroke="none"/></svg></span>
-                Pricing
             </a>
             <a href="<?= $base ?>/book.php"        onclick="closeMobileMenu()" class="mob-item">
                 <span class="mi-tile mi-red"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5" fill="#fff" stroke="#fff"/><path d="M3.5 9.5h17" stroke="#dc2626"/><path d="M8 3v4M16 3v4" stroke="#fff"/><path d="M8.5 14.5l2.2 2.2 4.3-4.3" stroke="#dc2626"/></svg></span>
@@ -1534,10 +1529,6 @@ document.addEventListener('keydown', function(e) {
             <span class="svc-eyebrow">What We Do</span>
             <h2 class="svc-h2">Our Services</h2>
             <p class="svc-sub">Professional automotive care, tailored to your vehicle.</p>
-            <a href="<?= $base ?>/pricing.php" class="gbtn gbtn-dark">
-                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                View Full Price List
-            </a>
         </div>
         <div class="svc-grid">
             <?php
@@ -1754,7 +1745,6 @@ document.addEventListener('keydown', function(e) {
                 <ul class="space-y-2">
                     <li><a href="#hero"     class="text-gray-400 hover:text-white transition">Home</a></li>
                     <li><a href="#services" class="text-gray-400 hover:text-white transition">Services</a></li>
-                    <li><a href="<?= $base ?>/pricing.php" class="text-gray-400 hover:text-white transition">Pricing</a></li>
                     <li><a href="<?= $base ?>/book.php"  class="text-gray-400 hover:text-white transition">Book Now</a></li>
                     <li><a href="<?= $base ?>/about.php"    class="text-gray-400 hover:text-white transition">About</a></li>
                     <li><a href="<?= $base ?>/contact.php"  class="text-gray-400 hover:text-white transition">Contact</a></li>
