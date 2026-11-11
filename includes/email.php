@@ -312,6 +312,35 @@ function wm_send_service_due_email(string $to_email, string $to_name, string $ve
     return wm_send_email($to_email, $to_name, 'Your ' . $vehicle_label . ' may be due for a service', $html, $text);
 }
 
+/**
+ * Renewal reminder: COF / road tax / insurance expiring soon (or overdue).
+ * $items = [ ['type'=>'COF','date'=>'YYYY-MM-DD','days'=>N], ... ].
+ */
+function wm_send_renewal_reminder_email(string $to_email, string $to_name, string $vehicle_label, array $items) {
+    if ($to_email === '' || !filter_var($to_email, FILTER_VALIDATE_EMAIL)) return ['ok' => false, 'error' => 'no valid email'];
+    if (empty($items)) return ['ok' => false, 'error' => 'nothing due'];
+    $name = htmlspecialchars($to_name ?: 'there', ENT_QUOTES);
+    $veh  = htmlspecialchars($vehicle_label, ENT_QUOTES);
+    $rows = ''; $textlines = [];
+    foreach ($items as $it) {
+        $d    = date('d M Y', strtotime($it['date']));
+        $days = (int)$it['days'];
+        if ($days < 0)      { $when = 'expired ' . abs($days) . ' day' . (abs($days) !== 1 ? 's' : '') . ' ago'; $color = '#dc2626'; }
+        elseif ($days === 0){ $when = 'expires today'; $color = '#dc2626'; }
+        elseif ($days <= 7) { $when = 'due in ' . $days . ' day' . ($days !== 1 ? 's' : ''); $color = '#d97706'; }
+        else                { $when = 'due in ' . $days . ' days'; $color = '#334155'; }
+        $rows .= '<tr><td style="padding:8px 0;font-weight:700;color:#0f172a;">' . htmlspecialchars($it['type']) . '</td>'
+              .  '<td style="padding:8px 0;color:#64748b;text-align:right;">' . $d . ' · <span style="color:' . $color . ';font-weight:700;">' . $when . '</span></td></tr>';
+        $textlines[] = $it['type'] . ': ' . $d . ' (' . $when . ')';
+    }
+    $body = '<p style="font-size:14px;color:#334155;margin:0 0 14px;">Hi ' . $name . ', a reminder about upcoming renewals for your <strong>' . $veh . '</strong>:</p>'
+          . '<table style="width:100%;border-collapse:collapse;border-top:1px solid #e2e8f0;">' . $rows . '</table>'
+          . '<p style="font-size:13px;color:#64748b;margin:14px 0 4px;">Keep these current to stay road-legal. Need a hand with any of them? Reply or call us.</p>';
+    $html = _wm_email_shell('Vehicle renewals due', 'Renewal reminder', $body);
+    $text = "Hi $to_name,\n\nRenewal reminder for your $vehicle_label:\n" . implode("\n", $textlines) . "\n\nKeep these current to stay road-legal.\n\n— Wiyule & F.A Motors · +265 993 575 111";
+    return wm_send_email($to_email, $to_name, 'Renewals due for your ' . $vehicle_label, $html, $text);
+}
+
 /** Notify the owner that a new booking just came in. $b is an associative array of booking fields. */
 function wm_send_new_booking_alert(array $b) {
     $owner = defined('OWNER_EMAIL') ? OWNER_EMAIL : (defined('BREVO_SENDER_EMAIL') ? BREVO_SENDER_EMAIL : '');

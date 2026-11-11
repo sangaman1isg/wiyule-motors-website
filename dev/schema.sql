@@ -158,6 +158,8 @@ ALTER TABLE vehicles ADD COLUMN road_tax_expiry DATE NULL DEFAULT NULL;
 ALTER TABLE vehicles ADD COLUMN insurance_expiry DATE NULL DEFAULT NULL;
 -- Live job status: repair stage shown to the customer (received / in_progress / ready)
 ALTER TABLE bookings ADD COLUMN job_stage VARCHAR(20) NOT NULL DEFAULT '';
+-- Renewal reminders throttle: when we last emailed this vehicle's owner about renewals
+ALTER TABLE vehicles ADD COLUMN last_renewal_reminder_at DATETIME NULL DEFAULT NULL;
 -- Invoices: vehicle registration / plate number as its own field (was previously appended to vehicle_info)
 ALTER TABLE invoices ADD COLUMN registration varchar(20) NOT NULL DEFAULT '' AFTER vehicle_info;
 -- Bookings: customer-uploaded photos of the problem (damage / warning light) attached at booking time.

@@ -97,11 +97,58 @@ function wm_send_service_due_nudges(mysqli $conn, bool $dryrun = false): array {
     return ['sent' => $sent, 'would_send' => $would, 'skipped_no_email' => $skipped_no_email, 'details' => $details];
 }
 
+/**
+ * Renewal reminders: vehicles with a COF / road tax / insurance expiry within the
+ * next 21 days or overdue by up to 30 days. One email per vehicle listing what's due;
+ * reminded at most once every 14 days.
+ */
+function wm_send_renewal_nudges(mysqli $conn, bool $dryrun = false): array {
+    $sent = 0; $would = 0; $skipped_no_email = 0; $details = [];
+    $win = "BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND DATE_ADD(CURDATE(), INTERVAL 21 DAY)";
+    $sql = "SELECT v.id AS vehicle_id, v.make, v.model, v.registration,
+                   v.cof_expiry, v.road_tax_expiry, v.insurance_expiry,
+                   u.full_name, u.email
+            FROM vehicles v JOIN users u ON u.id = v.user_id
+            WHERE u.is_admin = 0 AND u.email_verified = 1
+              AND (v.last_renewal_reminder_at IS NULL OR v.last_renewal_reminder_at < DATE_SUB(NOW(), INTERVAL 14 DAY))
+              AND ( (v.cof_expiry       IS NOT NULL AND v.cof_expiry       $win)
+                 OR (v.road_tax_expiry  IS NOT NULL AND v.road_tax_expiry  $win)
+                 OR (v.insurance_expiry IS NOT NULL AND v.insurance_expiry $win) )";
+    // Resilient: if the renewal columns aren't migrated yet, do nothing (don't break the cron).
+    try { $res = $conn->query($sql); }
+    catch (Throwable $e) { return ['sent' => 0, 'would_send' => 0, 'skipped_no_email' => 0, 'details' => [], 'note' => 'renewal columns not migrated']; }
+    if (!$res) return ['sent' => 0, 'would_send' => 0, 'skipped_no_email' => 0, 'details' => [], 'note' => 'renewal columns not migrated'];
+    $today = strtotime('today');
+    while ($res && ($r = $res->fetch_assoc())) {
+        // Which renewals are actually in the window for THIS vehicle?
+        $items = [];
+        foreach ([['COF', 'cof_expiry'], ['Road tax', 'road_tax_expiry'], ['Insurance', 'insurance_expiry']] as [$label, $key]) {
+            $dt = $r[$key] ?? null;
+            if (empty($dt)) continue;
+            $days = (int)floor((strtotime($dt) - $today) / 86400);
+            if ($days >= -30 && $days <= 21) $items[] = ['type' => $label, 'date' => $dt, 'days' => $days];
+        }
+        if (empty($items)) continue;
+        $email = trim($r['email'] ?? '');
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) { $skipped_no_email++; continue; }
+        $veh = trim($r['make'] . ' ' . $r['model']) . ($r['registration'] ? ' (' . $r['registration'] . ')' : '');
+        if ($dryrun) { $would++; $details[] = $veh . ' → ' . $email . ' [' . implode(', ', array_column($items, 'type')) . ']'; continue; }
+        $res2 = wm_send_renewal_reminder_email($email, $r['full_name'], $veh, $items);
+        if (!empty($res2['ok'])) {
+            $sent++; $details[] = $veh . ' → ' . $email;
+            $st = $conn->prepare("UPDATE vehicles SET last_renewal_reminder_at = NOW() WHERE id = ?");
+            $st->bind_param('i', $r['vehicle_id']); $st->execute(); $st->close();
+        }
+    }
+    return ['sent' => $sent, 'would_send' => $would, 'skipped_no_email' => $skipped_no_email, 'details' => $details];
+}
+
 function wm_run_reminders(mysqli $conn, bool $dryrun = false): array {
     return [
         'dryrun'       => $dryrun,
         'payments'     => wm_send_payment_reminders($conn, $dryrun),
         'quotes'       => wm_send_quote_expiry_nudges($conn, $dryrun),
         'service_due'  => wm_send_service_due_nudges($conn, $dryrun),
+        'renewals'     => wm_send_renewal_nudges($conn, $dryrun),
     ];
 }
