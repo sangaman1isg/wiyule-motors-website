@@ -101,6 +101,24 @@ while ($vrow = $vresult->fetch_assoc()) {
 }
 $vstmt->close();
 
+// Upcoming official renewals (COF / road tax / insurance) across the customer's
+// vehicles — anything expired or due within 60 days surfaces as a reminder.
+$upcoming_renewals = [];
+foreach ($all_vehicles as $av) {
+    $vlabel = trim(($av['make'] ?? '') . ' ' . ($av['model'] ?? ''));
+    foreach ([['COF', 'cof_expiry'], ['Road tax', 'road_tax_expiry'], ['Insurance', 'insurance_expiry']] as [$rlabel, $rkey]) {
+        $dt = $av[$rkey] ?? null;
+        if (empty($dt)) continue;
+        $ts = strtotime($dt);
+        if ($ts === false) continue;
+        $days = (int)floor(($ts - strtotime('today')) / 86400);
+        if ($days <= 60) {
+            $upcoming_renewals[] = ['vehicle' => $vlabel, 'type' => $rlabel, 'date' => $dt, 'days' => $days];
+        }
+    }
+}
+usort($upcoming_renewals, fn($a, $b) => $a['days'] <=> $b['days']);
+
 // Primary vehicle: ALWAYS prefer DB (most up-to-date), session is fallback
 if (count($all_vehicles) > 0) {
     $pv = $all_vehicles[0];
@@ -570,6 +588,18 @@ function statusTone(string $t): array {
         'red'   => ['#dc2626', '#fef2f2'],
         default => ['#d97706', '#fffbeb'],   // amber
     };
+}
+
+// Renewal (COF / road tax / insurance) badge from an expiry date → [label, textColour, bg].
+function wm_renewal_badge(?string $date): array {
+    if (empty($date)) return ['Not set', '#94a3b8', 'rgba(255,255,255,0.06)'];
+    $ts = strtotime($date);
+    if ($ts === false) return ['Not set', '#94a3b8', 'rgba(255,255,255,0.06)'];
+    $days = (int)floor(($ts - strtotime('today')) / 86400);
+    $d    = date('d M Y', $ts);
+    if ($days < 0)   return ['Expired · ' . $d, '#dc2626', '#fef2f2'];
+    if ($days <= 30) return ['Due in ' . $days . 'd · ' . $d, '#d97706', '#fffbeb'];
+    return ['Valid to ' . $d, '#16a34a', '#f0fdf4'];
 }
 
 function statusPill(string $s): string {
@@ -2787,6 +2817,29 @@ function wm_brand_logo($make) {
             <p style="font-size:13px;color:#94a3b8;margin-top:2px">Stay on top of your <?= htmlspecialchars($vehicle['year'].' '.$vehicle['make'].' '.$vehicle['model']) ?>'s maintenance schedule</p>
         </div>
 
+        <?php if (!empty($upcoming_renewals)): ?>
+        <div class="card fade-in delay-1" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">📋 Official renewals due</div></div>
+            <div class="card-body">
+                <?php foreach ($upcoming_renewals as $ur):
+                    [$rl, $rc, $rb] = wm_renewal_badge($ur['date']);
+                    $msg = $ur['days'] < 0
+                        ? 'Expired ' . abs($ur['days']) . ' day' . (abs($ur['days']) !== 1 ? 's' : '') . ' ago'
+                        : ($ur['days'] === 0 ? 'Expires today' : 'Due in ' . $ur['days'] . ' day' . ($ur['days'] !== 1 ? 's' : ''));
+                ?>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+                    <div style="min-width:0">
+                        <div style="font-weight:700;color:#f1f5f9;font-size:14px"><?= htmlspecialchars($ur['type']) ?> · <?= htmlspecialchars($ur['vehicle']) ?></div>
+                        <div style="font-size:12px;color:#94a3b8"><?= date('d M Y', strtotime($ur['date'])) ?></div>
+                    </div>
+                    <span style="font-weight:700;font-size:12px;color:<?= $rc ?>;background:<?= $rb ?>;padding:4px 12px;border-radius:99px;white-space:nowrap;flex-shrink:0"><?= htmlspecialchars($msg) ?></span>
+                </div>
+                <?php endforeach; ?>
+                <div style="font-size:12px;color:#64748b;margin-top:10px">Set or update these dates per vehicle under <strong style="color:#94a3b8">My Vehicles</strong>.</div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <?php if(empty($reminders)): ?>
         <div class="card fade-in delay-1">
             <div class="card-body text-center py-12">
@@ -2910,7 +2963,40 @@ function wm_brand_logo($make) {
                     <button onclick="deleteVehicle(<?= $v['id'] ?>,'<?= htmlspecialchars($v['make'].' '.$v['model']) ?>')" style="background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.25);color:#fca5a5;padding:10px 16px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif">Remove</button>
                     <?php endif; ?>
                 </div>
-                <a href="<?= $base ?>/pages/vehicle-passport.php?vehicle=<?= (int)$v['id'] ?>" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:8px;background:none;border:1px solid rgba(255,255,255,0.12);color:#94a3b8;padding:9px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;font-family:'Sora',sans-serif">📄 Service passport (PDF)</a>
+                <?php
+                    $renewals = [
+                        ['COF',       'cof',  $v['cof_expiry']       ?? null],
+                        ['Road tax',  'road', $v['road_tax_expiry']  ?? null],
+                        ['Insurance', 'ins',  $v['insurance_expiry'] ?? null],
+                    ];
+                    $inpStyle = "width:100%;padding:7px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;font-family:'Sora',sans-serif;font-size:13px";
+                ?>
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em">Renewals</div>
+                        <button type="button" onclick="startRenewalsEdit(<?= (int)$v['id'] ?>)" style="background:none;border:none;color:#60a5fa;font-size:11px;font-weight:600;cursor:pointer;padding:0;font-family:'Sora',sans-serif">✎ Edit</button>
+                    </div>
+                    <div id="renewalsView-<?= (int)$v['id'] ?>" style="display:flex;flex-direction:column;gap:6px">
+                        <?php foreach ($renewals as [$lbl, $key, $dt]): [$rl,$rc,$rb] = wm_renewal_badge($dt); ?>
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+                            <span style="color:#cbd5e1"><?= $lbl ?></span>
+                            <span style="font-weight:700;color:<?= $rc ?>;background:<?= $rb ?>;padding:2px 10px;border-radius:99px;font-size:11px"><?= htmlspecialchars($rl) ?></span>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div id="renewalsEdit-<?= (int)$v['id'] ?>" style="display:none;margin-top:8px">
+                        <?php foreach ($renewals as [$lbl, $key, $dt]): ?>
+                        <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:8px"><?= $lbl ?> expiry
+                            <input type="date" id="<?= $key ?>-<?= (int)$v['id'] ?>" value="<?= htmlspecialchars($dt ?? '') ?>" style="<?= $inpStyle ?>;margin-top:3px">
+                        </label>
+                        <?php endforeach; ?>
+                        <div style="display:flex;gap:6px;margin-top:2px">
+                            <button type="button" onclick="saveRenewals(<?= (int)$v['id'] ?>)" style="background:#16a34a;border:none;color:#fff;padding:7px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif">Save</button>
+                            <button type="button" onclick="cancelRenewalsEdit(<?= (int)$v['id'] ?>)" style="background:none;border:1px solid rgba(255,255,255,0.15);color:#94a3b8;padding:7px 12px;border-radius:8px;font-size:11px;cursor:pointer;font-family:'Sora',sans-serif">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+                <a href="<?= $base ?>/pages/vehicle-passport.php?vehicle=<?= (int)$v['id'] ?>" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:12px;background:none;border:1px solid rgba(255,255,255,0.12);color:#94a3b8;padding:9px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;font-family:'Sora',sans-serif">📄 Service passport (PDF)</a>
             </div>
             <?php endforeach; ?>
 
@@ -3810,6 +3896,29 @@ async function saveMileage(id) {
         } else {
             alert((d && d.message) || 'Could not update mileage.');
         }
+    } catch (e) { alert('Network problem — please try again.'); }
+}
+
+// ── Renewal dates (COF / road tax / insurance) ─────────
+function startRenewalsEdit(id) {
+    document.getElementById('renewalsView-'+id).style.display = 'none';
+    document.getElementById('renewalsEdit-'+id).style.display = 'block';
+}
+function cancelRenewalsEdit(id) {
+    document.getElementById('renewalsEdit-'+id).style.display = 'none';
+    document.getElementById('renewalsView-'+id).style.display = 'flex';
+}
+async function saveRenewals(id) {
+    var fd = new FormData();
+    fd.append('vehicle_id', id);
+    fd.append('cof_expiry', document.getElementById('cof-'+id).value);
+    fd.append('road_tax_expiry', document.getElementById('road-'+id).value);
+    fd.append('insurance_expiry', document.getElementById('ins-'+id).value);
+    try {
+        var r = await fetch('<?= $base ?>/pages/update-renewals.php', { method:'POST', body:fd, credentials:'same-origin' });
+        var d = await r.json();
+        if (d && d.success) { location.reload(); }
+        else { alert((d && d.message) || 'Could not save renewal dates.'); }
     } catch (e) { alert('Network problem — please try again.'); }
 }
 function deleteVehicle(id, name) {

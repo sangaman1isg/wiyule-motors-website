@@ -152,6 +152,10 @@ ALTER TABLE invoices ADD COLUMN archived_at DATETIME NULL DEFAULT NULL AFTER pay
 ALTER TABLE invoices ADD COLUMN last_reminder_at DATETIME NULL DEFAULT NULL AFTER archived_at;
 -- Service-due: track when we last emailed a service-due reminder for this vehicle
 ALTER TABLE vehicles ADD COLUMN last_service_reminder_at DATETIME NULL DEFAULT NULL;
+-- Renewal reminders: COF / road tax / insurance expiry dates per vehicle (customer-set)
+ALTER TABLE vehicles ADD COLUMN cof_expiry DATE NULL DEFAULT NULL;
+ALTER TABLE vehicles ADD COLUMN road_tax_expiry DATE NULL DEFAULT NULL;
+ALTER TABLE vehicles ADD COLUMN insurance_expiry DATE NULL DEFAULT NULL;
 -- Invoices: vehicle registration / plate number as its own field (was previously appended to vehicle_info)
 ALTER TABLE invoices ADD COLUMN registration varchar(20) NOT NULL DEFAULT '' AFTER vehicle_info;
 -- Bookings: customer-uploaded photos of the problem (damage / warning light) attached at booking time.
