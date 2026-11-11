@@ -2910,6 +2910,7 @@ function wm_brand_logo($make) {
                     <button onclick="deleteVehicle(<?= $v['id'] ?>,'<?= htmlspecialchars($v['make'].' '.$v['model']) ?>')" style="background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.25);color:#fca5a5;padding:10px 16px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif">Remove</button>
                     <?php endif; ?>
                 </div>
+                <a href="<?= $base ?>/pages/vehicle-passport.php?vehicle=<?= (int)$v['id'] ?>" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:8px;background:none;border:1px solid rgba(255,255,255,0.12);color:#94a3b8;padding:9px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;font-family:'Sora',sans-serif">📄 Service passport (PDF)</a>
             </div>
             <?php endforeach; ?>
 
