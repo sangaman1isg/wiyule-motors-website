@@ -2890,7 +2890,18 @@ function wm_brand_logo($make) {
                     <?php if($v['transmission']): ?>
                     <div><div class="vehicle-spec-label">Transmission</div><div class="vehicle-spec-value"><?= htmlspecialchars($v['transmission']) ?></div></div>
                     <?php endif; ?>
-                    <div><div class="vehicle-spec-label">Mileage</div><div class="vehicle-spec-value"><?= number_format($v['mileage']) ?> km</div></div>
+                    <div>
+                        <div class="vehicle-spec-label">Mileage</div>
+                        <div class="vehicle-spec-value" id="mileageVal-<?= (int)$v['id'] ?>"><?= number_format($v['mileage']) ?> km</div>
+                        <button type="button" onclick="startMileageEdit(<?= (int)$v['id'] ?>)" style="margin-top:3px;background:none;border:none;color:#60a5fa;font-size:11px;font-weight:600;cursor:pointer;padding:0;font-family:'Sora',sans-serif">✎ Update</button>
+                        <div id="mileageEdit-<?= (int)$v['id'] ?>" style="display:none;margin-top:6px">
+                            <input type="number" id="mileageInput-<?= (int)$v['id'] ?>" min="0" max="9999999" value="<?= (int)$v['mileage'] ?>" style="width:88px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;font-family:'Sora',sans-serif;font-size:13px">
+                            <div style="display:flex;gap:6px;margin-top:6px">
+                                <button type="button" onclick="saveMileage(<?= (int)$v['id'] ?>)" style="background:#16a34a;border:none;color:#fff;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif">Save</button>
+                                <button type="button" onclick="cancelMileageEdit(<?= (int)$v['id'] ?>)" style="background:none;border:1px solid rgba(255,255,255,0.15);color:#94a3b8;padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:'Sora',sans-serif">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
                     <div><div class="vehicle-spec-label">Registration</div><div class="vehicle-spec-value"><?= htmlspecialchars($v['registration'] ?: '—') ?></div></div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:18px">
@@ -3777,6 +3788,28 @@ function closeVehicleModal() {
 }
 function editVehicle(data) {
     openVehicleModal(data);
+}
+
+// ── Inline odometer update ─────────────────────────────
+function startMileageEdit(id)  { document.getElementById('mileageEdit-'+id).style.display = 'block'; }
+function cancelMileageEdit(id) { document.getElementById('mileageEdit-'+id).style.display = 'none'; }
+async function saveMileage(id) {
+    var input = document.getElementById('mileageInput-'+id);
+    var val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 0 || val > 9999999) { alert('Please enter a valid mileage (0–9,999,999 km).'); return; }
+    var fd = new FormData();
+    fd.append('vehicle_id', id);
+    fd.append('mileage', val);
+    try {
+        var r = await fetch('<?= $base ?>/pages/update-mileage.php', { method:'POST', body:fd, credentials:'same-origin' });
+        var d = await r.json();
+        if (d && d.success) {
+            document.getElementById('mileageVal-'+id).textContent = Number(d.mileage).toLocaleString() + ' km';
+            cancelMileageEdit(id);
+        } else {
+            alert((d && d.message) || 'Could not update mileage.');
+        }
+    } catch (e) { alert('Network problem — please try again.'); }
 }
 function deleteVehicle(id, name) {
     if (!confirm('Remove ' + name + '? This cannot be undone.')) return;
