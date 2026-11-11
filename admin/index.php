@@ -1495,6 +1495,9 @@ function viewBooking(id) {
             (b.notes?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Notes</div><div style="font-style:italic;color:#64748b">'+esc(b.notes)+'</div></div>':'')+
             ((b.photos&&b.photos.length)?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">Customer photos ('+b.photos.length+')</div><div style="display:flex;flex-wrap:wrap;gap:8px">'+b.photos.map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener" style="display:block;width:78px;height:78px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0"><img src="'+esc(u)+'" style="width:100%;height:100%;object-fit:cover" loading="lazy"></a>';}).join('')+'</div></div>':'')+
             (b.fb_rating?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Booking feedback</div><div style="font-size:18px;letter-spacing:2px">'+'★'.repeat(b.fb_rating)+'<span style="color:#e2e8f0">'+'★'.repeat(5-b.fb_rating)+'</span><span style="font-size:12px;color:#94a3b8;letter-spacing:0;margin-left:8px">'+b.fb_rating+'/5</span></div>'+(b.fb_comment?'<div style="font-style:italic;color:#64748b;margin-top:6px">“'+esc(b.fb_comment)+'”</div>':'')+'</div>':'')+
+            (b.status==='confirmed'?'<div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">Job status <span style="font-weight:500;text-transform:none">· the customer sees this live</span></div><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+                [['received','Received'],['in_progress','In progress'],['ready','Ready for collection']].map(function(s){var on=(b.job_stage===s[0]);return '<button onclick="updateJobStage('+b.id+',\''+s[0]+'\')" style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;border:1px solid '+(on?'#dc2626':'#e2e8f0')+';background:'+(on?'#dc2626':'#fff')+';color:'+(on?'#fff':'#64748b')+'">'+s[1]+'</button>';}).join('')+
+            '</div></div>':'')+
             '<div style="border-top:1px solid #f1f5f9;padding-top:16px;display:flex;gap:8px;flex-wrap:wrap">'+
                 (b.status==='pending'?'<button class="action-btn confirm" onclick="updateStatus('+b.id+',\'confirmed\');closeDetail()">✓ Confirm</button><button class="action-btn cancel" onclick="updateStatus('+b.id+',\'cancelled\');closeDetail()">✕ Cancel</button>':'')+
                 (b.status==='confirmed'?'<button class="action-btn complete" onclick="updateStatus('+b.id+',\'completed\');closeDetail()">✓ Mark Complete</button>':'')+
@@ -1503,6 +1506,20 @@ function viewBooking(id) {
             '</div>'+
         '</div>';
     document.getElementById('detailModal').classList.add('open');
+}
+
+// Live job stage (Received → In progress → Ready) — customer sees it on their dashboard.
+function updateJobStage(id, stage) {
+    var fd = new FormData(); fd.append('id', id); fd.append('stage', stage);
+    fetch('<?= $base ?>/admin/api/update-job-stage.php', { method:'POST', body:fd, credentials:'same-origin' })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+            if (d && d.success) {
+                for (var i=0;i<bookingData.length;i++){ if (bookingData[i].id==id){ bookingData[i].job_stage = stage; break; } }
+                viewBooking(id);
+            } else { alert((d && d.message) || 'Could not update stage.'); }
+        })
+        .catch(function(){ alert('Connection error.'); });
 }
 
 // ── WhatsApp Message Templates ─────────────────────────────────

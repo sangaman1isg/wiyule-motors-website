@@ -160,10 +160,10 @@ if (count($all_vehicles) > 0) {
 // Upcoming bookings (today or future, not completed/cancelled)
 $upcoming_bookings = [];
 $stmt = $conn->prepare("
-    SELECT id, services, booking_date, booking_time, status, notes
+    SELECT id, services, booking_date, booking_time, status, notes, job_stage
     FROM bookings
     WHERE user_id = ?
-      AND booking_date >= CURDATE()
+      AND (booking_date >= CURDATE() OR (status = 'confirmed' AND job_stage <> ''))
       AND status IN ('pending','confirmed')
     ORDER BY booking_date ASC, booking_time ASC
 ");
@@ -177,20 +177,23 @@ while ($row = $result->fetch_assoc()) {
         'service' => $row['services'],
         'date'    => $row['booking_date'],
         'time'    => $row['booking_time'],
-        'status'  => $row['status'],
-        'tech'    => 'TBA',
-        'notes'   => $row['notes'] ?? '',
+        'status'    => $row['status'],
+        'job_stage' => $row['job_stage'] ?? '',
+        'tech'      => 'TBA',
+        'notes'     => $row['notes'] ?? '',
     ];
 }
 $stmt->close();
 
-// Past bookings (past dates OR completed/cancelled)
+// Past bookings (past dates OR completed/cancelled) — excluding active jobs that
+// are still in progress (those show as upcoming with a live status tracker).
 $service_history = [];
 $stmt = $conn->prepare("
     SELECT id, services, booking_date, booking_time, status, notes
     FROM bookings
     WHERE user_id = ?
       AND (booking_date < CURDATE() OR status IN ('completed','cancelled'))
+      AND NOT (status = 'confirmed' AND job_stage <> '')
     ORDER BY booking_date DESC
 ");
 $stmt->bind_param("i", $current_user_id);
@@ -600,6 +603,27 @@ function wm_renewal_badge(?string $date): array {
     if ($days < 0)   return ['Expired · ' . $d, '#dc2626', '#fef2f2'];
     if ($days <= 30) return ['Due in ' . $days . 'd · ' . $d, '#d97706', '#fffbeb'];
     return ['Valid to ' . $d, '#16a34a', '#f0fdf4'];
+}
+
+// Live job-status tracker (Received → In progress → Ready) for an in-shop vehicle.
+function wm_job_stage_html(string $stage): string {
+    if ($stage === '') return '';
+    $steps  = ['received' => 'Received', 'in_progress' => 'In progress', 'ready' => 'Ready for collection'];
+    $order  = array_keys($steps);
+    $curIdx = array_search($stage, $order, true);
+    if ($curIdx === false) return '';
+    $out = '<div style="margin-top:10px;background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.15);border-radius:10px;padding:10px 12px">'
+         . '<div style="font-size:10px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">🔧 Live status</div>'
+         . '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    foreach ($order as $i => $k) {
+        $done  = $i <= $curIdx;
+        $isCur = $i === $curIdx;
+        $bg  = $isCur ? '#dc2626' : ($done ? '#fee2e2' : 'rgba(255,255,255,0.05)');
+        $col = $isCur ? '#fff'    : ($done ? '#b91c1c' : '#94a3b8');
+        $out .= '<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;background:' . $bg . ';color:' . $col . '">'
+             .  ($done ? '✓ ' : '') . htmlspecialchars($steps[$k]) . '</span>';
+    }
+    return $out . '</div></div>';
 }
 
 function statusPill(string $s): string {
@@ -2241,6 +2265,7 @@ function wm_brand_logo($make) {
                             <div class="booking-id"><?= htmlspecialchars($b['id']) ?></div>
                             <div><?= statusPill($b['status']) ?></div>
                         </div>
+                        <?= wm_job_stage_html($b['job_stage'] ?? '') ?>
                         <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
@@ -2719,6 +2744,9 @@ function wm_brand_logo($make) {
                                     <?php endif; ?>
                                 </td>
                             </tr>
+                            <?php if ($section === 'Upcoming' && !empty($i['job_stage'])): ?>
+                            <tr><td colspan="5" style="padding:0 12px 12px"><?= wm_job_stage_html($i['job_stage']) ?></td></tr>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                         </tbody>
                     </table>
