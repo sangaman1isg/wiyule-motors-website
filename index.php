@@ -54,22 +54,22 @@ $show_offer_banner = !$is_logged_in || $offer_eligible;
     <meta name="keywords" content="auto services, car service Blantyre, vehicle maintenance, auto detailing, car repair, automotive parts, Wiyule Motors, Malawi, brake services, engine repair, oil change">
     <meta property="og:title" content="Wiyule Motors - Premium Auto Services &amp; Parts">
     <meta property="og:description" content="Blantyre's most trusted auto workshop. Premium services, expert repairs & genuine parts — book online today.">
-    <meta property="og:image" content="https://wiyulemotors.co.mw/assets/images/logo.png">
-    <meta property="og:image:width" content="512">
-    <meta property="og:image:height" content="512">
+    <meta property="og:image" content="https://wiyulemotors.co.mw/assets/images/logo-square.png">
+    <meta property="og:image:width" content="740">
+    <meta property="og:image:height" content="740">
     <meta property="og:url" content="https://wiyulemotors.co.mw">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Wiyule Motors">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Wiyule Motors - Premium Auto Services &amp; Parts">
     <meta name="twitter:description" content="Blantyre's most trusted auto workshop. Premium services, expert repairs & genuine parts — book online today.">
-    <meta name="twitter:image" content="https://wiyulemotors.co.mw/assets/images/logo.png">
+    <meta name="twitter:image" content="https://wiyulemotors.co.mw/assets/images/logo-square.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#dc2626">
     <title>Wiyule Motors - Premium Auto Services &amp; Parts | Blantyre, Malawi</title>
-    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo.png?v=2">
-    <link rel="shortcut icon" type="image/png" href="<?= $base ?>/assets/images/logo.png?v=2">
-    <link rel="apple-touch-icon" href="<?= $base ?>/assets/images/logo.png?v=2">
+    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=3">
+    <link rel="shortcut icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=3">
+    <link rel="apple-touch-icon" href="<?= $base ?>/assets/images/logo-square.png?v=3">
     <link rel="manifest" href="<?= $base ?>/static/favicon_io/site.webmanifest">
     <link rel="canonical" href="https://wiyulemotors.co.mw">
 
