@@ -103,7 +103,7 @@ $pdf_title = ($is_quote ? 'Quotation ' : 'Invoice ') . $invoice['invoice_number'
 if (!empty($invoice['registration'])) $pdf_title .= ' - Reg ' . $invoice['registration'];
 ?>
 <title><?= htmlspecialchars($pdf_title) ?></title>
-<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo.png">
+<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }

@@ -762,7 +762,7 @@ function wm_brand_logo($make) {
     <meta name="robots" content="noindex">
     <title>My Dashboard — Wiyule Motors</title>
 
-    <link rel="icon" type="image/x-icon" href="<?= $base ?>/static/favicon_io/favicon.ico">
+    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -822,9 +822,10 @@ function wm_brand_logo($make) {
             overflow: hidden;
         }
         .sidebar-logo-img {
-            width: 36px; height: 36px;
-            border-radius: 10px;
-            object-fit: cover;
+            height: 34px; width: auto; max-width: 160px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: #fff; padding: 3px 7px;
             flex-shrink: 0;
         }
         .sidebar-logo-text {

@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $token_valid) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Reset Password — Wiyule Motors</title>
-<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo.png">
+<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

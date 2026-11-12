@@ -15,7 +15,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#dc2626">
     <title>Wiyule Motors - Premium Automotive Parts & Services | Blantyre, Malawi</title>
-    <link rel="icon" type="image/x-icon" href="<?= $base ?>/static/favicon_io/favicon.ico">
+    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
     <link rel="canonical" href="https://wiyulemotors.com">
     
     <!-- Google Analytics - Replace G-XXXXXXXXXX with your actual Google Analytics ID -->

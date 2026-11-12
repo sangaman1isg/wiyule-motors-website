@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="robots" content="noindex, nofollow">
     <title>Create Account — Wiyule Motors</title>
 
-    <link rel="icon" type="image/x-icon" href="<?= $base ?>/static/favicon_io/favicon.ico">
+    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
@@ -383,13 +383,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="max-w-7xl mx-auto px-6">
         <div class="flex justify-between items-center h-20">
             <a href="<?= $base ?>/" class="flex items-center space-x-3" style="text-decoration:none">
-                <img class="h-12 w-auto"
+                <img class="h-14 sm:h-16 w-auto"
                      src="<?= $base ?>/assets/images/logo.png"
-                     alt="Wiyule Motors Logo">
-                <div>
-                    <span class="text-xl font-bold text-gray-900 block leading-tight">Wiyule Motors</span>
-                    <span class="text-xs text-gray-400 font-medium" style="letter-spacing:0.04em">Blantyre, Malawi</span>
-                </div>
+                     alt="Wiyule & FA Motors">
             </a>
             <div class="hidden md:flex items-center gap-7">
                 <a href="<?= $base ?>/"          class="text-gray-600 hover:text-red-600 font-medium text-sm transition">Home</a>

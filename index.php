@@ -1240,14 +1240,10 @@ function dismissOfferBanner(){
         <div class="flex justify-between items-center h-20">
 
             <!-- Logo -->
-            <a href="<?= $base ?>/" class="flex items-center space-x-3" style="text-decoration:none">
-                <img class="h-12 w-auto"
+            <a href="<?= $base ?>/" class="flex items-center" style="text-decoration:none">
+                <img class="h-14 sm:h-16 w-auto"
                      src="<?= $base ?>/assets/images/logo.png"
-                     alt="Wiyule Motors Logo">
-                <div>
-                    <span class="text-xl font-bold text-gray-900 block leading-tight">Wiyule Motors</span>
-                    <span class="text-xs text-gray-400 font-medium" style="letter-spacing:0.04em">Blantyre, Malawi</span>
-                </div>
+                     alt="Wiyule & FA Motors">
             </a>
 
             <!-- Desktop Nav Links -->
@@ -1720,7 +1716,8 @@ document.addEventListener('keydown', function(e) {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-                <h3 class="text-xl font-bold mb-4">Wiyule Motors</h3>
+                <img src="<?= $base ?>/assets/images/logo.png" alt="Wiyule &amp; FA Motors"
+                     class="h-14 w-auto mb-4" style="background:#fff; padding:7px 12px; border-radius:12px; display:inline-block;">
                 <p class="text-gray-400 mb-4">Premium automotive parts and services in Blantyre, Malawi since 2016.</p>
                 <div class="flex gap-3">
                     <a href="https://wa.me/265993575111" target="_blank" rel="noopener noreferrer" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-green-600 transition-all duration-200" title="WhatsApp">
