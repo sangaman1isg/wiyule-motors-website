@@ -1250,6 +1250,7 @@ function dismissOfferBanner(){
             <div class="hidden lg:flex items-center" style="gap:28px">
                 <a href="<?= $base ?>/"        class="nav-link active">Home</a>
                 <a href="#services"             class="nav-link">Services</a>
+                <a href="<?= $base ?>/wrapping.php"          class="nav-link">Wrapping</a>
                 <a href="#our-work"             class="nav-link">Our Work</a>
                 <a href="<?= $base ?>/book.php"              class="nav-link">Book</a>
                 <a href="<?= $base ?>/about.php"                class="nav-link">About</a>
@@ -1360,6 +1361,10 @@ function dismissOfferBanner(){
             <a href="#services"       onclick="closeMobileMenu()" class="mob-item">
                 <span class="mi-tile mi-dark"><svg viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"><path d="M12 3l2.3 5.9 6.2.4-4.8 4 1.6 6-5.3-3.4L6.7 19.3l1.6-6-4.8-4 6.2-.4z"/></svg></span>
                 Services
+            </a>
+            <a href="<?= $base ?>/wrapping.php"    onclick="closeMobileMenu()" class="mob-item">
+                <span class="mi-tile mi-red"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.9 6.3 6.8.6-5.2 4.5 1.6 6.7L12 19.3 5.9 21.1l1.6-6.7L2.3 9.9l6.8-.6z" fill="#fff" stroke="#fff"/></svg></span>
+                Vehicle Wrapping
             </a>
             <a href="#our-work"       onclick="closeMobileMenu()" class="mob-item">
                 <span class="mi-tile mi-green"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="#fff" stroke="#fff"/><circle cx="8.5" cy="9.5" r="1.6" fill="#16a34a" stroke="none"/><path d="M20 14l-4.5-4L7 18.5" stroke="#16a34a"/></svg></span>
@@ -1534,7 +1539,7 @@ document.addEventListener('keydown', function(e) {
                 ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M14 2.2c-.8 0-1.5.5-1.8 1.2L11 6.4 7.6 9.8a2 2 0 0 0 0 2.8l3.8 3.8a2 2 0 0 0 2.8 0l3.4-3.4 3-1.2a2 2 0 0 0 .6-3.2L17 3.2a2 2 0 0 0-1.4-.6zM6 13l-3.6 3.6a2 2 0 0 0 0 2.8l2.2 2.2a2 2 0 0 0 2.8 0L11 18l-5-5z"/></svg>', 'title'=>'Spray Painting',      'desc'=>'Full repaints and panel matching with premium automotive finishes.', 'svc'=>'Spray Painting', 'cta'=>'Book Now'],
                 ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2.2S5 10 5 14.5a7 7 0 0 0 14 0C19 10 12 2.2 12 2.2zm0 16.3a4 4 0 0 1-4-4c0-.6.4-1 1-1s1 .4 1 1a2 2 0 0 0 2 2c.6 0 1 .4 1 1s-.4 1-1 1z"/></svg>', 'title'=>'Auto Detailing',      'desc'=>'Professional interior and exterior detailing to keep your vehicle looking brand new.', 'svc'=>'Auto Detailing', 'cta'=>'Book Now'],
                 ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M3 14l4-4 3 3 6-6 5 5v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4zm17-7l-2-2-3 3 2 2zm-9 9l-3-3-4 4h12z"/></svg>', 'title'=>'Panel Beating',       'desc'=>'Dent removal, structural straightening, and full collision repairs.', 'svc'=>'Panel Beating', 'cta'=>'Book Now'],
-                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2l2.9 6.3 6.8.6a1 1 0 0 1 .6 1.8l-5.2 4.5 1.6 6.7a1 1 0 0 1-1.5 1.1L12 19.3 6.2 22.8a1 1 0 0 1-1.5-1.1l1.6-6.7L1.1 10.5a1 1 0 0 1 .6-1.8l6.8-.6z"/></svg>', 'title'=>'Vehicle Wrapping',    'desc'=>'Premium vinyl wraps — gloss, matte, carbon fibre finishes, and paint protection.', 'svc'=>'Vehicle Wrapping', 'cta'=>'Book Now', 'feature'=>true],
+                ['svg'=>'<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 2l2.9 6.3 6.8.6a1 1 0 0 1 .6 1.8l-5.2 4.5 1.6 6.7a1 1 0 0 1-1.5 1.1L12 19.3 6.2 22.8a1 1 0 0 1-1.5-1.1l1.6-6.7L1.1 10.5a1 1 0 0 1 .6-1.8l6.8-.6z"/></svg>', 'title'=>'Vehicle Wrapping',    'desc'=>'Premium vinyl wraps — gloss, matte, carbon fibre finishes, and paint protection. Design yours in 3D.', 'svc'=>'Vehicle Wrapping', 'cta'=>'Design in 3D', 'feature'=>true, 'href'=>$base.'/wrapping.php'],
             ];
             foreach ($services as $i => $s):
             ?>
@@ -1544,7 +1549,7 @@ document.addEventListener('keydown', function(e) {
                 </div>
                 <h3 class="svc-title"><?= htmlspecialchars($s['title']) ?></h3>
                 <p class="svc-desc"><?= htmlspecialchars($s['desc']) ?></p>
-                <a href="<?= $base ?>/book.php?svc=<?= urlencode($s['svc']) ?>" class="svc-link">
+                <a href="<?= isset($s['href']) ? $s['href'] : ($base.'/book.php?svc='.urlencode($s['svc'])) ?>" class="svc-link">
                     <?= htmlspecialchars($s['cta']) ?>
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                 </a>
@@ -1742,6 +1747,7 @@ document.addEventListener('keydown', function(e) {
                 <ul class="space-y-2">
                     <li><a href="#hero"     class="text-gray-400 hover:text-white transition">Home</a></li>
                     <li><a href="#services" class="text-gray-400 hover:text-white transition">Services</a></li>
+                    <li><a href="<?= $base ?>/wrapping.php" class="text-gray-400 hover:text-white transition">Vehicle Wrapping</a></li>
                     <li><a href="<?= $base ?>/book.php"  class="text-gray-400 hover:text-white transition">Book Now</a></li>
                     <li><a href="<?= $base ?>/about.php"    class="text-gray-400 hover:text-white transition">About</a></li>
                     <li><a href="<?= $base ?>/contact.php"  class="text-gray-400 hover:text-white transition">Contact</a></li>

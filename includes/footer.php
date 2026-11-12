@@ -10,6 +10,7 @@
                     <ul class="space-y-2">
                         <li><a href="#hero" class="text-gray-400 hover:text-white transition">Home</a></li>
                         <li><a href="#services" class="text-gray-400 hover:text-white transition">Services</a></li>
+                        <li><a href="/wrapping.php" class="text-gray-400 hover:text-white transition">Vehicle Wrapping</a></li>
                         <li><a href="#booking" class="text-gray-400 hover:text-white transition">Book Now</a></li>
                         <li><a href="#about" class="text-gray-400 hover:text-white transition">About</a></li>
                         <li><a href="#contact" class="text-gray-400 hover:text-white transition">Contact</a></li>
