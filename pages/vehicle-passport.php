@@ -93,7 +93,7 @@ $veh_title  = trim($vehicle['year'] . ' ' . $vehicle['make'] . ' ' . $vehicle['m
 </div>
 <div class="paper">
     <div class="lh">
-        <img src="<?= $base ?>/assets/images/logo-letterhead.png" alt="Wiyule & F A Motors">
+        <img src="<?= $base ?>/assets/images/logo-letterhead.png?v=4" alt="Wiyule & F A Motors">
         <div class="lh-txt">
             <strong>Wiyule &amp; F.A Motors</strong><br>
             Blantyre, Malawi · +265 993 575 111<br>

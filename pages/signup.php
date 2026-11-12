@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="robots" content="noindex, nofollow">
     <title>Create Account — Wiyule Motors</title>
 
-    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
+    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=4">
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
@@ -384,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="flex justify-between items-center h-20">
             <a href="<?= $base ?>/" class="flex items-center space-x-3" style="text-decoration:none">
                 <img class="h-14 sm:h-16 w-auto"
-                     src="<?= $base ?>/assets/images/logo.png"
+                     src="<?= $base ?>/assets/images/logo.png?v=4"
                      alt="Wiyule & FA Motors">
             </a>
             <div class="hidden md:flex items-center gap-7">

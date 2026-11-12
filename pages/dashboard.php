@@ -762,7 +762,7 @@ function wm_brand_logo($make) {
     <meta name="robots" content="noindex">
     <title>My Dashboard — Wiyule Motors</title>
 
-    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
+    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=4">
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -1896,7 +1896,7 @@ function wm_brand_logo($make) {
     <div class="sidebar-logo">
         <a href="<?= $base ?>/" style="display:flex;align-items:center;gap:12px;text-decoration:none;overflow:hidden;flex:1">
             <img class="sidebar-logo-img"
-                 src="<?= $base ?>/assets/images/logo.png"
+                 src="<?= $base ?>/assets/images/logo.png?v=4"
                  alt="Wiyule Motors">
             <span class="sidebar-logo-text">Wiyule Motors</span>
         </a>

@@ -103,7 +103,7 @@ $pdf_title = ($is_quote ? 'Quotation ' : 'Invoice ') . $invoice['invoice_number'
 if (!empty($invoice['registration'])) $pdf_title .= ' - Reg ' . $invoice['registration'];
 ?>
 <title><?= htmlspecialchars($pdf_title) ?></title>
-<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
+<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=4">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
@@ -658,7 +658,7 @@ if (!empty($invoice['registration'])) $pdf_title .= ' - Reg ' . $invoice['regist
         <!-- ─── LETTERHEAD ─── -->
         <div class="letterhead">
             <div class="lh-logo">
-                <img src="<?= $base ?>/assets/images/logo-letterhead.png" alt="Wiyule & F A Motors">
+                <img src="<?= $base ?>/assets/images/logo-letterhead.png?v=4" alt="Wiyule & F A Motors">
             </div>
             <div class="lh-deal">
                 <div class="lh-deal-title">Dealers in:</div>

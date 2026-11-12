@@ -11,7 +11,7 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contact Us — Wiyule Motors</title>
 <meta name="description" content="Visit, call, or WhatsApp Wiyule Motors in Blantyre, Malawi. Hours, location, and contact details.">
-<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
+<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=4">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -117,7 +117,7 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
 
 <nav class="nav">
     <a href="<?= $base ?>/" class="nav-brand">
-        <img src="<?= $base ?>/assets/images/logo.png" alt="Wiyule & FA Motors">
+        <img src="<?= $base ?>/assets/images/logo.png?v=4" alt="Wiyule & FA Motors">
     </a>
     <a href="<?= $base ?>/" class="nav-back">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>

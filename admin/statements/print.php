@@ -551,7 +551,7 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     <!-- ─── LETTERHEAD ─── -->
     <div class="letterhead">
         <div class="lh-logo">
-            <img src="<?= $base ?>/assets/images/logo-letterhead.png" alt="Wiyule & F A Motors">
+            <img src="<?= $base ?>/assets/images/logo-letterhead.png?v=4" alt="Wiyule & F A Motors">
         </div>
         <div class="lh-deal">
             <div class="lh-deal-title">Dealers in:</div>

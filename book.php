@@ -28,10 +28,10 @@ $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
 <link rel="canonical" href="https://www.wiyulemotors.co.mw/book.php">
 <meta property="og:title" content="Book a Car Service — Wiyule Motors">
 <meta property="og:description" content="Book your car service online in 30 seconds. Blantyre's trusted auto workshop.">
-<meta property="og:image" content="https://www.wiyulemotors.co.mw/assets/images/logo.png">
+<meta property="og:image" content="https://www.wiyulemotors.co.mw/assets/images/logo.png?v=4">
 <meta property="og:url" content="https://www.wiyulemotors.co.mw/book.php">
 <meta property="og:type" content="website">
-<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
+<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=4">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -399,7 +399,7 @@ $claim_offer         = isset($_GET['offer']) && $_GET['offer'] === 'first10';
 <!-- Slim nav -->
 <nav class="nav">
     <a href="<?= $base ?>/" class="nav-brand">
-        <img src="<?= $base ?>/assets/images/logo.png" alt="Wiyule & FA Motors">
+        <img src="<?= $base ?>/assets/images/logo.png?v=4" alt="Wiyule & FA Motors">
     </a>
     <a href="<?= $base ?>/" class="nav-back">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>

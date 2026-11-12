@@ -100,7 +100,7 @@ $is_locked = ($invoice['payment_status'] === 'void');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= $is_new ? 'New Invoice' : 'Edit '.htmlspecialchars($invoice['invoice_number']) ?> — Wiyule Admin</title>
-<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png">
+<link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=4">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
@@ -231,7 +231,7 @@ $is_locked = ($invoice['payment_status'] === 'void');
 
 <div class="topbar">
     <a href="<?= $base ?>/admin/invoices/" class="topbar-brand">
-        <img src="<?= $base ?>/assets/images/logo.png" alt="Wiyule">
+        <img src="<?= $base ?>/assets/images/logo.png?v=4" alt="Wiyule">
         <strong>Invoices</strong>
     </a>
     <div class="topbar-actions">

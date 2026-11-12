@@ -54,7 +54,7 @@ $show_offer_banner = !$is_logged_in || $offer_eligible;
     <meta name="keywords" content="auto services, car service Blantyre, vehicle maintenance, auto detailing, car repair, automotive parts, Wiyule Motors, Malawi, brake services, engine repair, oil change">
     <meta property="og:title" content="Wiyule Motors - Premium Auto Services &amp; Parts">
     <meta property="og:description" content="Blantyre's most trusted auto workshop. Premium services, expert repairs & genuine parts — book online today.">
-    <meta property="og:image" content="https://wiyulemotors.co.mw/assets/images/logo-square.png">
+    <meta property="og:image" content="https://wiyulemotors.co.mw/assets/images/logo-square.png?v=4">
     <meta property="og:image:width" content="740">
     <meta property="og:image:height" content="740">
     <meta property="og:url" content="https://wiyulemotors.co.mw">
@@ -63,13 +63,13 @@ $show_offer_banner = !$is_logged_in || $offer_eligible;
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Wiyule Motors - Premium Auto Services &amp; Parts">
     <meta name="twitter:description" content="Blantyre's most trusted auto workshop. Premium services, expert repairs & genuine parts — book online today.">
-    <meta name="twitter:image" content="https://wiyulemotors.co.mw/assets/images/logo-square.png">
+    <meta name="twitter:image" content="https://wiyulemotors.co.mw/assets/images/logo-square.png?v=4">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#dc2626">
     <title>Wiyule Motors - Premium Auto Services &amp; Parts | Blantyre, Malawi</title>
-    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=3">
-    <link rel="shortcut icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=3">
-    <link rel="apple-touch-icon" href="<?= $base ?>/assets/images/logo-square.png?v=3">
+    <link rel="icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=4">
+    <link rel="shortcut icon" type="image/png" href="<?= $base ?>/assets/images/logo-square.png?v=4">
+    <link rel="apple-touch-icon" href="<?= $base ?>/assets/images/logo-square.png?v=4">
     <link rel="manifest" href="<?= $base ?>/static/favicon_io/site.webmanifest">
     <link rel="canonical" href="https://wiyulemotors.co.mw">
 
@@ -1242,7 +1242,7 @@ function dismissOfferBanner(){
             <!-- Logo -->
             <a href="<?= $base ?>/" class="flex items-center" style="text-decoration:none">
                 <img class="h-14 sm:h-16 w-auto"
-                     src="<?= $base ?>/assets/images/logo.png"
+                     src="<?= $base ?>/assets/images/logo.png?v=4"
                      alt="Wiyule & FA Motors">
             </a>
 
@@ -1716,7 +1716,7 @@ document.addEventListener('keydown', function(e) {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-                <img src="<?= $base ?>/assets/images/logo.png" alt="Wiyule &amp; FA Motors"
+                <img src="<?= $base ?>/assets/images/logo.png?v=4" alt="Wiyule &amp; FA Motors"
                      class="h-14 w-auto mb-4" style="background:#fff; padding:7px 12px; border-radius:12px; display:inline-block;">
                 <p class="text-gray-400 mb-4">Premium automotive parts and services in Blantyre, Malawi since 2016.</p>
                 <div class="flex gap-3">
