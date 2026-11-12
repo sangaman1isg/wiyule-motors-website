@@ -23,6 +23,10 @@ header('Content-Type: application/json');
 $name         = trim($_POST['name']         ?? '');
 $phone        = trim($_POST['phone']        ?? '');
 $vehicle_type = trim($_POST['vehicle_type'] ?? '');
+$make         = trim($_POST['make']         ?? '');
+$model        = trim($_POST['model']        ?? '');
+$year         = trim($_POST['year']         ?? '');
+$body         = trim($_POST['body']         ?? '');
 $colour_name  = trim($_POST['colour_name']  ?? '');
 $colour_hex   = trim($_POST['colour_hex']   ?? '');
 $finish       = trim($_POST['finish']       ?? '');
@@ -38,6 +42,21 @@ if (!empty($errors)) {
     echo json_encode(['success' => false, 'errors' => $errors]);
     exit;
 }
+
+// ── Build the vehicle description ───────────────────────────────────
+// Friendly label for the chosen body style (matches the configurator).
+$body_labels = [
+    'sedan'  => 'Sedan',      'suv'   => 'SUV / 4x4', 'pickup' => 'Pickup / Bakkie',
+    'hatch'  => 'Hatchback',  'van'   => 'Van / Minibus',
+];
+$body_label = $body_labels[$body] ?? ($body !== '' ? $body : '');
+// Year is free-text from the customer — keep digits only for display.
+$year = preg_replace('/\D/', '', $year);
+// Full vehicle line, e.g. "2015 Toyota Hilux"; falls back to the body style.
+$veh_parts    = array_filter([$year, $make, $model], function ($v) { return $v !== ''; });
+$vehicle_full = $veh_parts ? implode(' ', $veh_parts) : ($body_label ?: $vehicle_type);
+if ($vehicle_full === '') $vehicle_full = 'Not specified';
+if ($body_label === '')   $body_label   = ($vehicle_type !== '' ? $vehicle_type : '—');
 
 // Normalise a couple of display fields
 if ($vehicle_type === '') $vehicle_type = 'Not specified';
@@ -65,7 +84,8 @@ try {
 
     $e_name   = htmlspecialchars($name,         ENT_QUOTES);
     $e_phone  = htmlspecialchars($phone,        ENT_QUOTES);
-    $e_vtype  = htmlspecialchars($vehicle_type, ENT_QUOTES);
+    $e_vfull  = htmlspecialchars($vehicle_full, ENT_QUOTES);
+    $e_body   = htmlspecialchars($body_label,   ENT_QUOTES);
     $e_cname  = htmlspecialchars($colour_name,  ENT_QUOTES);
     $e_chex   = htmlspecialchars($colour_hex,   ENT_QUOTES);
     $e_finish = htmlspecialchars($finish,       ENT_QUOTES);
@@ -78,12 +98,13 @@ try {
         : '';
 
     $rows = [
-        'Customer'     => $e_name,
-        'Phone'        => '<a href="tel:' . $e_phone . '" style="color:#dc2626;text-decoration:none;">' . $e_phone . '</a>',
-        'Vehicle type' => $e_vtype,
-        'Wrap colour'  => $swatch . $e_cname . ($e_chex !== '' ? ' <span style="color:#94a3b8;font-size:12px;">' . $e_chex . '</span>' : ''),
-        'Finish'       => $e_finish,
-        'Requested'    => htmlspecialchars($when, ENT_QUOTES),
+        'Customer'    => $e_name,
+        'Phone'       => '<a href="tel:' . $e_phone . '" style="color:#dc2626;text-decoration:none;">' . $e_phone . '</a>',
+        'Vehicle'     => $e_vfull,
+        'Body style'  => $e_body,
+        'Wrap colour' => $swatch . $e_cname . ($e_chex !== '' ? ' <span style="color:#94a3b8;font-size:12px;">' . $e_chex . '</span>' : ''),
+        'Finish'      => $e_finish,
+        'Requested'   => htmlspecialchars($when, ENT_QUOTES),
     ];
     $tbl = '';
     foreach ($rows as $k => $v) {
@@ -112,7 +133,8 @@ try {
     $text = "New vehicle-wrap quote request:\n"
           . "Customer: $name\n"
           . "Phone: $phone\n"
-          . "Vehicle type: $vehicle_type\n"
+          . "Vehicle: $vehicle_full\n"
+          . "Body style: $body_label\n"
           . "Wrap colour: $colour_name" . ($colour_hex !== '' ? " ($colour_hex)" : '') . "\n"
           . "Finish: $finish\n"
           . "Notes: " . ($notes !== '' ? $notes : '—') . "\n"

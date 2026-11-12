@@ -85,6 +85,31 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
     .swatch.active { box-shadow: 0 0 0 3px #fff, 0 0 0 5px #dc2626; }
     .swatch[data-light="1"] { border-color: rgba(15,23,42,0.18); }
 
+    /* ── Find your car ── */
+    .find-fields { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+    .find-search { position: relative; flex: 1 1 220px; min-width: 0; }
+    .find-search input, .find-year { width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 11px; font-family: inherit; font-size: 14px; color: #0f172a; background: #fff; transition: border-color .15s; }
+    .find-search input:focus, .find-year:focus { outline: none; border-color: #dc2626; }
+    .find-year { flex: 0 0 132px; }
+    @media (max-width: 420px) { .find-year { flex: 1 1 100%; } }
+    .typeahead { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 30px rgba(15,23,42,0.14); z-index: 20; display: none; max-height: 272px; overflow-y: auto; }
+    .typeahead.open { display: block; }
+    .ta-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; font-size: 14px; }
+    .ta-item:hover, .ta-item.active { background: #fef2f2; }
+    .ta-mk { font-weight: 600; color: #0f172a; }
+    .ta-body { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #dc2626; background: rgba(220,38,38,0.08); padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
+    .ta-empty { padding: 12px 14px; font-size: 13px; color: #64748b; }
+    .find-hint { font-size: 12px; color: #64748b; margin: 13px 0 9px; }
+    .body-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .body-chips::-webkit-scrollbar { display: none; }
+    .body-chip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border: 1.5px solid #e2e8f0; background: #fff; border-radius: 11px; font-family: inherit; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer; transition: all .15s; white-space: nowrap; }
+    .body-chip:hover { border-color: #cbd5e1; }
+    .body-chip.active { border-color: #15803d; background: #15803d; color: #fff; box-shadow: 0 4px 14px rgba(21,128,61,0.22); }
+    .selected-car { margin-top: 12px; display: inline-flex; align-items: center; gap: 7px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 8px 13px; border-radius: 11px; font-size: 13px; font-weight: 700; }
+    .selected-car svg { width: 15px; height: 15px; }
+    .sel-vehicle { color: #fff; }
+    .veh-readout .v-icon { width: 18px; height: 18px; color: #64748b; flex-shrink: 0; }
+
     .divider { height: 1px; background: #f1f5f9; margin: 20px 0; }
 
     /* ── Benefits ── */
@@ -160,7 +185,7 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
 <div class="hero">
     <span class="eyebrow">3D Wrap Studio</span>
     <h1>Design your wrap in 3D.</h1>
-    <p class="lead">Spin the car, pick a colour and a finish — matte, gloss, satin, metallic, chrome or carbon fibre — and see it come to life. When it looks right, send us the exact spec for a quote.</p>
+    <p class="lead">Find your car, pick a colour and a finish — matte, gloss, satin, metallic, chrome or carbon fibre — and watch it come to life in 3D. When it looks right, send us the exact spec for a quote.</p>
 </div>
 
 <div class="container">
@@ -212,12 +237,35 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
             <div class="stage-hint" id="stageHint">Drag to rotate</div>
             <div class="stage-badge">
                 <span class="dot" id="badgeDot" style="background:#dc2626;"></span>
-                <span><span id="badgeColour">Wiyule Red</span> · <span class="sel-finish" id="badgeFinish">Gloss</span></span>
+                <span><span class="sel-vehicle" id="badgeVehicle">Sedan · </span><span id="badgeColour">Wiyule Red</span> · <span class="sel-finish" id="badgeFinish">Gloss</span></span>
             </div>
         </div>
 
         <!-- Controls -->
         <div class="controls">
+            <div class="ctrl-label">Find your car</div>
+            <div class="find-fields">
+                <div class="find-search">
+                    <input id="carSearch" type="text" autocomplete="off" spellcheck="false"
+                           placeholder="Search make or model — e.g. Toyota Hilux"
+                           role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="carResults">
+                    <div class="typeahead" id="carResults" role="listbox" aria-label="Matching vehicles"></div>
+                </div>
+                <input id="carYear" class="find-year" type="text" inputmode="numeric" maxlength="4"
+                       autocomplete="off" placeholder="Year (opt.)">
+            </div>
+            <div class="find-hint">Not listed? Pick a body style and tell us the exact vehicle in your quote:</div>
+            <div class="body-chips" id="bodyChips">
+                <button class="body-chip active" data-body="sedan"  type="button">Sedan</button>
+                <button class="body-chip"        data-body="suv"    type="button">SUV &amp; 4x4</button>
+                <button class="body-chip"        data-body="pickup" type="button">Pickup</button>
+                <button class="body-chip"        data-body="hatch"  type="button">Hatchback</button>
+                <button class="body-chip"        data-body="van"    type="button">Van</button>
+            </div>
+            <div class="selected-car" id="selectedCar" style="display:none;"></div>
+
+            <div class="divider"></div>
+
             <div class="ctrl-label">Finish</div>
             <div class="finish-row" id="finishRow">
                 <button class="finish-btn active" data-finish="gloss"   type="button"><span class="fi"></span>Gloss</button>
@@ -288,6 +336,10 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
             <h3>Request a quote</h3>
             <div class="fsub">We'll get back to you with pricing for your wrap.</div>
 
+            <div class="sel-readout veh-readout">
+                <svg class="v-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                <span id="readoutVehicle">Sedan</span>
+            </div>
             <div class="sel-readout">
                 <span class="dot" id="readoutDot" style="background:#dc2626;"></span>
                 <span><span id="readoutColour">Wiyule Red</span> — <span id="readoutFinish">Gloss</span> finish</span>
@@ -303,28 +355,19 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
                     <input type="tel" name="phone" id="fPhone" autocomplete="tel" placeholder="e.g. 0993 575 111">
                 </div>
                 <div class="field">
-                    <label>Vehicle type</label>
-                    <select name="vehicle_type" id="fVehicle">
-                        <option value="">Select…</option>
-                        <option>Sedan</option>
-                        <option>SUV / 4x4</option>
-                        <option>Pickup / Bakkie</option>
-                        <option>Hatchback</option>
-                        <option>Van / Minibus</option>
-                        <option>Truck / Lorry</option>
-                        <option>Motorbike</option>
-                        <option>Other</option>
-                    </select>
-                </div>
-                <div class="field">
                     <label>Notes (optional)</label>
                     <textarea name="notes" id="fNotes" placeholder="Partial wrap, logo &amp; lettering, registration number, timeline…"></textarea>
                 </div>
 
-                <!-- prefilled from the configurator -->
-                <input type="hidden" name="colour_name" id="hColourName" value="Wiyule Red">
-                <input type="hidden" name="colour_hex"  id="hColourHex"  value="#dc2626">
-                <input type="hidden" name="finish"      id="hFinish"     value="Gloss">
+                <!-- prefilled from the configurator (vehicle + wrap) -->
+                <input type="hidden" name="make"         id="hMake"        value="">
+                <input type="hidden" name="model"        id="hModel"       value="">
+                <input type="hidden" name="year"         id="hYear"        value="">
+                <input type="hidden" name="body"         id="hBody"        value="sedan">
+                <input type="hidden" name="vehicle_type" id="hVehicleType" value="Sedan">
+                <input type="hidden" name="colour_name"  id="hColourName"  value="Wiyule Red">
+                <input type="hidden" name="colour_hex"   id="hColourHex"   value="#dc2626">
+                <input type="hidden" name="finish"       id="hFinish"      value="Gloss">
 
                 <button type="submit" class="submit-btn" id="submitBtn">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>
@@ -404,7 +447,97 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
     metallic: 'Metallic', chrome: 'Chrome', carbon: 'Carbon Fibre'
   };
 
-  var state = { hex: '#dc2626', name: 'Wiyule Red', finish: 'gloss' };
+  // Body styles → the five procedural 3D models + friendly labels.
+  var BODY_LABELS = {
+    sedan: 'Sedan', suv: 'SUV / 4x4', pickup: 'Pickup / Bakkie',
+    hatch: 'Hatchback', van: 'Van / Minibus'
+  };
+
+  // Static vehicle library common on Malawian roads (no external API).
+  // Each entry maps a make+model to one of the 5 body styles.
+  var CARS = [
+    // Toyota
+    { make:'Toyota', model:'Hilux',        body:'pickup' },
+    { make:'Toyota', model:'Land Cruiser', body:'suv' },
+    { make:'Toyota', model:'Prado',        body:'suv' },
+    { make:'Toyota', model:'Fortuner',     body:'suv' },
+    { make:'Toyota', model:'RAV4',         body:'suv' },
+    { make:'Toyota', model:'Harrier',      body:'suv' },
+    { make:'Toyota', model:'Corolla',      body:'sedan' },
+    { make:'Toyota', model:'Mark X',       body:'sedan' },
+    { make:'Toyota', model:'Premio',       body:'sedan' },
+    { make:'Toyota', model:'Vitz',         body:'hatch' },
+    { make:'Toyota', model:'Passo',        body:'hatch' },
+    { make:'Toyota', model:'HiAce',        body:'van' },
+    { make:'Toyota', model:'Noah',         body:'van' },
+    { make:'Toyota', model:'Voxy',         body:'van' },
+    { make:'Toyota', model:'Dyna',         body:'van' },
+    // Nissan
+    { make:'Nissan', model:'Navara',       body:'pickup' },
+    { make:'Nissan', model:'NP300',        body:'pickup' },
+    { make:'Nissan', model:'X-Trail',      body:'suv' },
+    { make:'Nissan', model:'Patrol',       body:'suv' },
+    { make:'Nissan', model:'Juke',         body:'suv' },
+    { make:'Nissan', model:'Tiida',        body:'hatch' },
+    { make:'Nissan', model:'Note',         body:'hatch' },
+    { make:'Nissan', model:'Caravan',      body:'van' },
+    { make:'Nissan', model:'Sunny',        body:'sedan' },
+    // Mitsubishi
+    { make:'Mitsubishi', model:'L200',     body:'pickup' },
+    { make:'Mitsubishi', model:'Triton',   body:'pickup' },
+    { make:'Mitsubishi', model:'Pajero',   body:'suv' },
+    { make:'Mitsubishi', model:'Outlander',body:'suv' },
+    { make:'Mitsubishi', model:'Canter',   body:'van' },
+    // Isuzu
+    { make:'Isuzu',  model:'D-Max',        body:'pickup' },
+    { make:'Isuzu',  model:'KB',           body:'pickup' },
+    { make:'Isuzu',  model:'MU-X',         body:'suv' },
+    // Mazda
+    { make:'Mazda',  model:'BT-50',        body:'pickup' },
+    { make:'Mazda',  model:'CX-5',         body:'suv' },
+    { make:'Mazda',  model:'Demio',        body:'hatch' },
+    { make:'Mazda',  model:'Axela',        body:'sedan' },
+    // Honda
+    { make:'Honda',  model:'Fit',          body:'hatch' },
+    { make:'Honda',  model:'CR-V',         body:'suv' },
+    { make:'Honda',  model:'Civic',        body:'sedan' },
+    // Volkswagen
+    { make:'Volkswagen', model:'Amarok',   body:'pickup' },
+    { make:'Volkswagen', model:'Golf',     body:'hatch' },
+    { make:'Volkswagen', model:'Polo',     body:'hatch' },
+    { make:'Volkswagen', model:'Touareg',  body:'suv' },
+    // Ford
+    { make:'Ford',   model:'Ranger',       body:'pickup' },
+    { make:'Ford',   model:'Everest',      body:'suv' },
+    // Mercedes-Benz
+    { make:'Mercedes-Benz', model:'C-Class', body:'sedan' },
+    { make:'Mercedes-Benz', model:'GLE',     body:'suv' },
+    { make:'Mercedes-Benz', model:'Sprinter',body:'van' },
+    // BMW
+    { make:'BMW',    model:'3 Series',     body:'sedan' },
+    { make:'BMW',    model:'X5',           body:'suv' },
+    // Suzuki
+    { make:'Suzuki', model:'Swift',        body:'hatch' },
+    { make:'Suzuki', model:'Vitara',       body:'suv' },
+    // Land Rover
+    { make:'Land Rover', model:'Defender', body:'suv' },
+    { make:'Land Rover', model:'Discovery',body:'suv' }
+  ];
+
+  // state.body selects the 3D model; make/model/year flow into the quote.
+  var state = { hex: '#dc2626', name: 'Wiyule Red', finish: 'gloss',
+                body: 'sedan', make: '', model: '', year: '' };
+
+  // Hook assigned once the 3D scene boots; lets the UI swap body-style models.
+  var sceneSetBody = null;
+
+  // Friendly vehicle label: "2015 Toyota Hilux" if a car is chosen, else body style.
+  function vehicleLabel() {
+    if (state.make && state.model) {
+      return (state.year ? state.year + ' ' : '') + state.make + ' ' + state.model;
+    }
+    return BODY_LABELS[state.body] || 'Vehicle';
+  }
 
   // ── DOM refs ──
   var $ = function (id) { return document.getElementById(id); };
@@ -413,6 +546,11 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
   var canvas     = $('wrapCanvas');
   var poster     = $('poster');
   var bootBtn    = $('bootBtn');
+  var carSearch  = $('carSearch');
+  var carResults = $('carResults');
+  var carYear    = $('carYear');
+  var bodyChips  = $('bodyChips');
+  var selectedCar= $('selectedCar');
 
   // ── Build swatches ──
   COLOURS.forEach(function (c, i) {
@@ -450,33 +588,161 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
     updateSelection();
   });
 
+  /* ════════════════════════════════════════════════════════════════
+     FIND YOUR CAR — typeahead over CARS + body-style chip fallback.
+     Both paths call applyBody(style); search also records make/model.
+     ════════════════════════════════════════════════════════════════ */
+
+  // Filter the library by make OR model (case-insensitive substring).
+  function searchCars(q) {
+    q = String(q || '').trim().toLowerCase();
+    if (!q) return [];
+    return CARS.filter(function (c) {
+      return (c.make + ' ' + c.model).toLowerCase().indexOf(q) >= 0 ||
+             c.model.toLowerCase().indexOf(q) >= 0;
+    }).slice(0, 8);
+  }
+
+  var currentMatches = [], activeIdx = -1;
+
+  function closeResults() {
+    carResults.classList.remove('open');
+    carResults.innerHTML = '';
+    activeIdx = -1;
+    carSearch.setAttribute('aria-expanded', 'false');
+  }
+
+  function renderResults(q) {
+    currentMatches = searchCars(q);
+    activeIdx = -1;
+    if (!q.trim()) { closeResults(); return; }
+    if (!currentMatches.length) {
+      carResults.innerHTML = '<div class="ta-empty">No match — pick a body style below.</div>';
+      carResults.classList.add('open');
+      carSearch.setAttribute('aria-expanded', 'true');
+      return;
+    }
+    carResults.innerHTML = '';
+    currentMatches.forEach(function (m, i) {
+      var it = document.createElement('div');
+      it.className = 'ta-item';
+      it.setAttribute('role', 'option');
+      it.innerHTML = '<span class="ta-mk">' + escapeHtml(m.make + ' ' + m.model) + '</span>' +
+                     '<span class="ta-body">' + escapeHtml(BODY_LABELS[m.body]) + '</span>';
+      // mousedown (not click) so it fires before the input's blur closes the list
+      it.addEventListener('mousedown', function (e) { e.preventDefault(); selectCar(m); });
+      carResults.appendChild(it);
+    });
+    carResults.classList.add('open');
+    carSearch.setAttribute('aria-expanded', 'true');
+  }
+
+  function highlightActive() {
+    var items = carResults.querySelectorAll('.ta-item');
+    for (var i = 0; i < items.length; i++) items[i].classList.toggle('active', i === activeIdx);
+  }
+
+  // Record a specific car and switch to its body style.
+  function selectCar(entry) {
+    state.make = entry.make;
+    state.model = entry.model;
+    carSearch.value = entry.make + ' ' + entry.model;
+    closeResults();
+    applyBody(entry.body);   // sets state.body, highlights chip, swaps 3D model
+  }
+
+  // Manual body-style chip: clears any specific make/model, keeps body only.
+  function pickBodyManual(style) {
+    state.make = '';
+    state.model = '';
+    carSearch.value = '';
+    applyBody(style);
+  }
+
+  // Apply a body style everywhere (chip highlight, 3D model swap, labels).
+  function applyBody(style) {
+    if (!BODY_LABELS[style]) style = 'sedan';
+    state.body = style;
+    var chips = bodyChips.querySelectorAll('.body-chip');
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].classList.toggle('active', chips[i].getAttribute('data-body') === style);
+    }
+    if (sceneSetBody) sceneSetBody(style);   // swap the 3D model (if booted)
+    updateSelection();
+  }
+
+  carSearch.addEventListener('input', function () { renderResults(carSearch.value); });
+  carSearch.addEventListener('focus', function () { if (carSearch.value.trim()) renderResults(carSearch.value); });
+  carSearch.addEventListener('blur', function () { setTimeout(closeResults, 120); });
+  carSearch.addEventListener('keydown', function (e) {
+    if (!carResults.classList.contains('open') || !currentMatches.length) {
+      if (e.key === 'Escape') closeResults();
+      return;
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, currentMatches.length - 1); highlightActive(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); highlightActive(); }
+    else if (e.key === 'Enter') { e.preventDefault(); selectCar(currentMatches[activeIdx >= 0 ? activeIdx : 0]); }
+    else if (e.key === 'Escape') { closeResults(); }
+  });
+
+  carYear.addEventListener('input', function () {
+    state.year = carYear.value.replace(/[^0-9]/g, '').slice(0, 4);
+    if (carYear.value !== state.year) carYear.value = state.year;
+    updateSelection();
+  });
+
+  bodyChips.addEventListener('click', function (e) {
+    var chip = e.target.closest('.body-chip');
+    if (!chip) return;
+    pickBodyManual(chip.getAttribute('data-body'));
+  });
+
   // ── Central: push state into every surface (label, SVG, form, WhatsApp, 3D) ──
   var applyToScene = null; // set once 3D boots
   function finishLabel() { return FINISH_LABELS[state.finish] || state.finish; }
 
   function updateSelection() {
     var fl = finishLabel();
+    var vl = vehicleLabel();
     // Stage badge
     $('badgeDot').style.background = state.hex;
+    $('badgeVehicle').textContent = vl + ' · ';
     $('badgeColour').textContent = state.name;
     $('badgeFinish').textContent = fl;
     // Inline colour name
     $('colourNameInline').textContent = state.name;
-    // Form readout + hidden fields
+    // Form readouts
+    $('readoutVehicle').textContent = vl;
     $('readoutDot').style.background = state.hex;
     $('readoutColour').textContent = state.name;
     $('readoutFinish').textContent = fl;
-    $('hColourName').value = state.name;
-    $('hColourHex').value  = state.hex;
-    $('hFinish').value     = fl;
+    // Hidden form fields (vehicle + wrap)
+    $('hMake').value        = state.make;
+    $('hModel').value       = state.model;
+    $('hYear').value        = state.year;
+    $('hBody').value        = state.body;
+    $('hVehicleType').value = BODY_LABELS[state.body] || '';
+    $('hColourName').value  = state.name;
+    $('hColourHex').value   = state.hex;
+    $('hFinish').value      = fl;
     // WhatsApp summary card
+    $('waVehicle').textContent = vl;
     $('waColour').textContent = state.name;
     $('waFinish').textContent = fl;
+    // "Selected car" confirmation chip (only when a specific model is chosen)
+    if (state.make && state.model) {
+      selectedCar.style.display = 'inline-flex';
+      selectedCar.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+        escapeHtml(vl) + ' · ' + escapeHtml(BODY_LABELS[state.body] || '');
+    } else {
+      selectedCar.style.display = 'none';
+      selectedCar.innerHTML = '';
+    }
     // SVG preview (poster / fallback)
     updateSvg();
     // WhatsApp link
     updateWhatsApp();
-    // Live 3D
+    // Live 3D colour/finish
     if (applyToScene) applyToScene(state);
   }
 
@@ -500,25 +766,23 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
     if (sheen) sheen.style.opacity = sheenOpacity;
   }
 
-  // ── WhatsApp link (reads latest form inputs + state) ──
+  // ── WhatsApp link (reads latest vehicle + notes + wrap state) ──
   function updateWhatsApp() {
-    var vt = ($('fVehicle') && $('fVehicle').value) ? $('fVehicle').value : 'Not specified';
-    $('waVehicle').textContent = vt;
+    var vl = vehicleLabel();
     var notes = ($('fNotes') && $('fNotes').value.trim()) ? $('fNotes').value.trim() : '—';
     var msg = "Hi Wiyule & F.A Motors, I'd like a wrap quote. "
-            + "Vehicle: " + vt + ". "
+            + "Vehicle: " + vl + ". "
             + "Colour: " + state.name + " (" + state.hex + "). "
             + "Finish: " + finishLabel() + ". "
             + "Notes: " + notes;
     $('waBtn').href = 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(msg);
   }
 
-  // Keep WhatsApp message current as the user types / changes vehicle type
-  ['fVehicle', 'fNotes'].forEach(function (id) {
-    var el = $(id);
-    if (el) el.addEventListener('input', updateWhatsApp);
-    if (el) el.addEventListener('change', updateWhatsApp);
-  });
+  // Keep the WhatsApp message current as the user types notes
+  (function () {
+    var el = $('fNotes');
+    if (el) { el.addEventListener('input', updateWhatsApp); el.addEventListener('change', updateWhatsApp); }
+  })();
 
   // ── Colour helpers ──
   function hexToRgb(h) {
@@ -617,7 +881,11 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
     rim.position.set(-6, 4, -5);
     scene.add(rim);
 
-    // ── Materials ──
+    // ── Shared materials ──────────────────────────────────────────────
+    // PAINT (bodyMat) is the only wrappable surface — swatch + finish mutate
+    // it live. Everything else (glass, tyres, rims, lights, trim) keeps its
+    // own fixed material. These persist across body switches and are reused
+    // by every model, so they are NOT disposed when the model changes.
     var bodyMat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(state.hex), metalness: 0.0, roughness: 0.12,
       clearcoat: 1.0, clearcoatRoughness: 0.03, envMapIntensity: 1.1
@@ -636,70 +904,133 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
 
     var carbonTex = null; // generated on demand
 
-    // ── Car group ──
-    var car = new THREE.Group();
+    // Render-loop state (hoisted so setBody can request a frame before the
+    // loop is defined below).
+    var running = false, rafId = null, dirty = true, inView = true, visible = true;
 
-    // Lower body
-    var lower = new THREE.Mesh(new RoundedBoxGeometry(2.05, 0.82, 4.5, 6, 0.26), bodyMat);
-    lower.position.y = 0.92;
-    car.add(lower);
+    // ── Geometry + mesh helpers ───────────────────────────────────────
+    function rb(w, h, d, r) { return new RoundedBoxGeometry(w, h, d, 4, (r === undefined ? 0.12 : r)); }
+    function paint(group, geo) { var m = new THREE.Mesh(geo, bodyMat); group.add(m); return m; }   // wrappable
+    function fixed(group, geo, mat) { var m = new THREE.Mesh(geo, mat); group.add(m); return m; }  // fixed
 
-    // Bonnet/boot taper strip (subtle shoulder) — a thinner body-coloured box on top of lower
-    var shoulder = new THREE.Mesh(new RoundedBoxGeometry(1.92, 0.34, 4.1, 5, 0.22), bodyMat);
-    shoulder.position.y = 1.26;
-    car.add(shoulder);
-
-    // Cabin (painted roof + pillars)
-    var cabin = new THREE.Mesh(new RoundedBoxGeometry(1.75, 0.66, 2.1, 5, 0.22), bodyMat);
-    cabin.position.set(0, 1.56, -0.12);
-    car.add(cabin);
-
-    // Glass greenhouse (inset so painted pillars show)
-    var glass = new THREE.Mesh(new RoundedBoxGeometry(1.56, 0.5, 1.78, 5, 0.16), glassMat);
-    glass.position.set(0, 1.56, -0.12);
-    car.add(glass);
-
-    // Headlights
-    [-0.72, 0.72].forEach(function (x) {
-      var h = new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.18, 0.1, 3, 0.05), headMat);
-      h.position.set(x, 0.98, 2.24);
-      car.add(h);
-    });
-    // Taillights
-    [-0.74, 0.74].forEach(function (x) {
-      var t = new THREE.Mesh(new RoundedBoxGeometry(0.44, 0.16, 0.09, 3, 0.05), tailMat);
-      t.position.set(x, 1.02, -2.24);
-      car.add(t);
-    });
-    // Front + rear bumper trim
-    [2.26, -2.26].forEach(function (z) {
-      var b = new THREE.Mesh(new RoundedBoxGeometry(1.86, 0.26, 0.14, 3, 0.07), trimMat);
-      b.position.set(0, 0.62, z);
-      car.add(b);
-    });
-
-    // Wheels
-    var tyreGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.34, 30);
-    var rimGeo  = new THREE.CylinderGeometry(0.33, 0.33, 0.36, 24);
-    var hubGeo  = new THREE.CylinderGeometry(0.12, 0.12, 0.38, 14);
-    var spokeGeo = new RoundedBoxGeometry(0.075, 0.5, 0.14, 2, 0.03);
-    var wheelPos = [[1.03, 1.45], [-1.03, 1.45], [1.03, -1.45], [-1.03, -1.45]];
-    wheelPos.forEach(function (p) {
-      var w = new THREE.Group();
-      var tyre = new THREE.Mesh(tyreGeo, tyreMat); tyre.rotation.z = Math.PI / 2; w.add(tyre);
-      var r = new THREE.Mesh(rimGeo, rimMat);      r.rotation.z = Math.PI / 2;    w.add(r);
-      var hub = new THREE.Mesh(hubGeo, hubMat);    hub.rotation.z = Math.PI / 2;  w.add(hub);
+    // One detailed wheel. All its geometry is owned by the model it belongs
+    // to, so disposeModel() frees it on a body switch (no leaks).
+    function buildWheel(radius) {
+      var g = new THREE.Group();
+      var tyre = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.34, 26), tyreMat); tyre.rotation.z = Math.PI / 2; g.add(tyre);
+      var rim  = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.62, radius * 0.62, 0.36, 20), rimMat); rim.rotation.z = Math.PI / 2; g.add(rim);
+      var hub  = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.2, radius * 0.2, 0.38, 12), hubMat); hub.rotation.z = Math.PI / 2; g.add(hub);
       for (var k = 0; k < 5; k++) {
-        var sp = new THREE.Mesh(spokeGeo, rimMat);
-        sp.rotation.z = Math.PI / 2;
-        sp.rotation.x = (k / 5) * Math.PI * 2;
-        w.add(sp);
+        var sp = new THREE.Mesh(new RoundedBoxGeometry(0.07, radius * 0.95, 0.13, 2, 0.03), rimMat);
+        sp.rotation.z = Math.PI / 2; sp.rotation.x = (k / 5) * Math.PI * 2; g.add(sp);
       }
-      w.position.set(p[0], 0.52, p[1]);
-      car.add(w);
-    });
+      return g;
+    }
+    function addWheels(group, radius, halfTrack, zFront, zRear) {
+      [[halfTrack, zFront], [-halfTrack, zFront], [halfTrack, zRear], [-halfTrack, zRear]].forEach(function (p) {
+        var w = buildWheel(radius); w.position.set(p[0], radius, p[1]); group.add(w);
+      });
+    }
 
-    scene.add(car);
+    /* ════════════════════════════════════════════════════════════════
+       MODELS registry — keyed by body style.
+       Today every entry is procedural: { type:'procedural', build() } and
+       build() returns { group, paintMeshes }. The loader (setBody) is written
+       so a licensed GLB can be dropped into a slot LATER without touching
+       setBody(), e.g.:
+         suv: { type:'glb', url: base+'/assets/models/suv.glb',
+                paintMeshNames: ['Body','Hood','Doors'] }
+       Add one `type === 'glb'` branch in setBody that loads the url with
+       GLTFLoader, collects meshes whose .name is in paintMeshNames as the
+       paint set and assigns bodyMat to them, then returns the same
+       { group, paintMeshes } shape. Colour/finish re-apply, camera framing
+       and disposal all already work off that shape.
+       ════════════════════════════════════════════════════════════════ */
+    var MODELS = {
+      sedan:  { type: 'procedural', build: buildSedan },
+      suv:    { type: 'procedural', build: buildSUV },
+      pickup: { type: 'procedural', build: buildPickup },
+      hatch:  { type: 'procedural', build: buildHatch },
+      van:    { type: 'procedural', build: buildVan }
+    };
+
+    // Camera framing per body: orbit target height + distance (vans sit taller/longer).
+    var FRAME = {
+      sedan:  { ty: 0.85, dist: 7.6 },
+      suv:    { ty: 1.05, dist: 8.3 },
+      pickup: { ty: 0.95, dist: 8.7 },
+      hatch:  { ty: 0.82, dist: 7.0 },
+      van:    { ty: 1.25, dist: 9.2 }
+    };
+
+    // ── Five distinct body-style builders ─────────────────────────────
+    function buildSedan() {
+      var g = new THREE.Group(), P = [];
+      var lower = paint(g, rb(2.05, 0.82, 4.5, 0.26));  lower.position.y = 0.92;           P.push(lower);
+      var shld  = paint(g, rb(1.92, 0.34, 4.1, 0.22));  shld.position.y = 1.26;            P.push(shld);
+      var cabin = paint(g, rb(1.75, 0.66, 2.1, 0.22));  cabin.position.set(0, 1.56, -0.12); P.push(cabin);
+      var glass = fixed(g, rb(1.56, 0.5, 1.78, 0.16), glassMat); glass.position.set(0, 1.56, -0.12);
+      [-0.72, 0.72].forEach(function (x) { var h = fixed(g, rb(0.34, 0.18, 0.1, 0.05), headMat); h.position.set(x, 0.98, 2.24); });
+      [-0.74, 0.74].forEach(function (x) { var t = fixed(g, rb(0.44, 0.16, 0.09, 0.05), tailMat); t.position.set(x, 1.02, -2.24); });
+      [2.26, -2.26].forEach(function (z) { var b = fixed(g, rb(1.86, 0.26, 0.14, 0.07), trimMat); b.position.set(0, 0.62, z); });
+      addWheels(g, 0.52, 1.03, 1.45, -1.45);
+      return { group: g, paintMeshes: P };
+    }
+
+    function buildSUV() {
+      var g = new THREE.Group(), P = [];
+      var body  = paint(g, rb(2.15, 1.15, 4.6, 0.22)); body.position.y = 1.02;             P.push(body);
+      var cabin = paint(g, rb(1.98, 0.9, 2.9, 0.2));   cabin.position.set(0, 1.95, -0.1);   P.push(cabin);
+      var glass = fixed(g, rb(1.82, 0.66, 2.55, 0.14), glassMat); glass.position.set(0, 1.97, -0.1);
+      [-0.8, 0.8].forEach(function (x) { var r = fixed(g, rb(0.08, 0.07, 2.5, 0.03), trimMat); r.position.set(x, 2.46, -0.1); }); // roof rails
+      [-0.78, 0.78].forEach(function (x) { var h = fixed(g, rb(0.36, 0.2, 0.1, 0.05), headMat); h.position.set(x, 1.12, 2.33); });
+      [-0.8, 0.8].forEach(function (x) { var t = fixed(g, rb(0.4, 0.34, 0.09, 0.05), tailMat); t.position.set(x, 1.35, -2.33); });
+      [2.34, -2.34].forEach(function (z) { var b = fixed(g, rb(1.95, 0.3, 0.14, 0.07), trimMat); b.position.set(0, 0.66, z); });
+      addWheels(g, 0.6, 1.06, 1.5, -1.5);
+      return { group: g, paintMeshes: P };
+    }
+
+    function buildPickup() {
+      var g = new THREE.Group(), P = [];
+      var chassis = fixed(g, rb(1.95, 0.4, 4.9, 0.08), trimMat); chassis.position.set(0, 0.72, -0.05);
+      var hood = paint(g, rb(2.0, 0.6, 1.5, 0.18)); hood.position.set(0, 1.02, 1.55);       P.push(hood);
+      var cab  = paint(g, rb(1.98, 0.82, 1.5, 0.2)); cab.position.set(0, 1.38, 0.35);        P.push(cab);
+      var cabGlass = fixed(g, rb(1.82, 0.56, 1.2, 0.14), glassMat); cabGlass.position.set(0, 1.45, 0.38);
+      var bedFloor = fixed(g, rb(1.95, 0.2, 2.3, 0.05), trimMat); bedFloor.position.set(0, 0.98, -1.35);
+      [-0.9, 0.9].forEach(function (x) { var s = paint(g, rb(0.15, 0.5, 2.3, 0.05)); s.position.set(x, 1.2, -1.35); P.push(s); }); // bed sides
+      var bedFront = paint(g, rb(1.95, 0.5, 0.15, 0.05)); bedFront.position.set(0, 1.2, -0.25); P.push(bedFront);
+      var tailgate = paint(g, rb(1.95, 0.5, 0.15, 0.05)); tailgate.position.set(0, 1.2, -2.48); P.push(tailgate);
+      [-0.74, 0.74].forEach(function (x) { var h = fixed(g, rb(0.34, 0.22, 0.1, 0.05), headMat); h.position.set(x, 1.02, 2.32); });
+      [-0.78, 0.78].forEach(function (x) { var t = fixed(g, rb(0.3, 0.3, 0.09, 0.05), tailMat); t.position.set(x, 1.15, -2.56); });
+      var fbump = fixed(g, rb(1.95, 0.28, 0.16, 0.07), trimMat); fbump.position.set(0, 0.66, 2.34);
+      addWheels(g, 0.58, 1.05, 1.5, -1.6);
+      return { group: g, paintMeshes: P };
+    }
+
+    function buildHatch() {
+      var g = new THREE.Group(), P = [];
+      var lower = paint(g, rb(1.95, 0.78, 3.7, 0.24)); lower.position.y = 0.9;              P.push(lower);
+      var cabin = paint(g, rb(1.82, 0.72, 2.0, 0.22)); cabin.position.set(0, 1.46, -0.3);   P.push(cabin);
+      var glass = fixed(g, rb(1.64, 0.56, 1.72, 0.15), glassMat); glass.position.set(0, 1.46, -0.3);
+      [-0.7, 0.7].forEach(function (x) { var h = fixed(g, rb(0.32, 0.18, 0.1, 0.05), headMat); h.position.set(x, 0.95, 1.84); });
+      [-0.72, 0.72].forEach(function (x) { var t = fixed(g, rb(0.4, 0.26, 0.09, 0.05), tailMat); t.position.set(x, 1.1, -1.84); });
+      [1.86, -1.86].forEach(function (z) { var b = fixed(g, rb(1.78, 0.24, 0.14, 0.07), trimMat); b.position.set(0, 0.6, z); });
+      addWheels(g, 0.5, 1.0, 1.15, -1.15);
+      return { group: g, paintMeshes: P };
+    }
+
+    function buildVan() {
+      var g = new THREE.Group(), P = [];
+      var box   = paint(g, rb(2.15, 1.5, 3.6, 0.16)); box.position.set(0, 1.35, -0.55);     P.push(box);   // tall cargo box
+      var front = paint(g, rb(2.12, 0.95, 1.4, 0.16)); front.position.set(0, 0.95, 1.75);    P.push(front); // short bonnet
+      var wind  = fixed(g, rb(2.0, 0.62, 0.5, 0.1), glassMat); wind.position.set(0, 1.62, 1.35);
+      [-0.95, 0.95].forEach(function (x) { var sg = fixed(g, rb(0.14, 0.5, 0.9, 0.06), glassMat); sg.position.set(x, 1.55, 1.85); });
+      [-0.8, 0.8].forEach(function (x) { var h = fixed(g, rb(0.34, 0.26, 0.1, 0.05), headMat); h.position.set(x, 0.95, 2.42); });
+      [-0.85, 0.85].forEach(function (x) { var t = fixed(g, rb(0.3, 0.5, 0.09, 0.05), tailMat); t.position.set(x, 1.4, -2.34); });
+      var fbump = fixed(g, rb(2.0, 0.3, 0.16, 0.07), trimMat); fbump.position.set(0, 0.52, 2.44);
+      addWheels(g, 0.56, 1.05, 1.75, -1.55);
+      return { group: g, paintMeshes: P };
+    }
 
     // ── Contact shadow (baked radial texture on a plane) ──
     var shTex = makeShadowTexture(THREE);
@@ -719,14 +1050,14 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
     controls.minDistance = 4.2;
-    controls.maxDistance = 11;
+    controls.maxDistance = 12;
     controls.minPolarAngle = 0.18 * Math.PI;
     controls.maxPolarAngle = 0.49 * Math.PI; // never below the floor
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.75;
     controls.update();
 
-    // ── Finish application ──
+    // ── Finish application (operates on the shared paint material) ──
     function applyFinish(f) {
       // reset shared params
       bodyMat.map = null;
@@ -755,17 +1086,57 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
       }
     }
 
-    // Public hook used by updateSelection()
+    // Public hook used by updateSelection() for colour/finish changes.
     applyToScene = function (st) {
       applyFinish(st.finish);
       applyColour(st.finish, st.hex);
       dirty = true;
     };
-    // sync current state immediately
-    applyToScene(state);
 
-    // ── Render loop (on-demand) ──
-    var running = false, rafId = null, dirty = true, inView = true, visible = true;
+    // ── Per-model loader: dispose old → build new → re-apply wrap → reframe ──
+    var currentModel = null;
+
+    function disposeModel(m) {
+      if (!m) return;
+      scene.remove(m.group);
+      m.group.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
+      // Shared materials are intentionally NOT disposed (reused by the next model).
+    }
+
+    function frameFor(style) {
+      var f = FRAME[style] || FRAME.sedan;
+      controls.target.set(0, f.ty, 0);
+      var dir = camera.position.clone().sub(controls.target);
+      if (dir.lengthSq() < 1e-4) dir.set(4.9, 2.35, 5.7);
+      dir.normalize().multiplyScalar(f.dist);
+      camera.position.copy(controls.target).add(dir);
+      controls.update();
+    }
+
+    function setBody(style) {
+      var def = MODELS[style] || MODELS.sedan;
+      var built;
+      if (def.type === 'procedural') {
+        built = def.build();
+      } else {
+        // Future: def.type === 'glb' → load def.url with GLTFLoader, tag the
+        // meshes named in def.paintMeshNames with bodyMat, return the same shape.
+        built = MODELS.sedan.build();
+      }
+      disposeModel(currentModel);       // free the previous model's geometries
+      currentModel = built;
+      scene.add(built.group);
+      applyToScene(state);              // re-apply CURRENT colour + finish to the new paint meshes
+      frameFor(style);                  // re-frame camera/target for this silhouette
+      dirty = true;
+      start();
+    }
+
+    // Expose the loader so the UI (search / chips) can swap models.
+    sceneSetBody = setBody;
+
+    // Build the currently-selected body style now.
+    setBody(state.body);
 
     function frame() {
       if (!running) return;
@@ -890,7 +1261,8 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
     // URL-encoded body so the PHP endpoint reads $_POST (server responds JSON).
     var body = new URLSearchParams({
       name: name, phone: phone,
-      vehicle_type: $('fVehicle').value || '',
+      make: state.make, model: state.model, year: state.year,
+      body: state.body, vehicle_type: BODY_LABELS[state.body] || '',
       notes: $('fNotes').value.trim(),
       colour_name: state.name, colour_hex: state.hex, finish: finishLabel()
     });
