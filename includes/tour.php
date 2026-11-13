@@ -71,7 +71,7 @@ if (!defined('WM_TOUR_RENDERED')) {
   .wmt-pop .wmt-arrow { position: absolute; width: 14px; height: 14px; background: #fff; transform: rotate(45deg); }
   @media (max-width: 520px) {
     .wmt-pop { position: fixed !important; left: 14px !important; right: 14px !important; width: auto !important;
-        bottom: 16px !important; top: auto !important; }
+        bottom: 16px !important; top: auto !important; transform: none !important; }
     .wmt-pop .wmt-arrow { display: none; }
   }
 </style>
