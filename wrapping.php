@@ -1539,5 +1539,18 @@ $preview_enabled = wm_wrap_preview_enabled() || wm_wrap_preview_is_dev();
 })();
 </script>
 
+<?php include __DIR__ . '/includes/tour.php'; ?>
+<script>
+WMTour.define('wrap', [
+  { eyebrow:'Design your wrap', title:'Let\'s wrap your car 🎨', text:'Three quick steps to design it, then see it on your actual car. Skip anytime.' },
+  { el:'#swatches', title:'1. Pick a colour', text:'Tap any colour — from Wiyule Red to matte military green or gold.' },
+  { el:'#finishRow', title:'2. Choose a finish', text:'Gloss, matte, satin, metallic, chrome or carbon fibre — the car updates live.' },
+  { el:'#carSearch', title:'3. Find your car', text:'Search your make & model so the 3D preview matches your vehicle type.' },
+  { el:'#stage', title:'Spin it around', text:'Drag the car to view your wrap from every angle.' },
+  { el:'#tryDrop', title:'See it on YOUR car', text:'Upload a photo of your actual vehicle and our AI shows it in your chosen wrap.' },
+  { el:'#waBtn', title:'Happy with it?', text:'Send your exact spec on WhatsApp for a fast price, or fill in the quote form.' },
+  { title:'That\'s it! 🚗', text:'Play with colours and finishes as much as you like. Tap “?” to replay this tour.' }
+]);
+</script>
 </body>
 </html>

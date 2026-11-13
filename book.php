@@ -1075,5 +1075,16 @@ fbSend.addEventListener('click', () => {
 })();
 </script>
 
+<?php include __DIR__ . '/includes/tour.php'; ?>
+<script>
+WMTour.define('book', [
+  { eyebrow:'Booking', title:'Booked in under a minute ⏱️', text:'Four quick bits and you\'re done. Skip anytime.' },
+  { el:'#bookingName', title:'Who are we helping?', text:'Your name and phone number so we can confirm your booking.' },
+  { el:'#bookingService', title:'What do you need?', text:'Pick a service — servicing, bodywork, a wrap, or anything else.' },
+  { el:'#bookingDate', title:'When suits you?', text:'Choose a day and time that works for you.' },
+  { el:'#photoDrop', title:'Show us the problem', text:'Got a photo of the issue? Add it here — it helps us prepare before you arrive.' },
+  { el:'#submitBtn', title:'That\'s it!', text:'Hit book and we\'ll be in touch to confirm. Tap “?” to replay this any time.' }
+]);
+</script>
 </body>
 </html>

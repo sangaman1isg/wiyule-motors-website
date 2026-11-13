@@ -2212,5 +2212,16 @@ if (window.innerWidth > 768) {
 </script>
 
 <?php if (isset($conn) && $conn instanceof mysqli) { @$conn->close(); } ?>
+<?php include __DIR__ . '/includes/tour.php'; ?>
+<script>
+WMTour.define('home', [
+  { eyebrow:'Welcome', title:'Karibu to Wiyule & F.A Motors 👋', text:'Quick 20-second tour so you know your way around. You can skip anytime.' },
+  { el:'#mainNav', title:'Everything starts here', text:'Book a service, see our work, and try the new 3D wrap designer — all from the top bar.' },
+  { el:'#hero', title:'In a hurry?', text:'Tap “Book a Service” and you\'re done in under a minute — no account needed.' },
+  { el:'#services', title:'What we do', text:'Servicing, bodywork, panel beating, detailing — and custom vehicle wrapping. Tap any card to get started.' },
+  { el:'#our-work', title:'See it for yourself', text:'Real jobs straight from our workshop in Blantyre.' },
+  { title:'You\'re all set! 🚗', text:'Members can track their repair live from the dashboard. Tap the “?” button any time to see this again.' }
+]);
+</script>
 </body>
 </html>

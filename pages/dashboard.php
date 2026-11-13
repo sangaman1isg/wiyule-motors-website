@@ -4059,5 +4059,16 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <?php if (isset($conn) && $conn instanceof mysqli) { @$conn->close(); } ?>
+<?php include __DIR__ . '/../includes/tour.php'; ?>
+<script>
+WMTour.define('dash', [
+  { eyebrow:'Your dashboard', title:'Welcome to your garage 🔧', text:'A 20-second tour of what\'s here. Skip anytime.' },
+  { el:'#sidebar', title:'Get around', text:'Jump between your bookings, service history, vehicle and renewal reminders from here.' },
+  { el:'#upcomingBookingsContainer', title:'Your bookings', text:'See what\'s coming up — and when your car is in, you\'ll watch its live repair stage here: Received → In progress → Ready.' },
+  { el:'#vehicleSwitcherCard', title:'Your vehicle', text:'Keep your car\'s details and odometer up to date so service reminders stay accurate.' },
+  { el:'#healthCard', title:'Vehicle health', text:'A quick read on where your car stands and what may be due soon.' },
+  { title:'You\'re set! ✅', text:'Tap the “?” button any time to see this tour again.' }
+]);
+</script>
 </body>
 </html>
