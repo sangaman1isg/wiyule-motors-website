@@ -2,6 +2,13 @@
 // ── /wrapping.php — Interactive 3D Vehicle Wrapping configurator ──────
 session_start();
 $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
+
+// AI "see it on your car" preview is available only when a fal.ai key is set
+// (or under local dev, which uses a free mock). Otherwise the section hides and
+// the 3D designer + quote still work on their own.
+require_once __DIR__ . '/includes/wrap_preview.php';
+if (is_file(__DIR__ . '/includes/secrets.php')) { require_once __DIR__ . '/includes/config.php'; }
+$preview_enabled = wm_wrap_preview_enabled() || wm_wrap_preview_is_dev();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -167,6 +174,52 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
     footer a { color: #9ca3af; text-decoration: none; transition: color .15s; }
     footer a:hover { color: #fff; }
     .foot-bottom { border-top: 1px solid #1f2937; padding-top: 22px; text-align: center; color: #9ca3af; font-size: 13px; }
+    /* ── See it on YOUR car (AI preview) ── */
+    .tryon { max-width: 980px; margin: 0 auto 8px; padding: 0 20px;
+             display: grid; grid-template-columns: 1fr 1.1fr; gap: 20px; align-items: start; }
+    @media (max-width: 760px) { .tryon { grid-template-columns: 1fr; } }
+    .tryon-card, .tryon-stage { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px;
+             box-shadow: 0 4px 20px rgba(15,23,42,.04); }
+    .tryon-card { padding: 20px; }
+    .tryon-sel { display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+             font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 14px; }
+    .tryon-sel .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e2e8f0; }
+    .tryon-sel .tryon-hint { font-weight: 500; color: #94a3b8; font-size: 12px; }
+    .tryon-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+             text-align: center; padding: 26px 18px; border: 2px dashed #cbd5e1; border-radius: 14px; cursor: pointer;
+             background: #f8fafc; transition: border-color .15s, background .15s; }
+    .tryon-drop:hover { border-color: #dc2626; background: #fff; }
+    .tryon-drop.has { border-style: solid; border-color: #15803d; background: #f0fdf4; }
+    .tryon-drop svg { width: 30px; height: 30px; color: #dc2626; }
+    .tryon-drop .tryon-drop-t { font-size: 14px; font-weight: 700; color: #0f172a; }
+    .tryon-drop .tryon-drop-s { font-size: 12px; color: #64748b; }
+    .tryon-consent { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0;
+             font-size: 12.5px; color: #475569; line-height: 1.45; cursor: pointer; }
+    .tryon-consent input { margin-top: 2px; width: 16px; height: 16px; accent-color: #dc2626; flex-shrink: 0; }
+    .tryon-btn { width: 100%; border: 0; cursor: pointer; padding: 13px; border-radius: 12px; font-family: inherit;
+             font-size: 15px; font-weight: 700; color: #fff; background: linear-gradient(135deg,#dc2626,#b91c1c);
+             box-shadow: 0 6px 20px rgba(220,38,38,.3); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .tryon-btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+    .tryon-msg { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 10px 12px; line-height: 1.45; }
+    .tryon-msg.show { display: block; }
+    .tryon-msg.err { background: #fef2f2; color: #b91c1c; }
+    .tryon-msg.ok  { background: #f0fdf4; color: #15803d; }
+    .tryon-stage { position: relative; min-height: 280px; display: flex; align-items: center; justify-content: center;
+             overflow: hidden; padding: 10px; }
+    .tryon-empty { color: #94a3b8; font-size: 14px; text-align: center; padding: 30px; }
+    .tryon-stage img { max-width: 100%; max-height: 420px; border-radius: 12px; display: block; }
+    .tryon-loading { display: flex; flex-direction: column; align-items: center; gap: 12px;
+             color: #475569; font-size: 13px; font-weight: 600; text-align: center; }
+    .spinner.big { width: 30px; height: 30px; border-width: 3px; }
+    .tryon-actions { position: absolute; left: 10px; right: 10px; bottom: 10px;
+             display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .tryon-act { padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none;
+             background: rgba(255,255,255,.92); color: #0f172a; border: 1px solid #e2e8f0; cursor: pointer; }
+    .tryon-act.primary { background: linear-gradient(135deg,#dc2626,#b91c1c); color: #fff; border: 0; }
+    .tryon-toggle { display: flex; position: absolute; top: 12px; left: 12px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; }
+    .tryon-toggle button { border: 0; background: rgba(255,255,255,.92); color: #64748b; font-family: inherit;
+             font-size: 12px; font-weight: 700; padding: 6px 12px; cursor: pointer; }
+    .tryon-toggle button.on { background: #0f172a; color: #fff; }
 </style>
 </head>
 <body>
@@ -305,6 +358,54 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
             <p>Turn fleet vehicles, bakkies and delivery vans into mobile adverts with your logo, colours and contact details across Blantyre.</p>
         </div>
     </div>
+
+<?php if ($preview_enabled): ?>
+    <!-- ── See it on YOUR car (AI preview) ── -->
+    <div class="section-head">
+        <h2>See it on <span style="color:#dc2626">your</span> car</h2>
+        <p>Pick a colour &amp; finish in the designer above, then upload a photo of your actual vehicle — our AI shows your real car in that exact wrap.</p>
+    </div>
+    <div class="tryon">
+        <div class="tryon-card">
+            <div class="tryon-sel">
+                <span class="dot" id="tryDot" style="background:#dc2626"></span>
+                <span id="tryColour">Wiyule Red</span>&nbsp;—&nbsp;<span id="tryFinish">Gloss</span>
+                <span class="tryon-hint">· change it above</span>
+            </div>
+            <label class="tryon-drop" id="tryDrop">
+                <input type="file" id="tryFile" accept="image/*" capture="environment" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span class="tryon-drop-t" id="tryDropT">Tap to add a photo of your car</span>
+                <span class="tryon-drop-s">A clear side or 3/4 view works best · JPG, PNG or WEBP</span>
+            </label>
+            <label class="tryon-consent">
+                <input type="checkbox" id="tryConsent">
+                <span>I agree my photo can be sent to Wiyule's AI preview provider to generate this image. It isn't stored or used for anything else.</span>
+            </label>
+            <button type="button" class="tryon-btn" id="tryBtn" disabled>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3l2.3 6.2L21 11l-5.7 1.8L13 19l-2.3-6.2L5 11l5.7-1.8L13 3z"/><path d="M5 3v3M3.5 4.5h3"/></svg>
+                Generate my preview
+            </button>
+            <div class="tryon-msg" id="tryMsg"></div>
+        </div>
+        <div class="tryon-stage" id="tryStage">
+            <div class="tryon-empty" id="tryEmpty">Your wrapped car will appear here.</div>
+            <div class="tryon-loading" id="tryLoading" style="display:none">
+                <span class="spinner big"></span>
+                <span>Wrapping your car…<br>this usually takes 15–30 seconds</span>
+            </div>
+            <div class="tryon-toggle" id="tryToggle" style="display:none">
+                <button type="button" id="tgBefore">Before</button>
+                <button type="button" id="tgAfter" class="on">After</button>
+            </div>
+            <img id="tryResult" alt="Your car with the selected wrap" style="display:none">
+            <div class="tryon-actions" id="tryActions" style="display:none">
+                <a id="tryDownload" class="tryon-act" download="my-wrap-preview.jpg">Save image</a>
+                <a href="#wrapForm" class="tryon-act primary">Get a quote →</a>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
 
     <!-- ── Quote ── -->
     <div class="section-head">
@@ -1302,6 +1403,136 @@ $base = ($_SERVER['HTTP_HOST'] === 'localhost') ? '/wiyule-motors-website' : '';
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
     });
   }
+
+<?php if ($preview_enabled): ?>
+  /* ════════════════════════════════════════════════════════════════
+     SEE IT ON YOUR CAR — AI wrap preview (fal.ai FLUX Kontext)
+     Uploads the customer's photo, asks the model to recolour only the
+     paint, polls for the result. Local dev uses a tinted mock.
+     ════════════════════════════════════════════════════════════════ */
+  (function tryOn(){
+    var PREVIEW_ENDPOINT = '<?= $base ?>/pages/wrap-preview.php';
+    var fileEl=$('tryFile'), drop=$('tryDrop'), dropT=$('tryDropT'), consent=$('tryConsent'),
+        btn=$('tryBtn'), msg=$('tryMsg'), empty=$('tryEmpty'), loading=$('tryLoading'),
+        img=$('tryResult'), actions=$('tryActions'), dl=$('tryDownload'),
+        toggle=$('tryToggle'), tgBefore=$('tgBefore'), tgAfter=$('tgAfter');
+    var origURL=null, origBlob=null, afterURL=null;
+
+    function setMsg(t,k){ msg.textContent=t||''; msg.className='tryon-msg'+(t?(' show '+k):''); }
+    function sync(){ $('tryDot').style.background=state.hex; $('tryColour').textContent=state.name; $('tryFinish').textContent=finishLabel(); }
+    function refresh(){ btn.disabled=!(origBlob && consent.checked); }
+
+    // Keep the selection chip in step with the 3D designer, without touching
+    // its many call sites: wrap updateSelection so it also calls sync().
+    if (typeof updateSelection === 'function') {
+      var _origUpd = updateSelection;
+      updateSelection = function(){ _origUpd.apply(this, arguments); sync(); };
+    }
+
+    consent.addEventListener('change', refresh);
+
+    fileEl.addEventListener('change', function(){
+      var f=fileEl.files && fileEl.files[0]; if(!f) return;
+      if (f.size > 15*1024*1024){ setMsg('That image is very large — please pick a smaller photo.','err'); return; }
+      downscale(f, 1280, 0.85, function(blob,url){
+        if(origURL) URL.revokeObjectURL(origURL);
+        origBlob=blob; origURL=url; afterURL=null;
+        empty.style.display='none'; img.src=url; img.style.display='block';
+        actions.style.display='none'; toggle.style.display='none';
+        drop.classList.add('has'); dropT.textContent='Photo added · tap to change';
+        setMsg('',''); refresh();
+      });
+    });
+
+    btn.addEventListener('click', function(){
+      if(btn.disabled || !origBlob) return;
+      var fd=new FormData();
+      fd.append('photo', origBlob, 'car.jpg');
+      fd.append('consent','1');
+      fd.append('colour_name', state.name);
+      fd.append('colour_hex', state.hex);
+      fd.append('finish', state.finish);
+      btn.disabled=true; setMsg('',''); actions.style.display='none'; toggle.style.display='none';
+      img.style.display='none'; loading.style.display='flex';
+      fetch(PREVIEW_ENDPOINT, { method:'POST', body:fd })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(!d || !d.success) throw new Error((d&&d.error)||'Preview failed.');
+          if(d.dev){ devMock(); return; }
+          poll(d.request_id, 0);
+        })
+        .catch(function(e){ fail(e.message); });
+    });
+
+    function poll(id,n){
+      if(n>45){ fail('This is taking longer than usual — please try again.'); return; }
+      fetch(PREVIEW_ENDPOINT+'?request_id='+encodeURIComponent(id))
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(!d || !d.success) throw new Error((d&&d.error)||'Preview failed.');
+          if(d.status==='COMPLETED'){ show(d.image_url); }
+          else { setTimeout(function(){ poll(id,n+1); }, 2200); }
+        })
+        .catch(function(e){ fail(e.message); });
+    }
+
+    function show(url){
+      afterURL=url; loading.style.display='none';
+      img.src=url; img.style.display='block';
+      dl.href=url; actions.style.display='flex';
+      toggle.style.display='flex'; setAB('after');
+      btn.disabled=false;
+      setMsg("Here's your car in "+state.name+" ("+finishLabel()+"). Happy with it? Get a quote below.", 'ok');
+    }
+    function setAB(which){
+      if(which==='before'){ img.src=origURL; tgBefore.classList.add('on'); tgAfter.classList.remove('on'); }
+      else { img.src=afterURL||origURL; tgAfter.classList.add('on'); tgBefore.classList.remove('on'); }
+    }
+    tgBefore.addEventListener('click', function(){ setAB('before'); });
+    tgAfter.addEventListener('click', function(){ setAB('after'); });
+
+    function fail(m){
+      loading.style.display='none';
+      if(origURL){ img.src=origURL; img.style.display='block'; }
+      btn.disabled=false;
+      setMsg(m||'Sorry, the preview failed. Please try another photo, or just request a quote.', 'err');
+    }
+
+    // Downscale a File to a JPEG blob + object URL (keeps the upload + cost small).
+    function downscale(file, maxDim, q, cb){
+      var fr=new FileReader();
+      fr.onload=function(){
+        var im=new Image();
+        im.onload=function(){
+          var w=im.naturalWidth, h=im.naturalHeight, s=Math.min(1, maxDim/Math.max(w,h));
+          var cw=Math.max(1,Math.round(w*s)), ch=Math.max(1,Math.round(h*s));
+          var c=document.createElement('canvas'); c.width=cw; c.height=ch;
+          c.getContext('2d').drawImage(im,0,0,cw,ch);
+          c.toBlob(function(b){ cb(b, URL.createObjectURL(b)); }, 'image/jpeg', q);
+        };
+        im.onerror=function(){ setMsg('That image could not be read. Try another photo.','err'); };
+        im.src=fr.result;
+      };
+      fr.readAsDataURL(file);
+    }
+
+    // Local-dev stand-in: tint the original toward the chosen colour so the whole
+    // flow is visible without calling the paid API.
+    function devMock(){
+      var im=new Image();
+      im.onload=function(){
+        var c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight;
+        var x=c.getContext('2d'); x.drawImage(im,0,0);
+        x.globalCompositeOperation='color'; x.globalAlpha=0.55; x.fillStyle=state.hex; x.fillRect(0,0,c.width,c.height);
+        x.globalCompositeOperation='source-over'; x.globalAlpha=1;
+        c.toBlob(function(b){ show(URL.createObjectURL(b)); setMsg('Dev preview (mock tint — the live AI runs on the server once the key is set).','ok'); }, 'image/jpeg', 0.9);
+      };
+      im.src=origURL;
+    }
+
+    sync();
+  })();
+<?php endif; ?>
 
   // ── Init ──
   updateSelection();

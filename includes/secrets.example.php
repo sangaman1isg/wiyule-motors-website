@@ -15,6 +15,13 @@ define('WM_DB_NAME', 'your_db_name');
 // ── Brevo (transactional email) ── https://app.brevo.com → SMTP & API → API Keys
 define('BREVO_API_KEY', 'xkeysib-PASTE_YOUR_KEY_HERE');
 
+// ── fal.ai (AI "see it on your car" wrap preview) ── https://fal.ai/dashboard/keys
+// Powers pages/wrap-preview.php (FLUX.1 Kontext image edit). If left as the
+// placeholder, the wrap-preview feature stays disabled and the page falls back
+// to the 3D configurator only. ~$0.04 per preview — see wm_wrap_preview_* in
+// includes/wrap_preview.php for the per-session/IP caps that bound the cost.
+define('FAL_KEY', 'PASTE_YOUR_FAL_KEY_HERE');
+
 // ── Private health-check endpoint key (health.php?key=...) ──
 define('WM_HEALTH_KEY', 'change-me-to-a-long-random-string');
 
