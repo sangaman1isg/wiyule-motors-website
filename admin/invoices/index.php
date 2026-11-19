@@ -103,7 +103,8 @@ function wm_inv_qs($type, $status, $q, $archived) {
     .stat-card .value.red { color:#dc2626; }
     .stat-card .value.green { color:#16a34a; }
 
-    .filters { background:#fff; padding:14px 16px; border-radius:14px; border:1px solid #e2e8f0; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .filters { background:#fff; padding:14px 16px; border-radius:14px; border:1px solid #e2e8f0; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; position:sticky; top:56px; z-index:20; box-shadow:0 2px 10px rgba(15,23,42,0.05); }
+    .filters .sb-count { font-size:12px; color:#64748b; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .filters select, .filters input { padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; font-family:inherit; outline:none; }
     .filters input:focus, .filters select:focus { border-color:#dc2626; }
     .filters input[type=text] { min-width:220px; flex:1; }
@@ -151,7 +152,7 @@ function wm_inv_qs($type, $status, $q, $archived) {
         .page { padding:18px 12px; }
         .page-head h1 { font-size:21px; }
         .stats { gap:10px; margin-bottom:16px; }
-        .filters { gap:8px; }
+        .filters { gap:8px; top:50px; }
         .filters input[type=text] { min-width:0; flex:1 1 100%; }
         .filters select { flex:1 1 calc(50% - 5px); min-width:0; }
 
@@ -278,10 +279,11 @@ function wm_inv_qs($type, $status, $q, $archived) {
             <option value="paid"    <?= $f_status==='paid'?'selected':'' ?>>Paid</option>
             <option value="void"    <?= $f_status==='void'?'selected':'' ?>>Void</option>
         </select>
-        <button type="submit" style="background:#0f172a;color:#fff;border:none;padding:9px 18px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer">Filter</button>
+        <button type="submit" style="background:#0f172a;color:#fff;border:none;padding:9px 18px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer" title="Search the full records (all statuses, beyond the loaded list)">Search all</button>
         <?php if ($f_status!=='all' || $f_type!=='all' || $f_search!==''): ?>
             <a href="<?= $base ?>/admin/invoices/" style="font-size:12px;color:#64748b;text-decoration:none">Clear</a>
         <?php endif; ?>
+        <span class="sb-count" id="invCount"></span>
     </form>
 
     <div class="table-wrap">
@@ -385,6 +387,32 @@ async function sendReminders() {
     } catch (e) { showToast('Network error — try again', 'error'); }
     if (btn){ btn.disabled = false; btn.textContent = '✉ Send reminders'; }
 }
+
+// ── Instant search: filter the loaded rows as you type (no scrolling/reload needed).
+//    Press "Search all" / Enter to query the full records beyond the loaded list. ──
+(function () {
+    const input = document.querySelector('.filters input[name="q"]');
+    if (!input) return;
+    const countEl = document.getElementById('invCount');
+    const rows = Array.from(document.querySelectorAll('.table-wrap tbody tr'))
+        .filter(r => !r.querySelector('.empty'));
+    const total = rows.length;
+    input.setAttribute('autocomplete', 'off');
+    input.addEventListener('input', function () {
+        const q = input.value.trim().toLowerCase();
+        let shown = 0;
+        rows.forEach(function (r) {
+            const match = !q || r.textContent.toLowerCase().includes(q);
+            r.style.display = match ? '' : 'none';
+            if (match) shown++;
+        });
+        if (countEl) {
+            countEl.textContent = q
+                ? (shown + ' of ' + total + ' shown' + (shown === 0 ? ' — press “Search all” to search every record' : ''))
+                : '';
+        }
+    });
+})();
 </script>
 
 </body>

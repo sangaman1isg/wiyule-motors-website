@@ -16,7 +16,9 @@ require_once __DIR__ . '/../../includes/insurance.php';
 // ── Determine view: list or per-company detail ──
 $selected_company = $_GET['company'] ?? null;
 $year             = isset($_GET['year']) && is_numeric($_GET['year']) ? (int)$_GET['year'] : null;
-$status_filter    = in_array($_GET['status'] ?? '', ['unpaid', 'paid']) ? $_GET['status'] : 'all';
+// Detail view defaults to UNPAID (owing) so paid invoices drop out of the active list
+// and live in the "Paid invoices" archive tab instead. 'all' is an explicit opt-in.
+$status_filter    = in_array($_GET['status'] ?? '', ['unpaid', 'paid', 'all']) ? $_GET['status'] : 'unpaid';
 
 // Available years for selector (always include current year)
 $years = wm_ins_distinct_years($conn);
@@ -215,6 +217,32 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     }
     .pill:hover { background: #e2e8f0; color: #0f172a; }
     .pill.active { background: #dc2626; color: #fff; }
+    .pill-c {
+        display: inline-block; margin-left: 2px;
+        background: rgba(15,23,42,0.08); color: inherit;
+        font-size: 11px; font-weight: 800;
+        padding: 0 7px; border-radius: 999px;
+        font-variant-numeric: tabular-nums;
+    }
+    .pill.active .pill-c { background: rgba(255,255,255,0.28); }
+
+    /* ─── Sticky instant search bar ─── */
+    .searchbar {
+        position: sticky; top: 46px; z-index: 9;
+        background: #fff; border-bottom: 1px solid #e2e8f0;
+        padding: 11px 28px;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .searchbar .sb-icon { font-size: 15px; opacity: 0.55; line-height: 1; }
+    .searchbar input {
+        flex: 1; max-width: 560px;
+        padding: 9px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+        font-family: 'Sora', sans-serif; font-size: 14px; color: #0f172a;
+        outline: none; background: #f8fafc;
+    }
+    .searchbar input:focus { border-color: #dc2626; background: #fff; }
+    .searchbar .sb-count { font-size: 12px; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    @media (max-width: 700px) { .searchbar { padding: 10px 18px; } }
 
     select.year-select {
         padding: 7px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px;
@@ -359,6 +387,22 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     <h1>Statements</h1>
 </div>
 
+<?php if ($detail_company): ?>
+    <div class="searchbar">
+        <span class="sb-icon">🔍</span>
+        <input id="inv-search" type="text" autocomplete="off"
+               placeholder="Search this statement — invoice #, customer, reg, claim ref…">
+        <span id="sb-count" class="sb-count"></span>
+    </div>
+<?php else: ?>
+    <div class="searchbar">
+        <span class="sb-icon">🔍</span>
+        <input id="co-search" type="text" autocomplete="off"
+               placeholder="Search companies by name…">
+        <span id="sb-count" class="sb-count"></span>
+    </div>
+<?php endif; ?>
+
 <div class="container">
 
 <?php if ($flash): ?>
@@ -432,15 +476,21 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
                 $q = array_filter($q, fn($v) => $v !== null && $v !== '');
                 return $base . '/admin/statements/?' . http_build_query($q);
             };
+            $unpaid_n = (int)($detail_totals['unpaid_count'] ?? 0);
+            $paid_n   = (int)($detail_totals['paid_count']   ?? 0);
             ?>
-            <a href="<?= $build_url(['status'=>null]) ?>" class="pill <?= $status_filter==='all'?'active':'' ?>">All</a>
-            <a href="<?= $build_url(['status'=>'unpaid']) ?>" class="pill <?= $status_filter==='unpaid'?'active':'' ?>">Unpaid only</a>
-            <a href="<?= $build_url(['status'=>'paid']) ?>" class="pill <?= $status_filter==='paid'?'active':'' ?>">Paid only</a>
+            <a href="<?= $build_url(['status'=>null]) ?>" class="pill <?= $status_filter==='unpaid'?'active':'' ?>">
+                Unpaid · owing<?php if ($unpaid_n > 0): ?> <span class="pill-c"><?= $unpaid_n ?></span><?php endif; ?>
+            </a>
+            <a href="<?= $build_url(['status'=>'paid']) ?>" class="pill <?= $status_filter==='paid'?'active':'' ?>">
+                🗄 Paid invoices<?php if ($paid_n > 0): ?> <span class="pill-c"><?= $paid_n ?></span><?php endif; ?>
+            </a>
+            <a href="<?= $build_url(['status'=>'all']) ?>" class="pill <?= $status_filter==='all'?'active':'' ?>">All</a>
         </div>
 
         <form method="GET" style="display:inline">
             <input type="hidden" name="company" value="<?= htmlspecialchars($selected_company) ?>">
-            <?php if ($status_filter !== 'all'): ?>
+            <?php if ($status_filter !== 'unpaid'): ?>
                 <input type="hidden" name="status" value="<?= htmlspecialchars($status_filter) ?>">
             <?php endif; ?>
             <select name="year" class="year-select" onchange="this.form.submit()">
@@ -455,9 +505,16 @@ $fmt = function($n) { return wm_invoice_format_mwk($n); };
     <div class="invoices-table">
         <?php if (empty($detail_invoices)): ?>
             <div class="empty-state">
-                No invoices found for this view.
-                <?php if ($status_filter !== 'all' || $year): ?>
-                    <br><a href="<?= $base ?>/admin/statements/?company=<?= htmlspecialchars($selected_company) ?>" style="color:#dc2626;font-weight:600;text-decoration:none">Clear filters</a>
+                <?php if ($status_filter === 'unpaid' && !$year): ?>
+                    🎉 No unpaid invoices — everything for this company is settled.
+                    <?php if ($paid_n > 0): ?>
+                        <br><a href="<?= $build_url(['status'=>'paid']) ?>" style="color:#16a34a;font-weight:600;text-decoration:none">View <?= $paid_n ?> paid invoice<?= $paid_n === 1 ? '' : 's' ?> in the archive →</a>
+                    <?php endif; ?>
+                <?php else: ?>
+                    No invoices found for this view.
+                    <?php if ($status_filter !== 'unpaid' || $year): ?>
+                        <br><a href="<?= $base ?>/admin/statements/?company=<?= htmlspecialchars($selected_company) ?>" style="color:#dc2626;font-weight:600;text-decoration:none">Clear filters</a>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         <?php else: ?>
@@ -641,6 +698,44 @@ document.addEventListener('click', async function (e) {
         alert('Network error — please try again.'); btn.disabled = false; btn.textContent = orig;
     }
 });
+
+// ── Instant search: company cards (list view) or invoice rows (detail view) ──
+(function () {
+    const countEl = document.getElementById('sb-count');
+
+    // List view — filter the company cards by name
+    const coInput = document.getElementById('co-search');
+    if (coInput) {
+        const cards = Array.from(document.querySelectorAll('.co-card'));
+        coInput.addEventListener('input', function () {
+            const q = coInput.value.trim().toLowerCase();
+            let shown = 0;
+            cards.forEach(function (c) {
+                const name = (c.querySelector('.co-name')?.textContent || '').toLowerCase();
+                const match = !q || name.includes(q);
+                c.style.display = match ? '' : 'none';
+                if (match) shown++;
+            });
+            if (countEl) countEl.textContent = q ? (shown + (shown === 1 ? ' company' : ' companies')) : '';
+        });
+    }
+
+    // Detail view — filter the invoice rows (matches #, customer, vehicle, reg, claim ref)
+    const invInput = document.getElementById('inv-search');
+    if (invInput) {
+        const rows = Array.from(document.querySelectorAll('table.inv-list tbody tr'));
+        invInput.addEventListener('input', function () {
+            const q = invInput.value.trim().toLowerCase();
+            let shown = 0;
+            rows.forEach(function (r) {
+                const match = !q || r.textContent.toLowerCase().includes(q);
+                r.style.display = match ? '' : 'none';
+                if (match) shown++;
+            });
+            if (countEl) countEl.textContent = q ? (shown + (shown === 1 ? ' match' : ' matches')) : '';
+        });
+    }
+})();
 </script>
 
 </body>
